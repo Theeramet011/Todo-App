@@ -1,3 +1,7 @@
+// CompletedTasksScreen - หน้าจอแสดงรายการงานที่เสร็จสิ้นแล้ว (Completed Tasks)
+//
+// จัดเก็บและแสดงผลรายการงานที่ทำเสร็จสมบูรณ์ รองรับการค้นหา กรองข้อมูลตามช่วงเวลา
+// การเปลี่ยนสถานะกลับเป็นยังไม่เสร็จ หรือการย้ายงานไปยังถังขยะ
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';

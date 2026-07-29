@@ -1,3 +1,7 @@
+// BinScreen - หน้าจอถังขยะ (Bin / Recycle Bin)
+//
+// แสดงรายการงานที่ถูกลบไปแล้ว จัดกลุ่มงานทำซ้ำ (Recurring Tasks) เพื่อลดความซ้ำซ้อน
+// รองรับการกู้คืนงานกลับมาใช้งาน (Restore) หรือการลบรายการออกอย่างถาวร (Permanent Delete)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

@@ -1,3 +1,7 @@
+// RewardsTimelineScreen - หน้าจอไทม์ไลน์รางวัลและความคืบหน้า (Rewards Timeline)
+//
+// แสดงไทม์ไลน์ระดับเลเวล (Level Milestones) รางวัลกรอบรูปโปรไฟล์ที่สามารถปลดล็อกได้
+// และระดับประสบการณ์ (XP) ของผู้ใช้งาน
 import 'package:flutter/material.dart';
 
 import '../config/colors.dart';

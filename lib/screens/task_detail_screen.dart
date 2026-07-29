@@ -1,3 +1,7 @@
+// TaskDetailScreen - หน้าจอแสดงและแก้ไขรายละเอียดงาน (Task Detail Screen)
+//
+// หน้าจัดการข้อมูลงานแบบเจาะลึก เช่น การแก้ไขชื่อ รายละเอียด กำหนดเวลา งานย่อย (Subtasks)
+// ไฟล์แนบ หมวดหมู่ ความสำคัญ และการมอบหมายงานให้เพื่อน
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;

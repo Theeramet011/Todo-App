@@ -1,3 +1,7 @@
+// AchievementListScreen - หน้าจอแสดงรายการความสำเร็จ (Achievements) ของผู้ใช้
+//
+// แสดงรายการความสำเร็จทั้งหมด แบ่งตามสถานะปลดล็อก (Unlocked) และยังไม่ปลดล็อก (Locked)
+// พร้อมรายละเอียดเงื่อนไข ระดับ และความคืบหน้าในการสะสมความสำเร็จ
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 

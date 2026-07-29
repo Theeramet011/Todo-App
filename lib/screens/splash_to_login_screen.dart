@@ -1,3 +1,6 @@
+// SplashToLoginScreen - หน้าจอเริ่มต้นต้อนรับ (Splash / Onboarding Screen)
+//
+// แสดงแอนิเมชันเปิดแอป ข้อความต้อนรับ และปุ่มสำหรับนำทางไปยังหน้าเข้าสู่ระบบ (Login)
 import 'dart:ui';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';

@@ -1,3 +1,7 @@
+// HomeScreen - หน้าจอหลักของแอปพลิเคชัน (Home Screen / Dashboard)
+//
+// ศูนย์รวมข้อมูลสำคัญ เช่น สรุปงานประจำวัน (Today Tasks) แถบเมนูลัด สถิติผู้ใช้งาน
+// แถบการนำทาง (Navigation Bar) และการแจ้งเตือนต่างๆ ในระบบ
 import 'package:flutter/material.dart';
 import 'dart:async';
 

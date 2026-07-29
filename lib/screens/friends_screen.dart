@@ -1,3 +1,7 @@
+// FriendsScreen - หน้าจอจัดการรายชื่อเพื่อน (Friends Management)
+//
+// แสดงรายการเพื่อน รายการคำขอเป็นเพื่อน (Received/Sent Requests)
+// และช่องทางค้นหาเพื่อส่งคำขอเป็นเพื่อนใหม่
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/colors.dart';

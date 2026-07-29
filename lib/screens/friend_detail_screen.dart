@@ -1,3 +1,7 @@
+// FriendDetailScreen - หน้าจอแสดงรายละเอียดข้อมูลของเพื่อน (Friend Detail)
+//
+// แสดงสถิติการใช้งาน ระดับ (Level) ความสำเร็จ และงานที่มอบหมายร่วมกับเพื่อนรายนั้นๆ
+// พร้อมปุ่มโต้ตอบจัดการความสัมพันธ์เพื่อน
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

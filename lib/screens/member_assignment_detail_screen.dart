@@ -1,3 +1,7 @@
+// MemberAssignmentDetailScreen - หน้าจอรายละเอียดการมอบหมายงานให้สมาชิกในทีม (Member Assignment Detail)
+//
+// แสดงรายละเอียดการมอบหมายงาน รายชื่อสมาชิกที่รับผิดชอบ สถานะการทำงาน
+// และการจัดการสิทธิ์ของหัวหน้าทีม (Leader) หรือสมาชิกกลุ่ม
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';

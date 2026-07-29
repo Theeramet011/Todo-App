@@ -1,3 +1,7 @@
+// LoginScreen - หน้าจอเข้าสู่ระบบ (Login Screen)
+//
+// หน้าจอสำหรับให้ผู้ใช้งานเข้าสู่ระบบผ่านอีเมลหรือบัญชีผู้ใช้
+// พร้อมแอนิเมชันพื้นหลังสวยงาม (Animated Mesh Background) และการจัดการข้อผิดพลาดการล็อกอิน
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:animated_text_kit/animated_text_kit.dart';

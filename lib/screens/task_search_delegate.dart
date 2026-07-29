@@ -1,3 +1,7 @@
+// TaskSearchDelegate - คลาสช่วยค้นหารายการงาน (Task Search Delegate)
+//
+// คลาสสืบทอด SearchDelegate สำหรับค้นหางานตามคำค้นหา (Query)
+// แสดงรายการผลลัพธ์พร้อมแท็กระดับความสำคัญ และเปิดดูรายละเอียดงานได้ทันที
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../config/colors.dart';

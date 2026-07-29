@@ -1,3 +1,7 @@
+// SettingsScreen - หน้าจอตั้งค่าแอปพลิเคชัน (Settings Screen)
+//
+// ปรับแต่งการใช้งานแอป เช่น เปลี่ยนธีม (Light/Dark Mode) ตั้งค่าเสียง การแจ้งเตือน
+// เข้าถึงหน้าแก้ไขโปรไฟล์ ดูไทม์ไลน์รางวัล และเมนูออกจากระบบ
 import '../main.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

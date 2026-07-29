@@ -1,3 +1,7 @@
+// EditProfileScreen - หน้าจอแก้ไขโปรไฟล์ผู้ใช้งาน (Edit Profile)
+//
+// ให้ผู้ใช้แก้ไขข้อมูลส่วนตัว เช่น ชื่อ อัปโหลดรูปโปรไฟล์ และเลือกกรอบรูปโปรไฟล์ (Avatar Frame)
+// พร้อมระบบบันทึกและอัปเดตข้อมูลไปยังระบบ Firebase
 import 'dart:io';
 
 import 'package:firebase_storage/firebase_storage.dart';

@@ -1,3 +1,7 @@
+// CalendarScreen - หน้าจอปฏิทิน (Calendar View)
+//
+// แสดงปฏิทินรายเดือน/รายสัปดาห์ พร้อมรายการงานและไทม์ไลน์ตามวันที่เลือก
+// รองรับการเปลี่ยนมุมมองวันที่ การดูรายละเอียดงาน และการสร้างงานใหม่ตามวันที่กำหนด
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/colors.dart';
