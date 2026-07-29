@@ -1,0 +1,4087 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/connectivity_provider.dart';
+import 'package:todo_app/screens/member_assignment_detail_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../config/colors.dart';
+import '../config/constants.dart';
+import '../models/task.dart';
+import '../models/user.dart';
+import '../providers/task_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/sound_service.dart';
+import '../utils/thai_display.dart';
+
+import '../widgets/create_task_modal.dart';
+import '../widgets/fast_completion_warning_dialog.dart';
+import '../widgets/late_penalty_dialog.dart';
+import '../widgets/user_avatar_with_frame.dart';
+import '../utils/snack_bar_utils.dart';
+import '../widgets/priority_tag.dart';
+import 'bin_screen.dart';
+
+class TaskDetailScreen extends StatefulWidget {
+  final Task? task;
+  const TaskDetailScreen({super.key, this.task});
+
+  @override
+  State<TaskDetailScreen> createState() => _TaskDetailScreenState();
+}
+
+class _TaskDetailScreenState extends State<TaskDetailScreen> {
+  final _commentController = TextEditingController();
+  final _submissionController = TextEditingController();
+  Task? _task;
+  bool _isUploading = false;
+  final List<TaskAttachment> _commentAttachments = [];
+  bool _isUploadingCommentAttachment = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _task = widget.task;
+  }
+
+  @override
+  void didUpdateWidget(covariant TaskDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.task?.id != widget.task?.id) {
+      _task = widget.task;
+    }
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    _submissionController.dispose();
+    super.dispose();
+  }
+
+  void _showXPLimitDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          elevation: 10,
+          backgroundColor: theme.colorScheme.surface,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentOrange.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.accentOrange,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Daily XP Cap Reached',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'ขณะนี้ท่านมีคะแนนที่ได้จากภารกิจกลุ่มต่อเนื่องถึง 270 แต้มแล้วการสร้างภารกิจหลังจากนี้ท่านจะไม่ได้รับแต้มอีก',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          (Theme.of(context).brightness == Brightness.light
+                          ? AppColors.stormySkyBlue
+                          : AppColors.primaryPink),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'รับทราบ',
+                      style: TextStyle(
+                        fontSize: 18,
+                        height: 1.1,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final taskProvider = Provider.of<TaskProvider>(context);
+    final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
+    if (taskProvider.showXPCapAlert && isCurrentRoute) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showXPLimitDialog(context);
+        taskProvider.dismissXPCapAlert();
+      });
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context);
+    var task = _task ?? taskProvider.selectedTask;
+
+    if (task != null) {
+      task = _latestTaskFromProvider(taskProvider, task.id) ?? task;
+    }
+
+    if (task == null) {
+      return const Scaffold(body: Center(child: Text('ยังไม่ได้เลือกภารกิจ')));
+    }
+    final currentTask = task;
+    final currentUserId =
+        firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    final isLeader = taskProvider.isLeaderForTask(
+      currentTask,
+      authProvider.currentUser?.id,
+    );
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? AppColors.stormyNightBackground
+          : Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.stormyNightBackground
+            : Theme.of(context).appBarTheme.backgroundColor,
+        iconTheme: IconThemeData(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.textWhite
+              : Theme.of(context).colorScheme.onSurface,
+        ),
+        title: Text(
+          'รายละเอียดภารกิจ',
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.textWhite
+                : Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        actions: [
+          if (isLeader)
+            IconButton(
+              icon: Icon(
+                Icons.more_vert,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.textWhite
+                    : null,
+              ),
+              onPressed: () {
+                _showOptionsMenu(context, currentTask);
+              },
+            ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Section
+            _buildHeaderSection(currentTask),
+
+            // Sub-tasks Progress Section
+            _buildSubtasksSection(currentTask, taskProvider),
+
+            // Task Info Section
+            _buildTaskInfoSection(currentTask),
+
+            if (currentTask.isDeleted) _buildDeletedTaskCard(),
+
+            // Task Leader Card (Member View) — แสดงก่อนส่วนส่งงาน
+            if (currentTask.isGroup && !isLeader)
+              _buildTaskLeaderCard(
+                currentTask,
+                taskProvider,
+                taskProvider.leaderIdForTask(currentTask),
+              ),
+
+            if (currentTask.isGroup)
+              _buildSubmissionReviewSection(
+                currentTask,
+                taskProvider,
+                currentUserId,
+                isLeader,
+              ),
+
+            // Assignees / Leader Review Section / Team Members
+            _buildLeaderReviewSection(currentTask, taskProvider, authProvider),
+
+            // Attachments Section
+            if (!isLeader) _buildAttachmentsSection(currentTask, taskProvider),
+
+            // Comments Section
+            if (!currentTask.isPersonal)
+              _buildCommentsSection(currentTask, taskProvider),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderSection(Task task) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? AppColors.shadowLight
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Status & Priority Badge
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.brightness == Brightness.dark
+                      ? const Color(0xFF101720)
+                      : (task.isCompleted
+                            ? AppColors.success.withValues(alpha: 0.1)
+                            : AppColors.warning.withValues(alpha: 0.1)),
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      task.isCompleted ? Icons.check_circle : Icons.schedule,
+                      size: 14,
+                      color: theme.brightness == Brightness.dark
+                          ? (task.isCompleted
+                                ? const Color(0xFFA5D6A7)
+                                : const Color(0xFFFFF59D))
+                          : (task.isCompleted
+                                ? AppColors.success
+                                : AppColors.warning),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      task.isCompleted ? 'เสร็จสิ้น' : 'กำลังดำเนินการ',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: theme.brightness == Brightness.dark
+                            ? (task.isCompleted
+                                  ? const Color(0xFFA5D6A7)
+                                  : const Color(0xFFFFF59D))
+                            : (task.isCompleted
+                                  ? AppColors.success
+                                  : AppColors.warning),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppConstants.paddingSmall),
+              PriorityTag(priority: task.priorityLabel),
+              const Spacer(),
+              // Type Badge
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color:
+                      (task.isPersonal
+                              ? AppColors.primaryBlue
+                              : AppColors.primaryPurple)
+                          .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                ),
+                child: Icon(
+                  task.isPersonal ? Icons.person : Icons.people,
+                  size: 16,
+                  color: task.isPersonal
+                      ? AppColors.primaryBlue
+                      : AppColors.primaryPurple,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppConstants.paddingMedium),
+
+          // Task Title
+          Text(
+            task.title,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+
+          if (task.description.isNotEmpty) ...[
+            const SizedBox(height: AppConstants.paddingSmall),
+            Text(
+              task.description,
+              style: TextStyle(
+                fontSize: 15,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.stormyIceBlue
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                height: 1.5,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubtasksSection(Task task, TaskProvider taskProvider) {
+    if (task.subtasks.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+        vertical: AppConstants.paddingSmall,
+      ),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? AppColors.shadowLight
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'ความคืบหน้าภารกิจย่อย',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.stormySkyBlue.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${task.subtasks.where((s) => s.isDone).length}/${task.subtasks.length}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.stormySkyBlue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: task.subtasks.length,
+            itemBuilder: (context, index) {
+              final subtask = task.subtasks[index];
+              return GestureDetector(
+                onTap: () async {
+                  final connectivity = context.read<ConnectivityProvider>();
+                  if (connectivity.isOffline) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  final isCheckingLast =
+                      !subtask.isDone &&
+                      task.subtasks.where((s) => !s.isDone).length == 1;
+
+                  if (isCheckingLast && !task.isCompleted) {
+                    final shouldProceed = await LatePenaltyDialog.checkAndShow(
+                      context,
+                      task,
+                    );
+                    if (!shouldProceed) return;
+                    if (!context.mounted) return;
+                  }
+
+                  unawaited(taskProvider.toggleSubtask(task.id, index));
+
+                  if (isCheckingLast && !task.isCompleted) {
+                    if (!context.mounted) return;
+                    final isSoundEnabled =
+                        context
+                            .read<AuthProvider>()
+                            .currentUser
+                            ?.isSoundEnabled ??
+                        true;
+                    unawaited(
+                      SoundService.instance.playTaskCompleteSound(
+                        isSoundEnabled: isSoundEnabled,
+                      ),
+                    );
+                    final result = await taskProvider.completeTaskWithSubtasks(
+                      task.id,
+                      true,
+                    );
+                    if (!context.mounted) return;
+                    await FastCompletionWarningDialog.showCompletionFeedback(
+                      context,
+                      result,
+                    );
+                    if (!context.mounted) return;
+                    SnackBarUtils.showUndoSnackBar(
+                      context,
+                      message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
+                      onUndo: () async {
+                        await taskProvider.toggleTaskCompletion(
+                          task.id,
+                          updateSubtasks: true,
+                        );
+                      },
+                    );
+                  }
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: subtask.isDone
+                        ? (theme.brightness == Brightness.light
+                              ? (Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? AppColors.stormyOffWhite
+                                        : AppColors.backgroundLightGrey)
+                                    .withValues(alpha: 0.5)
+                              : Colors.white.withValues(alpha: 0.05))
+                        : AppColors.stormySkyBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: subtask.isDone
+                          ? (theme.brightness == Brightness.light
+                                ? (Theme.of(context).brightness ==
+                                          Brightness.light
+                                      ? AppColors.stormyMutedBlueGrey
+                                      : AppColors.backgroundDarkGrey)
+                                : Colors.white.withValues(alpha: 0.1))
+                          : AppColors.stormySkyBlue.withValues(alpha: 0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        subtask.isDone
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        size: 20,
+                        color: subtask.isDone
+                            ? AppColors.success
+                            : AppColors.stormySkyBlue,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          subtask.title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: subtask.isDone
+                                ? FontWeight.normal
+                                : FontWeight.w500,
+                            decoration: subtask.isDone
+                                ? TextDecoration.lineThrough
+                                : null,
+                            color: subtask.isDone
+                                ? theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.5,
+                                  )
+                                : theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      if (subtask.isDone)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'เสร็จ',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskInfoSection(Task task) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+      ),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? AppColors.shadowLight
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ข้อมูลภารกิจ',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          _buildInfoRow(
+            icon: Icons.calendar_today,
+            label: 'วันและเวลา',
+            value: _formatDateTime(task.dateTime),
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          if (task.category != null)
+            _buildInfoRow(
+              icon: Icons.category,
+              label: 'หมวดหมู่',
+              value: thaiCategoryLabel(task.category!),
+            ),
+          if (task.category != null)
+            const SizedBox(height: AppConstants.paddingMedium),
+          if (task.location != null)
+            _buildInfoRow(
+              icon: Icons.location_on,
+              label: 'สถานที่',
+              value: task.location!,
+            ),
+          if (task.location != null)
+            const SizedBox(height: AppConstants.paddingMedium),
+          _buildInfoRow(
+            icon: Icons.access_time,
+            label: 'สร้างเมื่อ',
+            value: _formatDateTime(task.createdAt),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubmissionReviewSection(
+    Task task,
+    TaskProvider taskProvider,
+    String currentUserId,
+    bool isLeader,
+  ) {
+    if (task.isDeleted) {
+      return const SizedBox.shrink();
+    }
+
+    if (isLeader) {
+      return const SizedBox.shrink();
+    }
+
+    switch (task.status) {
+      case TaskStatus.pending:
+        return Column(
+          children: [
+            _buildWaitingForApprovalCard(),
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppConstants.paddingMedium,
+                right: AppConstants.paddingMedium,
+                bottom: AppConstants.paddingMedium,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppConstants.radiusLarge,
+                          ),
+                        ),
+                        title: const Text('ยกเลิกการส่งงาน?'),
+                        content: const Text(
+                          'คุณต้องการยกเลิกการส่งงานนี้ใช่หรือไม่? ไฟล์ที่อัปโหลดและรายละเอียดการส่งทั้งหมดจะถูกลบออก',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('ย้อนกลับ'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.accentRed,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('ยกเลิกการส่ง'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await taskProvider.cancelTaskSubmission(task.id);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('ยกเลิกการส่งงานเรียบร้อยแล้ว'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(
+                    Icons.cancel_outlined,
+                    color: AppColors.accentRed,
+                  ),
+                  label: const Text(
+                    'ยกเลิกการส่งงาน',
+                    style: TextStyle(
+                      color: AppColors.accentRed,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.accentRed),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      case TaskStatus.completed:
+        return _buildCompletedReviewCard(
+          isLeader: false,
+          isSubmitter: task.submittedBy == currentUserId,
+        );
+      case TaskStatus.todo:
+      case TaskStatus.inProgress:
+        return _buildMemberSubmitForm(task, taskProvider);
+    }
+  }
+
+  Widget _buildMemberSubmitForm(Task task, TaskProvider taskProvider) {
+    final theme = Theme.of(context);
+    final canSubmit =
+        _submissionController.text.trim().isNotEmpty ||
+        task.attachments.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? AppColors.shadowLight
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color:
+                      (Theme.of(context).brightness == Brightness.light
+                              ? AppColors.stormySkyBlue
+                              : AppColors.primaryBlue)
+                          .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.upload_file_outlined,
+                  color: (Theme.of(context).brightness == Brightness.light
+                      ? AppColors.stormySkyBlue
+                      : AppColors.primaryBlue),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'ส่งงานให้หัวหน้าตรวจสอบ',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          TextField(
+            controller: _submissionController,
+            minLines: 3,
+            maxLines: 5,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'วางลิงก์งานหรือสรุปงานที่นี่...',
+              suffixIcon: _isUploading
+                  ? Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            (Theme.of(context).brightness == Brightness.light
+                                ? AppColors.stormySkyBlue
+                                : AppColors.primaryBlue),
+                          ),
+                        ),
+                      ),
+                    )
+                  : IconButton(
+                      icon: Icon(
+                        Icons.attach_file,
+                        color: (Theme.of(context).brightness == Brightness.light
+                            ? AppColors.stormySkyBlue
+                            : AppColors.primaryBlue),
+                      ),
+                      onPressed: () async {
+                        final connectivity = context
+                            .read<ConnectivityProvider>();
+                        if (connectivity.isOffline) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        setState(() {
+                          _isUploading = true;
+                        });
+                        try {
+                          final attachment = await taskProvider
+                              .uploadTaskAttachment(task.id);
+                          if (attachment != null && mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'อัปโหลดไฟล์ "${attachment['fileName']}" สำเร็จแล้ว!',
+                                ),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            final errorMsg =
+                                e.toString().contains('FILE_TOO_LARGE')
+                                ? 'ไฟล์มีขนาดใหญ่เกินไป! อนุญาตสูงสุด 10MB ต่อไฟล์เท่านั้น'
+                                : 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(errorMsg),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _isUploading = false;
+                            });
+                          }
+                        }
+                      },
+                    ),
+              filled: true,
+              fillColor: theme.brightness == Brightness.light
+                  ? const Color(0xFFF8FAFC)
+                  : Colors.white.withValues(alpha: 0.05),
+              contentPadding: const EdgeInsets.all(16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.4),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.35),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(
+                  color: (Theme.of(context).brightness == Brightness.light
+                      ? AppColors.stormySkyBlue
+                      : AppColors.primaryBlue),
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: canSubmit
+                  ? () async {
+                      if (task.attachments.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                              'ไม่สามารถส่งงานได้ กรุณาแนบไฟล์งาน',
+                            ),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
+                      final shouldProceed =
+                          await LatePenaltyDialog.checkAndShow(
+                            context,
+                            task,
+                            isGroupSubmission: true,
+                          );
+                      if (!shouldProceed) return;
+                      if (!context.mounted) return;
+
+                      final submission = _submissionController.text.trim();
+                      await taskProvider.submitTaskForReview(
+                        task.id,
+                        submission,
+                      );
+                      if (!mounted) return;
+                      _submissionController.clear();
+                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('ส่งงานให้หัวหน้าตรวจสอบแล้ว'),
+                        ),
+                      );
+                    }
+                  : null,
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('ส่งงานให้หัวหน้าตรวจสอบ'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    (Theme.of(context).brightness == Brightness.light
+                    ? AppColors.stormySkyBlue
+                    : AppColors.primaryBlue),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: theme.disabledColor.withValues(
+                  alpha: 0.12,
+                ),
+                disabledForegroundColor: theme.disabledColor.withValues(
+                  alpha: 0.55,
+                ),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWaitingForApprovalCard() {
+    return _buildStatusCard(
+      icon: Icons.schedule_rounded,
+      iconColor: const Color(0xFFE59A00),
+      backgroundColor: const Color(0xFFFFF8E1),
+      title: 'อยู่ระหว่างรอตรวจสอบ',
+      message: 'ส่งงานเรียบร้อยแล้ว อยู่ระหว่างรอหัวหน้ากลุ่มตรวจสอบ...',
+    );
+  }
+
+  Widget _buildDeletedTaskCard() {
+    return _buildStatusCard(
+      icon: Icons.delete_rounded,
+      iconColor: AppColors.accentRed,
+      backgroundColor: const Color(0xFFFFE8E8),
+      title: 'ภารกิจนี้ถูกลบแล้ว',
+      message:
+          'ภารกิจนี้อยู่ในถังขยะ จึงไม่สามารถส่งงาน ตรวจงาน หรือคอมเมนต์ได้',
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildNoSubmissionCard() {
+    return const SizedBox.shrink();
+  }
+
+  // ignore: unused_element
+  Widget _buildLeaderApprovalPanel(Task task, TaskProvider taskProvider) {
+    final theme = Theme.of(context);
+    final submitter = _submittedMemberForTask(task);
+    final submitterName = submitter?.name ?? 'ผู้ส่งงาน';
+    final submissionText = task.submissionText?.trim().isNotEmpty == true
+        ? task.submissionText!.trim()
+        : 'ไม่มีรายละเอียดเพิ่มเติม';
+
+    return Container(
+      margin: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? AppColors.shadowLight
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor:
+                    (Theme.of(context).brightness == Brightness.light
+                            ? AppColors.stormyDarkSlate
+                            : AppColors.primaryPurple)
+                        .withValues(alpha: 0.1),
+                backgroundImage:
+                    submitter != null && submitter.avatarUrl.isNotEmpty
+                    ? NetworkImage(submitter.avatarUrl)
+                    : null,
+                child: submitter == null || submitter.avatarUrl.isEmpty
+                    ? Icon(
+                        Icons.person_outline,
+                        color: (Theme.of(context).brightness == Brightness.light
+                            ? AppColors.stormyDarkSlate
+                            : AppColors.primaryPurple),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      submitterName,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      task.submittedAt == null
+                          ? 'ส่งงานเข้ามาตรวจสอบ'
+                          : 'ส่งเมื่อ ${_formatDateTime(task.submittedAt!)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.55,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: theme.brightness == Brightness.light
+                  ? const Color(0xFFF8FAFC)
+                  : Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: _buildLinkifiedText(
+              submissionText,
+              TextStyle(
+                height: 1.45,
+                fontSize: 14,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          _buildScoreRecommendationCard(task),
+          const SizedBox(height: AppConstants.paddingMedium),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    await taskProvider.rejectTaskSubmission(task.id);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ปฏิเสธงานแล้ว')),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.accentRed,
+                    side: const BorderSide(color: AppColors.accentRed),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'ปฏิเสธ',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final connectivity = context.read<ConnectivityProvider>();
+                    if (connectivity.isOffline) {
+                      _showOfflineDialog(context);
+                      return;
+                    }
+                    await taskProvider.approveTaskSubmission(task.id);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('อนุมัติงานแล้ว')),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'อนุมัติ',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildScoreRecommendationCard(Task task) {
+    final theme = Theme.of(context);
+    final score = task.calculateXP;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color:
+            (Theme.of(context).brightness == Brightness.light
+                    ? AppColors.stormyDarkSlate
+                    : AppColors.primaryPurple)
+                .withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color:
+                  (Theme.of(context).brightness == Brightness.light
+                          ? AppColors.stormyDarkSlate
+                          : AppColors.primaryPurple)
+                      .withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: (Theme.of(context).brightness == Brightness.light
+                  ? AppColors.stormyDarkSlate
+                  : AppColors.primaryPurple),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'คำแนะนำคะแนนอัตโนมัติ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'ภารกิจนี้เหมาะกับ $score คะแนน จากความยาก ปริมาณภารกิจ และความเสี่ยง',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedReviewCard({
+    required bool isLeader,
+    bool isSubmitter = false,
+  }) {
+    return _buildStatusCard(
+      icon: Icons.verified_rounded,
+      iconColor: AppColors.primaryGreen,
+      backgroundColor: const Color(0xFFE8FFF6),
+      title: isLeader ? 'งานนี้อนุมัติแล้ว' : 'งานผ่านการอนุมัติแล้ว',
+      message: isLeader
+          ? 'ระบบบันทึกงานนี้เป็นเสร็จสมบูรณ์แล้ว'
+          : isSubmitter
+          ? 'หัวหน้ากลุ่มตรวจและอนุมัติงานของคุณแล้ว'
+          : 'งานนี้ถูกอนุมัติเรียบร้อยแล้ว',
+    );
+  }
+
+  Widget _buildStatusCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color backgroundColor,
+    required String title,
+    required String message,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final titleColor = isDark
+        ? const Color(0xFF202124)
+        : theme.colorScheme.onSurface;
+    final messageColor = isDark
+        ? const Color(0xFF4B5563)
+        : theme.colorScheme.onSurface.withValues(alpha: 0.65);
+
+    return Container(
+      margin: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: iconColor.withValues(alpha: 0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.75),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: titleColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.35,
+                    color: messageColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Member? _submittedMemberForTask(Task task) {
+    final submittedBy = task.submittedBy;
+    if (submittedBy == null || submittedBy.isEmpty) return null;
+    try {
+      return task.members.firstWhere((member) => member.id == submittedBy);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : (Theme.of(context).brightness == Brightness.light
+                      ? AppColors.stormyOffWhite
+                      : AppColors.backgroundLightGrey),
+            borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: isDark
+                ? AppColors.stormyIceBlue
+                : (Theme.of(context).brightness == Brightness.light
+                      ? AppColors.stormyMutedBlueGrey
+                      : AppColors.textSecondary),
+          ),
+        ),
+        const SizedBox(width: AppConstants.paddingMedium),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark
+                    ? AppColors.stormyIceBlue
+                    : (Theme.of(context).brightness == Brightness.light
+                          ? AppColors.stormyMutedBlueGrey
+                          : AppColors.textLight),
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLeaderReviewSection(
+    Task task,
+    TaskProvider taskProvider,
+    AuthProvider authProvider,
+  ) {
+    final leaderId = taskProvider.leaderIdForTask(task);
+    final isLeader = taskProvider.isLeaderForTask(
+      task,
+      authProvider.currentUser?.id,
+    );
+    final members = task.members;
+    final theme = Theme.of(context);
+    final leaderMember = _leaderMemberForTask(task, leaderId);
+
+    if (members.isEmpty) return const SizedBox.shrink();
+
+    // Show detailed Leader Review for group tasks when current user is the leader
+    if (task.isGroup && isLeader) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Project Leader Summary Card
+          _buildLeaderSummaryCard(
+            authProvider.currentUser!,
+            task,
+            leaderMember,
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.paddingMedium,
+              vertical: 8,
+            ),
+            child: Text(
+              'ผู้รับผิดชอบ',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+
+          // Detailed Member Review Cards
+          ...members
+              .where((m) => m.id != leaderId)
+              .map(
+                (member) => _buildMemberReviewCard(member, task, taskProvider),
+              ),
+        ],
+      );
+    }
+
+    // --- Full Team Overview for Member View ---
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Responsible Members Header (Leader Card ย้ายไปแสดงก่อนส่วนส่งงานแล้ว)
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.paddingMedium,
+            vertical: 8,
+          ),
+          child: Text(
+            'ผู้รับผิดชอบ',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+
+        // Team Members List
+        _buildTeamMembersList(task, taskProvider, leaderId),
+      ],
+    );
+  }
+
+  /// Card แสดงข้อมูลหัวหน้าภารกิจ (สำหรับ Member View — ไม่มีปุ่มอนุมัติ)
+  Widget _buildTaskLeaderCard(
+    Task task,
+    TaskProvider taskProvider,
+    String leaderId,
+  ) {
+    final theme = Theme.of(context);
+    final leaderUser = taskProvider.getUserById(leaderId);
+    final leaderName = leaderUser?.name ?? 'หัวหน้าภารกิจ';
+    final leaderAvatarUrl = leaderUser?.avatarUrl ?? '';
+    final leaderFrame = leaderUser?.equippedFrame ?? '';
+    final leaderMember = _leaderMemberForTask(task, leaderId);
+
+    return Container(
+      margin: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? Colors.black.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'หัวหน้าภารกิจ:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              UserAvatarWithFrame(
+                avatarUrl: leaderAvatarUrl,
+                frameId: leaderFrame,
+                fallbackName: leaderName,
+                size: 48,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  leaderName,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+              // ปุ่มสามจุด — แสดงเฉพาะเมื่อหัวหน้ามีงานที่ได้รับมอบหมาย
+              if (leaderMember != null)
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'view_details') {
+                      _openMemberAssignmentDetails(
+                        leaderMember,
+                        task,
+                        isLeader: false,
+                      );
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => [
+                    PopupMenuItem<String>(
+                      value: 'view_details',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.visibility_outlined,
+                            size: 20,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('ดูรายละเอียด'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// รายการสมาชิกทีม พร้อม Status Badge (สำหรับ Member View)
+  Widget _buildTeamMembersList(
+    Task task,
+    TaskProvider taskProvider,
+    String leaderId,
+  ) {
+    final nonLeaderMembers = task.members
+        .where((m) => m.id != leaderId)
+        .toList();
+
+    if (nonLeaderMembers.isEmpty) return const SizedBox.shrink();
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+      ),
+      itemCount: nonLeaderMembers.length,
+      itemBuilder: (context, index) {
+        final member = nonLeaderMembers[index];
+        return _buildMemberListItem(member, task, taskProvider);
+      },
+    );
+  }
+
+  /// การ์ดสมาชิกแต่ละคน พร้อม ListTile, Status Badge และปุ่มดูรายละเอียด
+  Widget _buildMemberListItem(
+    Member member,
+    Task task,
+    TaskProvider taskProvider,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final memberFrame =
+        taskProvider.getUserById(member.id)?.equippedFrame ?? '';
+
+    // คำนวณสถานะของสมาชิก
+    final statusInfo = _getMemberStatusInfo(member, task);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: UserAvatarWithFrame(
+          avatarUrl: member.avatarUrl,
+          frameId: memberFrame,
+          fallbackName: member.name,
+          size: 44,
+        ),
+        title: Text(
+          member.name,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusInfo.backgroundColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                statusInfo.label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: statusInfo.textColor,
+                ),
+              ),
+            ),
+          ),
+        ),
+        trailing: PopupMenuButton<String>(
+          onSelected: (value) {
+            if (value == 'view_details') {
+              _openMemberAssignmentDetails(member, task, isLeader: false);
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            PopupMenuItem<String>(
+              value: 'view_details',
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 20,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('ดูรายละเอียด'),
+                ],
+              ),
+            ),
+          ],
+          icon: Icon(
+            Icons.more_vert,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// คำนวณสถานะของสมาชิก (กำลังทำ / ส่งแล้ว-รอตรวจ / เสร็จสิ้น)
+  _MemberStatusInfo _getMemberStatusInfo(Member member, Task task) {
+    final isSubmissionOwner = task.submittedBy == member.id;
+
+    // กรณี Task เสร็จสิ้นแล้ว และคนนี้เป็นคนส่ง
+    if (task.status == TaskStatus.completed && isSubmissionOwner) {
+      return _MemberStatusInfo(
+        label: 'เสร็จสิ้น',
+        textColor: AppColors.primaryGreen,
+        backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.12),
+      );
+    }
+
+    // กรณี Task อยู่ระหว่างรอตรวจ (pending) และคนนี้เป็นคนส่ง
+    if (task.status == TaskStatus.pending && isSubmissionOwner) {
+      return _MemberStatusInfo(
+        label: 'ส่งแล้ว/รอตรวจ',
+        textColor: const Color(0xFFE59A00),
+        backgroundColor: const Color(0xFFFFF8E1),
+      );
+    }
+
+    // กรณีปกติ — กำลังดำเนินการ
+    return _MemberStatusInfo(
+      label: 'กำลังทำ',
+      textColor: AppColors.accentRed,
+      backgroundColor: AppColors.accentRed.withValues(alpha: 0.10),
+    );
+  }
+
+  Member? _leaderMemberForTask(Task task, String leaderId) {
+    try {
+      final member = task.members.firstWhere((m) => m.id == leaderId);
+      final taskTitle = member.taskTitle;
+      if (taskTitle == null || taskTitle.trim().isEmpty) return null;
+      return member;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _openMemberAssignmentDetails(
+    Member member,
+    Task task, {
+    required bool isLeader,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MemberAssignmentDetailScreen(
+          member: member,
+          allMembers: task.members,
+          isLeader: isLeader,
+          task: task,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeaderSummaryCard(User leader, Task task, Member? leaderMember) {
+    final theme = Theme.of(context);
+    // Show count of pending subtasks
+    final pendingCount = task.subtasks.where((s) => !s.isDone).length;
+
+    return Container(
+      margin: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? Colors.black.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'หัวหน้าภารกิจ:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              UserAvatarWithFrame(
+                avatarUrl: leader.avatarUrl,
+                frameId: leader.equippedFrame,
+                fallbackName: leader.name,
+                size: 48,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  leader.name,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (leaderMember != null)
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'view_details') {
+                      _openMemberAssignmentDetails(
+                        leaderMember,
+                        task,
+                        isLeader: true,
+                      );
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => [
+                    PopupMenuItem<String>(
+                      value: 'view_details',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.visibility_outlined,
+                            size: 20,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('ดูรายละเอียด'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  color: AppColors.primaryGreen,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'อนุมัติงาน (มีงานที่รอการอนุมัติ $pendingCount งาน)',
+                    style: const TextStyle(
+                      color: AppColors.primaryGreen,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemberReviewCard(
+    Member member,
+    Task task,
+    TaskProvider taskProvider,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final leaderId = taskProvider.leaderIdForTask(task);
+    final isSubmissionOwner = task.submittedBy == member.id;
+    final hasSubmission =
+        !task.isDeleted &&
+        task.status == TaskStatus.pending &&
+        isSubmissionOwner;
+    final isApprovedSubmission =
+        task.status == TaskStatus.completed && isSubmissionOwner;
+    final submissionText = task.submissionText?.trim();
+    final attachments = task.attachments;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+        vertical: 8,
+      ),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Member Header
+          Row(
+            children: [
+              UserAvatarWithFrame(
+                avatarUrl: member.avatarUrl,
+                frameId:
+                    taskProvider.getUserById(member.id)?.equippedFrame ?? '',
+                fallbackName: member.name,
+                size: 40,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  member.name,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'view_details') {
+                    _openMemberAssignmentDetails(
+                      member,
+                      task,
+                      isLeader: member.id == leaderId,
+                    );
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'view_details',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 20,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('ดูรายละเอียด'),
+                      ],
+                    ),
+                  ),
+                ],
+                icon: Icon(
+                  Icons.more_vert,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Member Task Info
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ภารกิจที่ได้รับมอบหมาย: ${member.taskTitle ?? "ไม่ได้ระบุ"}',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    if (hasSubmission && task.submittedAt != null)
+                      Text(
+                        'ส่งเมื่อ ${_formatDateTime(task.submittedAt!)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      )
+                    else if (isApprovedSubmission)
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryGreen.withValues(
+                                alpha: 0.16,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_circle,
+                              color: AppColors.primaryGreen,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'เสร็จสิ้น!',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppColors.primaryGreen,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      const Text(
+                        'กำลังทำ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.accentRed,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color:
+                      (Theme.of(context).brightness == Brightness.light
+                              ? AppColors.stormyDarkSlate
+                              : AppColors.primaryPurple)
+                          .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${member.score ?? "0"} คะแนน',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: (Theme.of(context).brightness == Brightness.light
+                        ? AppColors.stormyDarkSlate
+                        : AppColors.primaryPurple),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          if (isSubmissionOwner &&
+              submissionText != null &&
+              submissionText.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : (Theme.of(context).brightness == Brightness.light
+                          ? AppColors.stormyOffWhite
+                          : AppColors.backgroundLightGrey),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    color: (Theme.of(context).brightness == Brightness.light
+                        ? AppColors.stormySkyBlue
+                        : AppColors.primaryBlue),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildLinkifiedText(
+                      submissionText,
+                      TextStyle(
+                        fontSize: 13,
+                        color: (Theme.of(context).brightness == Brightness.light
+                            ? AppColors.stormySkyBlue
+                            : AppColors.primaryBlue),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          if (attachments.isNotEmpty) ...[
+            ...attachments.map(
+              (attachment) =>
+                  _buildAttachmentTile(attachment, task, taskProvider),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          if (hasSubmission)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await taskProvider.rejectTaskSubmission(task.id);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('ปฏิเสธงานแล้ว')),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.accentRed,
+                      side: const BorderSide(color: AppColors.accentRed),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: const Text(
+                      'ปฏิเสธ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final connectivity = context.read<ConnectivityProvider>();
+                      if (connectivity.isOffline) {
+                        _showOfflineDialog(context);
+                        return;
+                      }
+                      await taskProvider.approveTaskSubmission(task.id);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('อนุมัติงานแล้ว')),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: const Text(
+                      'อนุมัติ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommentsSection(Task task, TaskProvider taskProvider) {
+    final theme = Theme.of(context);
+    final canAddComments =
+        !task.isDeleted && !(task.isGroup && task.isCompleted);
+    final previewComments = task.comments.length <= 2
+        ? task.comments
+        : task.comments.sublist(task.comments.length - 2);
+    return Container(
+      margin: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? AppColors.shadowLight
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'ความคิดเห็น',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'เปิดแชทเต็ม',
+                onPressed: () => _showFullCommentsSheet(task),
+                icon: const Icon(Icons.open_in_full_rounded),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+
+          // Comments List
+          if (task.comments.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppConstants.paddingLarge),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      size: 48,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(height: AppConstants.paddingSmall),
+                    Text(
+                      'ยังไม่มีความคิดเห็น',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: previewComments.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: AppConstants.paddingMedium),
+              itemBuilder: (context, index) {
+                return _buildCommentItem(
+                  previewComments[index],
+                  task,
+                  taskProvider,
+                );
+              },
+            ),
+
+          if (canAddComments) const SizedBox(height: AppConstants.paddingLarge),
+
+          if (canAddComments) _buildCommentComposer(task, taskProvider),
+        ],
+      ),
+    );
+  }
+
+  void _showFullCommentsSheet(Task task) {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, refreshSheet) {
+            void refreshCommentComposer() => refreshSheet(() {});
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.86,
+              minChildSize: 0.5,
+              maxChildSize: 0.94,
+              expand: false,
+              builder: (context, scrollController) {
+                return Consumer<TaskProvider>(
+                  builder: (context, taskProvider, _) {
+                    final currentTask =
+                        _latestTaskFromProvider(taskProvider, task.id) ?? task;
+                    final canAddComments =
+                        !currentTask.isDeleted &&
+                        !(currentTask.isGroup && currentTask.isCompleted);
+
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: theme.brightness == Brightness.dark
+                              ? AppColors.stormyDarkSlate
+                              : theme.cardColor,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(AppConstants.radiusXLarge),
+                            topRight: Radius.circular(
+                              AppConstants.radiusXLarge,
+                            ),
+                          ),
+                        ),
+                        child: SafeArea(
+                          top: false,
+                          child: Column(
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(
+                                  top: 12,
+                                  bottom: 8,
+                                ),
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.18,
+                                  ),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppConstants.paddingLarge,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'ความคิดเห็น',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: theme.colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'ปิด',
+                                      onPressed: () =>
+                                          Navigator.pop(sheetContext),
+                                      icon: const Icon(Icons.close_rounded),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppConstants.paddingSmall),
+                              Expanded(
+                                child: currentTask.comments.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          'ยังไม่มีความคิดเห็น',
+                                          style: TextStyle(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        controller: scrollController,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: AppConstants.paddingLarge,
+                                          vertical: AppConstants.paddingSmall,
+                                        ),
+                                        itemCount: currentTask.comments.length,
+                                        separatorBuilder: (context, index) =>
+                                            const SizedBox(
+                                              height:
+                                                  AppConstants.paddingMedium,
+                                            ),
+                                        itemBuilder: (context, index) =>
+                                            _buildCommentItem(
+                                              currentTask.comments[index],
+                                              currentTask,
+                                              taskProvider,
+                                            ),
+                                      ),
+                              ),
+                              if (canAddComments)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    AppConstants.paddingLarge,
+                                    AppConstants.paddingSmall,
+                                    AppConstants.paddingLarge,
+                                    AppConstants.paddingMedium,
+                                  ),
+                                  child: _buildCommentComposer(
+                                    currentTask,
+                                    taskProvider,
+                                    onCommentSent: () =>
+                                        _scrollFullCommentsToLatest(
+                                          scrollController,
+                                        ),
+                                    onComposerChanged: refreshCommentComposer,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCommentComposer(
+    Task task,
+    TaskProvider taskProvider, {
+    VoidCallback? onCommentSent,
+    VoidCallback? onComposerChanged,
+  }) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        if (_commentAttachments.isNotEmpty) ...[
+          SizedBox(
+            height: 60,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _commentAttachments.length,
+              itemBuilder: (context, index) {
+                final attachment = _commentAttachments[index];
+                final isImage = _isImageAttachment(attachment);
+                return GestureDetector(
+                  onTap: () {
+                    if (isImage) {
+                      _showImagePreviewDialog(
+                        context,
+                        attachment.fileUrl,
+                        attachment.fileName,
+                      );
+                    } else {
+                      _showDocumentDetailsDialog(
+                        context,
+                        attachment.fileUrl,
+                        attachment.fileName,
+                        attachment.fileType,
+                      );
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.brightness == Brightness.light
+                          ? const Color(0xFFF1F5F9)
+                          : Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: theme.brightness == Brightness.light
+                            ? const Color(0xFFE2E8F0)
+                            : Colors.white.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isImage)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.network(
+                                  attachment.fileUrl,
+                                  width: 32,
+                                  height: 32,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Icon(
+                                        Icons.image,
+                                        size: 24,
+                                        color: AppColors.stormySkyBlue,
+                                      ),
+                                ),
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  child: const Icon(
+                                    Icons.open_in_full_rounded,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Icon(
+                            attachment.fileType.toLowerCase() == 'pdf'
+                                ? Icons.picture_as_pdf_outlined
+                                : Icons.insert_drive_file_outlined,
+                            size: 24,
+                            color: attachment.fileType.toLowerCase() == 'pdf'
+                                ? AppColors.accentRed
+                                : (Theme.of(context).brightness ==
+                                          Brightness.light
+                                      ? AppColors.stormySkyBlue
+                                      : AppColors.primaryBlue),
+                          ),
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 100),
+                          child: Text(
+                            attachment.fileName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            _removeCommentAttachment(
+                              attachment,
+                              onComposerChanged: onComposerChanged,
+                            );
+                          },
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppConstants.paddingSmall),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _commentController,
+                style: TextStyle(color: theme.colorScheme.onSurface),
+                decoration: InputDecoration(
+                  hintText: 'เขียนความคิดเห็น...',
+                  hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  suffixIcon: _isUploadingCommentAttachment
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.stormySkyBlue,
+                            ),
+                          ),
+                        )
+                      : IconButton(
+                          icon: Icon(
+                            Icons.attach_file_rounded,
+                            color: AppColors.stormySkyBlue,
+                          ),
+                          onPressed: () => _pickCommentAttachment(
+                            task.id,
+                            taskProvider,
+                            onComposerChanged: onComposerChanged,
+                          ),
+                        ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
+                      AppConstants.radiusMedium,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.paddingMedium,
+                    vertical: AppConstants.paddingSmall,
+                  ),
+                ),
+                maxLines: null,
+              ),
+            ),
+            const SizedBox(width: AppConstants.paddingSmall),
+            GestureDetector(
+              onTap: () => _addComment(
+                task,
+                taskProvider,
+                onCommentSent: onCommentSent,
+                onComposerChanged: onComposerChanged,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.stormySkyBlue,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.send,
+                  color: AppColors.textWhite,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  bool _isImageAttachment(TaskAttachment attachment) {
+    return [
+      'png',
+      'jpg',
+      'jpeg',
+      'webp',
+      'gif',
+    ].contains(attachment.fileType.toLowerCase());
+  }
+
+  void _removeCommentAttachment(
+    TaskAttachment attachment, {
+    VoidCallback? onComposerChanged,
+  }) {
+    if (!_commentAttachments.any(
+      (item) => _isSameAttachment(item, attachment),
+    )) {
+      return;
+    }
+
+    setState(() {
+      _commentAttachments.removeWhere(
+        (item) => _isSameAttachment(item, attachment),
+      );
+    });
+    onComposerChanged?.call();
+  }
+
+  bool _isSameAttachment(TaskAttachment a, TaskAttachment b) {
+    return a.fileUrl == b.fileUrl &&
+        a.fileName == b.fileName &&
+        a.fileType == b.fileType;
+  }
+
+  void _scrollFullCommentsToLatest(ScrollController scrollController) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!scrollController.hasClients) return;
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  Widget _buildCommentItem(
+    Comment comment,
+    Task task,
+    TaskProvider taskProvider,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final leaderId = taskProvider.leaderIdForTask(task);
+    final isCommenterLeader = comment.userId == leaderId;
+
+    final commenter = taskProvider.getUserById(comment.userId);
+    final frameId = commenter?.equippedFrame ?? '';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        UserAvatarWithFrame(
+          avatarUrl: comment.userAvatarUrl,
+          frameId: frameId,
+          fallbackName: comment.userName,
+          size: AppConstants.avatarSmall,
+        ),
+        const SizedBox(width: AppConstants.paddingSmall),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(AppConstants.paddingMedium),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : (Theme.of(context).brightness == Brightness.light
+                        ? AppColors.stormyOffWhite
+                        : AppColors.backgroundLightGrey),
+              borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            comment.userName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (isCommenterLeader) ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    (Theme.of(context).brightness ==
+                                                Brightness.light
+                                            ? AppColors.stormySkyBlue
+                                            : AppColors.primaryPink)
+                                        .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: AppColors.stormySkyBlue,
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Text(
+                                'หัวหน้า',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.stormySkyBlue,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatCommentTime(comment.createdAt),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? Colors.white54
+                            : (Theme.of(context).brightness == Brightness.light
+                                  ? AppColors.stormyMutedBlueGrey
+                                  : AppColors.textLight),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (comment.content.isNotEmpty)
+                  _buildLinkifiedText(
+                    comment.content,
+                    TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      height: 1.4,
+                    ),
+                  ),
+                if (comment.attachments.isNotEmpty) ...[
+                  if (comment.content.isNotEmpty) const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: comment.attachments.map((attachment) {
+                      final isImage = _isImageAttachment(attachment);
+                      return GestureDetector(
+                        onTap: () {
+                          if (isImage) {
+                            _showImagePreviewDialog(
+                              context,
+                              attachment.fileUrl,
+                              attachment.fileName,
+                            );
+                          } else {
+                            _showDocumentDetailsDialog(
+                              context,
+                              attachment.fileUrl,
+                              attachment.fileName,
+                              attachment.fileType,
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.12)
+                                  : (Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? AppColors.stormyOffWhite
+                                        : AppColors.backgroundLightGrey),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isImage)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.network(
+                                    attachment.fileUrl,
+                                    width: 24,
+                                    height: 24,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) => Icon(
+                                          Icons.image,
+                                          size: 20,
+                                          color: AppColors.stormySkyBlue,
+                                        ),
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  attachment.fileType.toLowerCase() == 'pdf'
+                                      ? Icons.picture_as_pdf_outlined
+                                      : Icons.insert_drive_file_outlined,
+                                  size: 20,
+                                  color:
+                                      attachment.fileType.toLowerCase() == 'pdf'
+                                      ? AppColors.accentRed
+                                      : (Theme.of(context).brightness ==
+                                                Brightness.light
+                                            ? AppColors.stormySkyBlue
+                                            : AppColors.primaryBlue),
+                                ),
+                              const SizedBox(width: 6),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 150,
+                                ),
+                                child: Text(
+                                  attachment.fileName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: theme.colorScheme.onSurface,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _addComment(
+    Task task,
+    TaskProvider taskProvider, {
+    VoidCallback? onCommentSent,
+    VoidCallback? onComposerChanged,
+  }) {
+    if (task.isDeleted || (task.isGroup && task.isCompleted)) {
+      return;
+    }
+
+    if (_commentController.text.trim().isEmpty && _commentAttachments.isEmpty) {
+      return;
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.currentUser;
+
+    final comment = Comment(
+      id: 'comment_${DateTime.now().millisecondsSinceEpoch}',
+      userId: user!.id,
+      userName: user.name,
+      userAvatarUrl: user.avatarUrl,
+      content: _commentController.text.trim(),
+      createdAt: DateTime.now(),
+      attachments: List<TaskAttachment>.from(_commentAttachments),
+    );
+
+    taskProvider.addComment(task.id, comment);
+    _commentController.clear();
+    setState(() {
+      _commentAttachments.clear();
+    });
+    onComposerChanged?.call();
+    onCommentSent?.call();
+  }
+
+  Future<void> _pickCommentAttachment(
+    String taskId,
+    TaskProvider taskProvider, {
+    VoidCallback? onComposerChanged,
+  }) async {
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้'),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _isUploadingCommentAttachment = true;
+    });
+    onComposerChanged?.call();
+
+    try {
+      final attachmentMap = await taskProvider.uploadCommentAttachment(taskId);
+      if (attachmentMap != null && mounted) {
+        setState(() {
+          _commentAttachments.add(TaskAttachment.fromMap(attachmentMap));
+        });
+        onComposerChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e.toString().contains('FILE_TOO_LARGE')
+            ? 'ไฟล์มีขนาดใหญ่เกินไป! อนุญาตสูงสุด 10MB ต่อไฟล์เท่านั้น'
+            : 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingCommentAttachment = false;
+        });
+        onComposerChanged?.call();
+      }
+    }
+  }
+
+  Widget _buildLinkifiedText(
+    String text,
+    TextStyle baseStyle, {
+    TextAlign textAlign = TextAlign.start,
+  }) {
+    final urlRegex = RegExp(r'(https?:\/\/[^\s]+)', caseSensitive: false);
+
+    final matches = urlRegex.allMatches(text);
+    if (matches.isEmpty) {
+      return Text(text, style: baseStyle, textAlign: textAlign);
+    }
+
+    final List<InlineSpan> spans = [];
+    int lastIndex = 0;
+
+    for (final match in matches) {
+      if (match.start > lastIndex) {
+        spans.add(
+          TextSpan(
+            text: text.substring(lastIndex, match.start),
+            style: baseStyle,
+          ),
+        );
+      }
+
+      final url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: baseStyle.copyWith(
+            color: (Theme.of(context).brightness == Brightness.light
+                ? AppColors.stormySkyBlue
+                : AppColors.primaryBlue),
+            decoration: TextDecoration.underline,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.tryParse(url);
+              if (uri != null) {
+                try {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } catch (e) {
+                  debugPrint('Error launching linkified URL: $e');
+                }
+              }
+            },
+        ),
+      );
+
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(lastIndex), style: baseStyle));
+    }
+
+    return RichText(
+      textAlign: textAlign,
+      text: TextSpan(children: spans),
+    );
+  }
+
+  Task? _latestTaskFromProvider(TaskProvider taskProvider, String taskId) {
+    try {
+      return taskProvider.tasks.firstWhere((task) => task.id == taskId);
+    } catch (_) {
+      return taskProvider.selectedTask?.id == taskId
+          ? taskProvider.selectedTask
+          : null;
+    }
+  }
+
+  Future<void> _openEditTaskModal(BuildContext context, Task task) async {
+    await showModalBottomSheet<Task>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CreateTaskModal(task: task),
+    );
+  }
+
+  void _showOptionsMenu(BuildContext context, Task task) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          color: theme.brightness == Brightness.dark
+              ? AppColors.stormyDarkSlate
+              : theme.cardColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(AppConstants.radiusXLarge),
+            topRight: Radius.circular(AppConstants.radiusXLarge),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.brightness == Brightness.light
+                    ? (Theme.of(context).brightness == Brightness.light
+                          ? AppColors.stormyMutedBlueGrey
+                          : AppColors.backgroundDarkGrey)
+                    : Colors.grey[800],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            if (!task.isDeleted)
+              ListTile(
+                leading: Icon(
+                  Icons.edit_outlined,
+                  color: (Theme.of(context).brightness == Brightness.light
+                      ? AppColors.stormySkyBlue
+                      : AppColors.primaryBlue),
+                ),
+                title: Text('แก้ไขภารกิจ', style: TextStyle(color: onSurface)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _openEditTaskModal(context, task);
+                },
+              ),
+            ListTile(
+              leading: Icon(
+                task.isDeleted
+                    ? Icons.restore
+                    : (task.isCompleted
+                          ? Icons.undo
+                          : Icons.check_circle_outline),
+                color: task.isDeleted
+                    ? onSurface
+                    : (task.isCompleted
+                          ? AppColors.warning
+                          : AppColors.success),
+              ),
+              title: Text(
+                task.isDeleted
+                    ? (task.isCompleted ? 'เลิกทำเสร็จสิ้น' : 'คืนค่า')
+                    : (task.isCompleted ? 'เลิกทำเสร็จสิ้น' : 'ทำว่าเสร็จสิ้น'),
+                style: TextStyle(color: onSurface),
+              ),
+              onTap: () async {
+                final connectivity = context.read<ConnectivityProvider>();
+                if (connectivity.isOffline) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                      ),
+                    ),
+                  );
+                  Navigator.pop(sheetContext);
+                  return;
+                }
+                final taskProvider = Provider.of<TaskProvider>(
+                  context,
+                  listen: false,
+                );
+                if (task.isDeleted) {
+                  taskProvider.restoreTask(task.id);
+                  Navigator.pop(sheetContext);
+                  Navigator.pop(context);
+                } else {
+                  if (!task.isCompleted) {
+                    final latestTask = taskProvider.tasks.firstWhere(
+                      (t) => t.id == task.id,
+                      orElse: () => task,
+                    );
+                    if (latestTask.subtasks.isNotEmpty &&
+                        latestTask.subtasks.any((s) => !s.isDone)) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('ไม่สามารถเสร็จสิ้นภารกิจได้'),
+                          content: const Text(
+                            'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                foregroundColor:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? AppColors.stormySkyBlue
+                                    : AppColors.textSecondary,
+                              ),
+                              child: const Text('ตกลง'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
+                    }
+
+                    final shouldProceed = await LatePenaltyDialog.checkAndShow(
+                      context,
+                      task,
+                    );
+                    if (!shouldProceed) return;
+                    if (!context.mounted) return;
+
+                    final isSoundEnabled =
+                        context
+                            .read<AuthProvider>()
+                            .currentUser
+                            ?.isSoundEnabled ??
+                        true;
+                    unawaited(
+                      SoundService.instance.playTaskCompleteSound(
+                        isSoundEnabled: isSoundEnabled,
+                      ),
+                    );
+                    final result = await taskProvider.completeTaskWithSubtasks(
+                      task.id,
+                      true,
+                    );
+                    if (!mounted || !sheetContext.mounted) return;
+                    Navigator.pop(sheetContext);
+                    await FastCompletionWarningDialog.showCompletionFeedback(
+                      context,
+                      result,
+                    );
+
+                    if (!context.mounted) return;
+                    SnackBarUtils.showUndoSnackBar(
+                      context,
+                      message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
+                      onUndo: () async {
+                        await taskProvider.toggleTaskCompletion(
+                          task.id,
+                          updateSubtasks: true,
+                        );
+                      },
+                    );
+                  } else {
+                    await taskProvider.toggleTaskCompletion(
+                      task.id,
+                      updateSubtasks: true,
+                    );
+                    if (!mounted || !sheetContext.mounted) return;
+                    Navigator.pop(sheetContext);
+                    Navigator.pop(context);
+                  }
+                }
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                task.isDeleted ? Icons.delete_forever : Icons.delete_outline,
+                color: AppColors.error,
+              ),
+              title: Text(
+                task.isDeleted ? 'ลบถาวร' : 'ส่งไปที่ถังขยะ',
+                style: const TextStyle(color: AppColors.error),
+              ),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                if (task.isDeleted) {
+                  _showPermanentDeleteConfirmation(task);
+                } else {
+                  _showDeleteConfirmation(task);
+                }
+              },
+            ),
+            const SizedBox(height: AppConstants.paddingLarge),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPermanentDeleteConfirmation(Task task) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'ลบถาวร',
+          style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจ "${task.title}" ถาวร? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.stormyIceBlue
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.82),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.stormySkyBlue
+                  : AppColors.textSecondary,
+            ),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () {
+              final connectivity = context.read<ConnectivityProvider>();
+              if (connectivity.isOffline) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                    ),
+                  ),
+                );
+                Navigator.pop(dialogContext);
+                return;
+              }
+              final taskProvider = Provider.of<TaskProvider>(
+                context,
+                listen: false,
+              );
+              taskProvider.permanentlyDeleteTask(task.id);
+              Navigator.pop(dialogContext); // Close dialog
+              Navigator.pop(context); // Pop TaskDetailScreen
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFEF9A9A).withValues(alpha: 0.15)
+                  : AppColors.error,
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFEF9A9A)
+                  : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'ลบ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(Task task) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'ยืนยันการลบภารกิจ',
+          style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจ "${task.title}"? การดำเนินการนี้จะส่งงานไปที่ถังขยะและสามารถกู้คืนได้ภายหลัง',
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.stormyIceBlue
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.82),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.stormySkyBlue
+                  : AppColors.textSecondary,
+            ),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () {
+              final connectivity = context.read<ConnectivityProvider>();
+              if (connectivity.isOffline) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                    ),
+                  ),
+                );
+                Navigator.pop(context);
+                return;
+              }
+              final taskProvider = Provider.of<TaskProvider>(
+                context,
+                listen: false,
+              );
+
+              // 1. เก็บ NavigatorState ไว้ก่อนที่ context จะถูกทำลาย
+              final rootNavigator = Navigator.of(this.context);
+
+              // 2. แสดง SnackBar ก่อนที่จะ Pop หน้าจอ
+              SnackBarUtils.showNavigationSnackBar(
+                this.context,
+                message: 'ย้ายไปยังถังขยะแล้ว',
+                actionLabel: 'ดูถังขยะ',
+                onNavigate: () {
+                  // ใช้ rootNavigator ที่เก็บไว้เพื่อ push ไปหน้าถังขยะ
+                  rootNavigator.push(
+                    MaterialPageRoute(builder: (ctx) => const BinScreen()),
+                  );
+                },
+              );
+
+              // 3. ลบภารกิจและ Pop หน้าต่างต่างๆ
+              taskProvider.deleteTask(task.id);
+              Navigator.pop(context); // ปิด Dialog
+              rootNavigator.pop(); // ปิดหน้า TaskDetailScreen
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFEF9A9A).withValues(alpha: 0.15)
+                  : AppColors.error,
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFEF9A9A)
+                  : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'ยืนยันการลบ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return thaiDateTime(dateTime);
+  }
+
+  String _formatCommentTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'เมื่อสักครู่';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} นาทีที่แล้ว';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} ชม.ที่แล้ว';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} วันที่แล้ว';
+    } else {
+      return thaiShortDate(dateTime);
+    }
+  }
+
+  Widget _buildAttachmentsSection(Task task, TaskProvider taskProvider) {
+    if (task.attachments.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+        vertical: AppConstants.paddingSmall,
+      ),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.3)
+                : AppColors.shadowLight,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color:
+                      (Theme.of(context).brightness == Brightness.light
+                              ? AppColors.stormySkyBlue
+                              : AppColors.primaryBlue)
+                          .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.attach_file_rounded,
+                  color: (Theme.of(context).brightness == Brightness.light
+                      ? AppColors.stormySkyBlue
+                      : AppColors.primaryBlue),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'ไฟล์แนบ (${task.attachments.length})',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: task.attachments.length,
+            itemBuilder: (context, index) {
+              final attachment = task.attachments[index];
+              return _buildAttachmentTile(attachment, task, taskProvider);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttachmentTile(
+    TaskAttachment attachment,
+    Task task,
+    TaskProvider taskProvider,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final type = attachment.fileType.toLowerCase();
+    final isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].contains(type);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.id;
+    final isLeader = taskProvider.isLeaderForTask(task, currentUserId);
+    final showDeleteButton =
+        !task.isDeleted &&
+        !isLeader &&
+        (task.status == TaskStatus.todo ||
+            task.status == TaskStatus.inProgress);
+
+    if (isImage) {
+      return GestureDetector(
+        onTap: () => _showImagePreviewDialog(
+          context,
+          attachment.fileUrl,
+          attachment.fileName,
+        ),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  color: isDark ? Colors.grey[900] : Colors.grey[200],
+                  child: Image.network(
+                    attachment.fileUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: Colors.grey,
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      attachment.fileName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'รูปภาพ • แตะเพื่อดูไฟล์',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.55,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 18,
+                color: (Theme.of(context).brightness == Brightness.light
+                    ? AppColors.stormySkyBlue
+                    : AppColors.primaryBlue),
+              ),
+              if (showDeleteButton) ...[
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () =>
+                      _deleteAttachment(task, attachment, taskProvider),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: AppColors.accentRed,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 4),
+            ],
+          ),
+        ),
+      );
+    } else {
+      IconData docIcon;
+      Color iconBgColor;
+      Color iconColor;
+
+      if (['pdf'].contains(type)) {
+        docIcon = Icons.picture_as_pdf_rounded;
+        iconColor = const Color(0xFFEF4444);
+        iconBgColor = const Color(0xFFFEE2E2);
+      } else if (['xlsx', 'xls'].contains(type)) {
+        docIcon = Icons.table_chart_rounded;
+        iconColor = const Color(0xFF10B981);
+        iconBgColor = const Color(0xFFD1FAE5);
+      } else if (['docx', 'doc'].contains(type)) {
+        docIcon = Icons.description_rounded;
+        iconColor = const Color(0xFF3B82F6);
+        iconBgColor = const Color(0xFFDBEAFE);
+      } else {
+        docIcon = Icons.insert_drive_file_rounded;
+        iconColor = const Color(0xFF6B7280);
+        iconBgColor = const Color(0xFFF3F4F6);
+      }
+
+      return GestureDetector(
+        onTap: () => _showDocumentDetailsDialog(
+          context,
+          attachment.fileUrl,
+          attachment.fileName,
+          type,
+        ),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(docIcon, color: iconColor, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      attachment.fileName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${type.toUpperCase()} เอกสาร • แตะเพื่อดูไฟล์',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.55,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 18,
+                color: (Theme.of(context).brightness == Brightness.light
+                    ? AppColors.stormySkyBlue
+                    : AppColors.primaryBlue),
+              ),
+              if (showDeleteButton) ...[
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () =>
+                      _deleteAttachment(task, attachment, taskProvider),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: AppColors.accentRed,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 4),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteAttachment(
+    Task task,
+    TaskAttachment attachment,
+    TaskProvider taskProvider,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        ),
+        title: const Text('ลบไฟล์แนบ?'),
+        content: Text(
+          'คุณต้องการลบไฟล์ "${attachment.fileName}" ใช่หรือไม่? ไฟล์นี้จะถูกลบออกจากภารกิจนี้ถาวร',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ย้อนกลับ'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentRed,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('ลบไฟล์'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // ignore: use_build_context_synchronously
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้'),
+        ),
+      );
+      return;
+    }
+
+    await taskProvider.deleteTaskAttachment(task.id, attachment);
+  }
+
+  void _showImagePreviewDialog(
+    BuildContext context,
+    String imageUrl,
+    String fileName,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final media = MediaQuery.of(context);
+        return Dialog.fullscreen(
+          backgroundColor: Colors.black,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: InteractiveViewer(
+                  panEnabled: true,
+                  minScale: 0.8,
+                  maxScale: 5.0,
+                  child: Center(
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      width: media.size.width,
+                      height: media.size.height,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          margin: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: AppColors.accentRed,
+                                size: 48,
+                              ),
+                              SizedBox(height: 12),
+                              Text(
+                                'ไม่สามารถโหลดรูปภาพได้',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: media.padding.top + 12,
+                left: 16,
+                right: 16,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        fileName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    CircleAvatar(
+                      backgroundColor: Colors.white.withValues(alpha: 0.16),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: media.padding.bottom + 16,
+                child: IgnorePointer(
+                  child: Text(
+                    'บีบเพื่อซูม • ลากเพื่อเลื่อนภาพ',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDocumentDetailsDialog(
+    BuildContext context,
+    String fileUrl,
+    String fileName,
+    String fileType,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.insert_drive_file,
+                color: (Theme.of(context).brightness == Brightness.light
+                    ? AppColors.stormySkyBlue
+                    : AppColors.primaryBlue),
+              ),
+              const SizedBox(width: 10),
+              const Text('รายละเอียดไฟล์เอกสาร'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ชื่อไฟล์: $fileName',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text('ประเภทไฟล์'),
+              const SizedBox(height: 16),
+              const Text(
+                'เนื่องจากเป็นไฟล์เอกสาร ระบบจะเปิดไฟล์นี้ผ่านเว็บเบราว์เซอร์ของระบบเพื่อให้ท่านดาวน์โหลดหรือเปิดดูโดยละเอียด',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('ปิด'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _launchURL(fileUrl);
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('เปิดในบราวเซอร์'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    (Theme.of(context).brightness == Brightness.light
+                    ? AppColors.stormySkyBlue
+                    : AppColors.primaryBlue),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showOfflineDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต'),
+        content: const Text('กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อดำเนินการนี้'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.stormySkyBlue
+                  : null,
+            ),
+            child: const Text('ตกลง'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('ไม่สามารถเปิดลิงก์ได้')));
+      }
+    }
+  }
+}
+
+/// Data class สำหรับเก็บข้อมูลสถานะสมาชิก (label, สี)
+class _MemberStatusInfo {
+  final String label;
+  final Color textColor;
+  final Color backgroundColor;
+
+  const _MemberStatusInfo({
+    required this.label,
+    required this.textColor,
+    required this.backgroundColor,
+  });
+}

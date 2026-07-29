@@ -1,0 +1,73 @@
+<!-- AndroidManifest.xml: ไฟล์หลักประกาศสิทธิ์การทำงาน, โครงสร้างหน้าจอ, และตั้งค่าที่จำเป็นสำหรับการรันแอปพลิเคชันบนระบบปฏิบัติการ Android -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- ==================== ประกาศสิทธิ์เข้าถึงระบบปฏิบัติการ (Permissions) ==================== -->
+    
+    <!-- สิทธิ์อ่านพื้นที่จัดเก็บข้อมูลภายนอก (สำหรับระบบปฏิบัติการ Android รุ่น 12 ลงไป) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    
+    <!-- สิทธิ์เข้าถึงและอ่านไฟล์รูปภาพในเครื่องสำหรับใช้แนบงาน (สำหรับ Android 13 ขึ้นไป) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    
+    <!-- สิทธิ์ในการแสดงผลระบบ Push Notification แจ้งเตือนงานกลุ่ม/กำหนดส่ง (สำหรับ Android 13 ขึ้นไป) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- ==================== การกำหนดค่าหลักของแอปพลิเคชัน (Application) ==================== -->
+    <application
+        android:label="QuestLife"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        
+        <!-- กิจกรรมหลัก (Main Activity) ของระบบแอปพลิเคชัน ทำหน้าที่รับและรัน Flutter UI -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            
+            <!-- ตั้งค่าหน้าจอเริ่มต้นปกติที่จะแสดงหลังจาก Flutter ทำงานเสร็จสิ้น -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            
+            <!-- ตัวระบุให้เป็นหน้าแรกของแอปเมื่อคลิกเปิดจากหน้าโฮมสกรีนมือถือ -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        
+        <!-- ข้อมูลสำหรับการเรียกใช้งานระบบ Flutter Embedding API -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+        <!-- กำหนดไอดีของ Channel ในการส่ง Push Notification ผ่านระบบ Firebase Cloud Messaging (FCM) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="task_reminder_alerts_v2" />
+
+        <!-- กำหนดโลโก้ไอคอนแจ้งเตือนที่จะไปแสดงบนแถบ Status Bar ด้านบนเมื่อแอปแจ้งเตือน -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_noti_photoroom" />
+        
+        <!-- ปิดการทำงานของระบบประมวลผลวาดภาพแบบ Impeller บน Android เพื่อลดโอกาสเกิดการค้างหรือจอกระพริบ -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+    </application>
+    
+    <!-- สิทธิ์ในการเข้าถึงและสอบถามแอปพลิเคชันของระบบ Android เพื่อรองรับการทำงานกับตัวจัดการและประมวลผลข้อความภายนอก -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

@@ -1,0 +1,114 @@
+// ============================================================================
+// ไฟล์นี้เปรียบเสมือน "ผู้รักษาความปลอดภัย (Security Rules)" ของฐานข้อมูล Firestore
+// ทำหน้าที่ตรวจสอบและอนุญาตว่า ใครสามารถเข้ามา อ่าน (read), สร้าง (create),
+// แก้ไข (update) หรือ ลบ (delete) ข้อมูลอะไรในฐานข้อมูลได้บ้าง เพื่อป้องกันการโดนแฮ็ก
+// ============================================================================
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ---------------------------------------------------------
+    // 1. กฎของ Tasks (เขียนได้ดีมาก ถูกต้อง 100%)
+    // ---------------------------------------------------------
+    match /tasks/{taskId} {
+      allow read, create: if request.auth != null;
+
+      function isCreator() {
+        // เพิ่มการเช็กเผื่อไว้ทั้งกรณีใช้คีย์ creatorId หรือ leaderId
+        return resource.data.creatorId == request.auth.uid || 
+               resource.data.leaderId == request.auth.uid;
+      }
+      function isLegacyAssignee() {
+        return resource.data.assigneeId == request.auth.uid;
+      }
+      function isAssignee() {
+        return request.auth.uid in resource.data.assigneeIds;
+      }
+      function isProjectLeader() {
+        return resource.data.projectId != null &&
+          exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+          get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.leaderId == request.auth.uid;
+      }
+
+      allow update: if request.auth != null &&
+        (isCreator() || isLegacyAssignee() || isAssignee() || isProjectLeader());
+        
+      // 🔥 ปรับปรุง: อนุญาตให้ผู้รับมอบหมายงาน (Assignee) ลบเอกสารได้ด้วย เพื่อให้กดล้างถังขยะได้สำเร็จ
+      allow delete: if request.auth != null &&
+        (isCreator() || isProjectLeader() || isAssignee() || isLegacyAssignee());
+    }
+
+    // ---------------------------------------------------------
+    // 2. กฎของ Users (🔥 แก้ไขแล้วเพื่อรองรับระบบแอดเพื่อนและอัปเดตเพิ่มเติมเพื่อให้หัวหน้าเพิ่มสถิติงานกลุ่มได้)
+    // ---------------------------------------------------------
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      
+      // ให้เจ้าของบัญชีสร้างลบแก้ไขข้อมูลตัวเองได้ปกติ
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // 🔥 อนุญาตให้คนอื่นอัปเดตเอกสารของเราได้ "เฉพาะฟิลด์ที่เกี่ยวกับเพื่อน" เท่านั้น (ใช้ตอน WriteBatch)
+      allow update: if request.auth != null 
+                    && request.auth.uid != userId 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                    'friends', 'sentRequests', 'receivedRequests','totalXP','tasksCompleted',
+                    'groupTasksCompleted','currentLevel','achievementsUnlocked','leaderGroupTasksCompleted','memberGroupTasksCompleted'
+                    ]);
+
+      // ---------------------------------------------------------
+      // 2.1 กฎของ In-App Notifications
+      // ---------------------------------------------------------
+      match /notifications/{notificationId} {
+        // เจ้าของบัญชีเท่านั้นที่เห็นแจ้งเตือนของตัวเอง
+        allow read: if request.auth != null && request.auth.uid == userId;
+
+        // แอปอัปเดตได้เฉพาะสถานะอ่านแล้ว/ซ่อนแจ้งเตือน ไม่ให้แก้ข้อความแจ้งเตือนเอง
+        allow update: if request.auth != null
+                      && request.auth.uid == userId
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'isRead', 'readAt', 'deletedAt'
+                      ]);
+
+        // คอมเมนต์/สร้างกลุ่มเกิดจากแอปโดยตรง จึงให้ client สร้างได้แบบจำกัด field
+        allow create: if request.auth != null
+                      && (request.resource.data.actorId == request.auth.uid || request.auth.uid == userId)
+                      && request.resource.data.isRead == false
+                      && request.resource.data.type in [
+                      'Comment', 'Group', 'Submission', 'Approved', 'Rejected',
+                      'FriendRequest', 'FriendAccepted'
+                      ]
+                      && request.resource.data.keys().hasOnly([
+                      'title', 'body', 'type', 'isRead', 'createdAt',
+                      'taskId', 'taskType', 'notificationStage', 'notificationKey',
+                      'actorId', 'actorName', 'actorAvatarUrl', 'commentId',
+                      'friendRequestId'
+                      ]);
+        allow delete: if false;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 3. กฎของ Projects
+    // ---------------------------------------------------------
+    match /projects/{projectId} { 
+      // 💡 หมายเหตุ: ตอนนี้อ่านได้อย่างเดียว ถ้าในแอปมีการให้หัวหน้า "สร้างโปรเจกต์" อย่าลืมเพิ่มสิทธิ์ allow create; ด้วยนะครับ
+      allow read: if request.auth != null; 
+    }
+    
+    // ---------------------------------------------------------
+    // 4. กฎของ Friend Requests (ถูกต้องตามแผนเป๊ะ)
+    // ---------------------------------------------------------
+    match /friend_requests/{requestId} {
+      // 1. อนุญาตให้ทุกคนที่ล็อกอินแล้ว สามารถกดค้นหาเพื่อนและสร้างคำขอใหม่ได้
+      allow create: if request.auth != null;
+      
+      // 2. จะอ่านข้อมูลคำขอได้ ก็ต่อเมื่อตัวเราเป็นคนส่ง หรือตัวเราเป็นคนรับเท่านั้น
+      allow read: if request.auth != null && 
+                   (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+                   
+      // 3. จะกดอัปเดตสถานะ (ยอมรับ/ปฏิเสธ) ได้ เฉพาะผู้รับปลายทาง (toId) เท่านั้น
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.toId;
+    }
+  }
+}

@@ -1,0 +1,757 @@
+import '../main.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../config/colors.dart';
+import '../config/constants.dart';
+import '../models/user.dart';
+import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
+import '../providers/task_provider.dart';
+import '../screens/edit_profile_screen.dart';
+import '../screens/rewards_timeline_screen.dart';
+import '../utils/thai_display.dart';
+import '../widgets/achievement_summary_card.dart';
+import '../widgets/custom_drawer.dart';
+import '../widgets/user_avatar_with_frame.dart';
+import '../widgets/about_app_sheet.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final taskProvider = Provider.of<TaskProvider>(context);
+    final user = authProvider.currentUser;
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: theme.brightness == Brightness.dark
+          ? AppColors.stormyNightBackground
+          : theme.scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            _buildHeader(theme),
+
+            // Settings Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Profile Section
+                    _buildProfileSection(user, taskProvider),
+
+                    const SizedBox(height: AppConstants.paddingLarge),
+
+                    // Stats Section
+                    _buildStatsSection(user, taskProvider, theme),
+
+                    const SizedBox(height: AppConstants.paddingLarge),
+
+                    if (user != null) ...[
+                      AchievementSummaryCard(user: user),
+                      const SizedBox(height: AppConstants.paddingLarge),
+                    ],
+
+                    // Settings Sections
+                    _buildSettingsSection(
+                      theme: theme,
+                      title: 'การตั้งค่า',
+                      children: [
+                        _buildSwitchTile(
+                          theme: theme,
+                          icon: Icons.notifications_outlined,
+                          title: 'การแจ้งเตือน',
+                          subtitle: 'รับการแจ้งเตือนภารกิจ',
+                          value: user?.isNotificationEnabled ?? true,
+                          onChanged: (value) {
+                            authProvider.toggleNotification(value);
+                          },
+                        ),
+                        _buildSwitchTile(
+                          theme: theme,
+                          icon: Icons.dark_mode_outlined,
+                          title: 'โหมดมืด',
+                          subtitle: 'เปลี่ยนเป็นธีมมืด',
+                          value: themeProvider.isDarkMode,
+                          onChanged: (value) {
+                            themeProvider.toggleTheme(value);
+                          },
+                        ),
+                        _buildSwitchTile(
+                          theme: theme,
+                          icon: Icons.volume_up_outlined,
+                          title: 'เสียง',
+                          subtitle: 'เปิดเสียงเอฟเฟกต์',
+                          value: user?.isSoundEnabled ?? true,
+                          onChanged: (value) {
+                            authProvider.toggleSound(value);
+                          },
+                        ),
+                        _buildListTile(
+                          theme: theme,
+                          icon: Icons.info_outline,
+                          title: 'เกี่ยวกับแอป',
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => const AboutAppSheet(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: AppConstants.paddingLarge),
+
+                    const SizedBox(height: AppConstants.paddingLarge),
+
+                    // Logout Button
+                    _buildLogoutButton(authProvider),
+
+                    const SizedBox(height: AppConstants.paddingXLarge),
+
+                    // App Version
+                    Center(
+                      child: Text(
+                        'เวอร์ชัน 1.0.0',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      drawer: const CustomDrawer(),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.brightness == Brightness.light
+                  ? AppColors.stormySkyBlue
+                  : AppColors.stormySkyBlue,
+              borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+              border: theme.brightness == Brightness.dark
+                  ? Border.all(color: AppColors.stormySkyBlue, width: 2)
+                  : null,
+            ),
+            child: Icon(
+              Icons.settings,
+              color: theme.brightness == Brightness.light
+                  ? AppColors.textWhite
+                  : AppColors.stormyNightBackground,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: AppConstants.paddingMedium),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ตั้งค่า',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.white
+                      : theme.colorScheme.onSurface,
+                ),
+              ),
+              Text(
+                'จัดการการตั้งค่าของคุณ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                  color: theme.brightness == Brightness.dark
+                      ? AppColors.stormyMutedBlueGrey
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileSection(User? user, TaskProvider taskProvider) {
+    final displayLevel = user?.currentLevel ?? taskProvider.currentLevel;
+    final displayLevelTitle = user?.levelTitle ?? _levelTitleFor(displayLevel);
+    final xpProgress = user == null || user.nextLevelPoints == 0
+        ? taskProvider.xpProgress
+        : user.progressToNextLevelValue;
+
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppConstants.paddingLarge),
+          decoration: BoxDecoration(
+            gradient: Theme.of(context).brightness == Brightness.light
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.stormyDarkSlate,
+                      AppColors.stormySkyBlue,
+                    ],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF101720), Color(0xFF384959)],
+                  ),
+            borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+          ),
+          child: Row(
+            children: [
+              UserAvatarWithFrame(
+                avatarUrl: user?.avatarUrl ?? '',
+                frameId: user?.equippedFrame ?? '',
+                fallbackName: user?.name ?? '',
+                size: AppConstants.avatarXLarge,
+                showShadow: false,
+              ),
+              const SizedBox(width: AppConstants.paddingLarge),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user?.name ?? 'ผู้ใช้',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textWhite,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user?.email ?? '',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.stormyIceBlue
+                            : AppColors.textWhite.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // XP Progress Bar with Animation — กดเพื่อเปิดเส้นทางรางวัล
+                    InkWell(
+                      enableFeedback: false,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RewardsTimelineScreen(
+                              currentLevel: displayLevel,
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.radiusSmall,
+                      ),
+                      splashColor: Colors.white24,
+                      highlightColor: Colors.white10,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            displayLevel >= AppConstants.maxLevel
+                                ? Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      '✨ MAX LEVEL ✨',
+                                      style: TextStyle(
+                                        color: Colors.amberAccent.shade100,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        letterSpacing: 1.5,
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.amberAccent,
+                                            blurRadius: 10,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : TweenAnimationBuilder<double>(
+                                    duration: const Duration(milliseconds: 500),
+                                    curve: Curves.easeInOut,
+                                    tween: Tween<double>(
+                                      begin: 0,
+                                      end: xpProgress,
+                                    ),
+                                    builder: (context, value, child) {
+                                      return ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: LinearProgressIndicator(
+                                          value: value,
+                                          backgroundColor: Colors.white24,
+                                          valueColor:
+                                              const AlwaysStoppedAnimation<
+                                                Color
+                                              >(Colors.tealAccent),
+                                          minHeight: 6,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white.withValues(alpha: 0.15)
+                                        : AppColors.backgroundWhite.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                    borderRadius: BorderRadius.circular(
+                                      AppConstants.radiusSmall,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.star,
+                                        size: 14,
+                                        color: AppColors.accentYellow,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Level $displayLevel',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textWhite,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 18,
+                                  color: AppColors.textWhite.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              displayLevelTitle,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? AppColors.stormyIceBlue
+                                    : AppColors.textWhite.withValues(
+                                        alpha: 0.86,
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: 12,
+          right: 12,
+          child: IconButton(
+            tooltip: 'Edit profile',
+            icon: const Icon(Icons.edit, color: AppColors.textWhite),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.backgroundWhite.withValues(
+                alpha: 0.18,
+              ),
+            ),
+            onPressed: user == null
+                ? null
+                : () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const EditProfileScreen(),
+                      ),
+                    );
+                  },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatsSection(
+    User? user,
+    TaskProvider taskProvider,
+    ThemeData theme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.light
+                ? AppColors.shadowLight
+                : Colors.black.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem(
+            theme: theme,
+            icon: Icons.task_alt,
+            value: '${user?.totalTasksCompleted ?? 0}',
+            label: 'ภารกิจที่เสร็จ',
+            color: theme.brightness == Brightness.light
+                ? AppColors.stormyMutedBlueGrey
+                : AppColors.stormySkyBlue,
+          ),
+          _buildStatItem(
+            theme: theme,
+            icon: Icons.local_fire_department,
+            value: '${user?.streak ?? 0}',
+            label: 'วันที่ต่อเนื่อง',
+            color: AppColors.accentOrange,
+          ),
+          _buildStatItem(
+            theme: theme,
+            icon: Icons.star,
+            value: '${user?.totalXP ?? 0}',
+            label: 'XP ทั้งหมด',
+            color: theme.brightness == Brightness.light
+                ? AppColors.stormySkyBlue
+                : AppColors.stormySkyBlue,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required ThemeData theme,
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(height: AppConstants.paddingSmall),
+        Text(
+          value,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.brightness == Brightness.dark ? Colors.white : null,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.brightness == Brightness.dark
+                ? AppColors.stormyMutedBlueGrey
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingsSection({
+    required ThemeData theme,
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: theme.textTheme.titleLarge),
+        const SizedBox(height: AppConstants.paddingSmall),
+        Container(
+          decoration: BoxDecoration(
+            color: theme.brightness == Brightness.dark
+                ? AppColors.stormyDarkSlate
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+            boxShadow: [
+              BoxShadow(
+                color: theme.brightness == Brightness.light
+                    ? AppColors.shadowLight
+                    : Colors.black.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(children: children),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required ThemeData theme,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required Function(bool) onChanged,
+  }) {
+    return SwitchListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+        vertical: AppConstants.paddingSmall / 2,
+      ),
+      secondary: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: theme.brightness == Brightness.light
+              ? AppColors.backgroundLightGrey
+              : AppColors.stormyNightBackground,
+          borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: theme.brightness == Brightness.dark
+              ? AppColors.stormyIceBlue
+              : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+        ),
+      ),
+      title: Text(title, style: theme.textTheme.titleMedium),
+      subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
+      value: value,
+      onChanged: onChanged,
+      activeThumbColor: theme.brightness == Brightness.light
+          ? AppColors.stormyOffWhite
+          : Colors.white,
+      activeTrackColor: theme.brightness == Brightness.light
+          ? AppColors.stormyDarkSlate
+          : AppColors.stormySkyBlue,
+      inactiveThumbColor: theme.brightness == Brightness.light
+          ? AppColors.stormyOffWhite
+          : AppColors.stormyMutedBlueGrey,
+      inactiveTrackColor: theme.brightness == Brightness.light
+          ? AppColors.stormyIceBlue
+          : AppColors.stormyNightBackground,
+      trackOutlineColor: theme.brightness == Brightness.light
+          ? WidgetStateProperty.all(Colors.transparent)
+          : null,
+    );
+  }
+
+  Widget _buildListTile({
+    required ThemeData theme,
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+        vertical: AppConstants.paddingSmall / 2,
+      ),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: theme.brightness == Brightness.light
+              ? AppColors.backgroundLightGrey
+              : AppColors.stormyNightBackground,
+          borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: theme.brightness == Brightness.dark
+              ? AppColors.stormyIceBlue
+              : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+        ),
+      ),
+      title: Text(title, style: theme.textTheme.titleMedium),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyMutedBlueGrey
+            : theme.colorScheme.onSurface.withValues(alpha: 0.3),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  void _showLogoutConfirmationDialog(
+    BuildContext context,
+    AuthProvider authProvider,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.stormyDarkSlate
+              : Theme.of(context).colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'ออกจากระบบ?',
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.textWhite
+                  : AppColors.stormyDarkSlate,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'คุณแน่ใจหรือไม่ว่าต้องการออกจากบัญชีของคุณ?',
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.stormyIceBlue
+                  : AppColors.textSecondary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.stormySkyBlue
+                    : AppColors.textSecondary,
+              ),
+              child: const Text('ยกเลิก'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFEF9A9A).withValues(alpha: 0.15)
+                    : Colors.redAccent,
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFEF9A9A)
+                    : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () async {
+                Navigator.pop(dialogContext); // Close dialog
+                await authProvider.signOut();
+                if (context.mounted) {
+                  // ignore: use_build_context_synchronously
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const AuthGate()),
+                    (route) => false,
+                  );
+                }
+              },
+              child: const Text(
+                'ออกจากระบบ',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLogoutButton(AuthProvider authProvider) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: () {
+          _showLogoutConfirmationDialog(context, authProvider);
+        },
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFE57373),
+          backgroundColor: Colors.transparent,
+          side: const BorderSide(color: Color(0xFFE57373), width: 1.5),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppConstants.paddingMedium,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout),
+            SizedBox(width: 8),
+            Text('ออกจากระบบ'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _levelTitleFor(int level) {
+    return thaiLevelTitle(level);
+  }
+}

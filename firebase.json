@@ -1,0 +1,46 @@
+{
+  "_comment": "ไฟล์นี้คือ 'แผงผังเชื่อมต่อ' (Configuration) ทำหน้าที่ผูกโค้ดแอปของเราเข้ากับบริการต่างๆ ของ Firebase (เช่น Functions, Firestore, Storage) เพื่อให้เวลาเราสั่งอัปโหลดโค้ด ระบบจะรู้ว่าต้องเอาส่วนไหนไปไว้ที่ไหน",
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "todo-app-9f3dd",
+          "appId": "1:333535269154:android:7b2a40164af4030191157b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "todo-app-9f3dd",
+          "configurations": {
+            "android": "1:333535269154:android:7b2a40164af4030191157b",
+            "ios": "1:333535269154:ios:88024bab6a6383f491157b",
+            "macos": "1:333535269154:ios:88024bab6a6383f491157b",
+            "web": "1:333535269154:web:d7547a8cc8e0391391157b",
+            "windows": "1:333535269154:web:d82791b3dbd9f06891157b"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}

@@ -1,0 +1,3532 @@
+import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../config/colors.dart';
+import '../config/constants.dart';
+import '../models/task.dart';
+import '../providers/task_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/connectivity_provider.dart';
+import '../services/friend_request_service.dart';
+import '../services/sound_service.dart';
+import '../widgets/adaptive_nav_bar.dart';
+import '../utils/tutorial_service.dart';
+import '../widgets/custom_drawer.dart';
+import '../widgets/create_task_modal.dart';
+import '../widgets/fast_completion_warning_dialog.dart';
+import '../widgets/late_penalty_dialog.dart';
+import '../widgets/welcome_dialog.dart';
+import '../utils/responsive.dart';
+import '../utils/thai_display.dart';
+import 'calendar_screen.dart';
+import 'settings_screen.dart';
+import 'task_detail_screen.dart';
+import 'task_search_delegate.dart';
+import '../widgets/group_project_card.dart';
+import '../utils/snack_bar_utils.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'bin_screen.dart';
+import 'friends_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+
+  void _showXPLimitDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          elevation: 10,
+          backgroundColor: theme.colorScheme.surface,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentOrange.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.accentOrange,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Daily XP Cap Reached',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'ขณะนี้ท่านมีคะแนนที่ได้จากภารกิจกลุ่มต่อเนื่องถึง 270 แต้มแล้วการสร้างภารกิจหลังจากนี้ท่านจะไม่ได้รับแต้มอีก',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.stormySkyBlue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'รับทราบ',
+                      style: TextStyle(
+                        fontSize: 18,
+                        height: 1.1,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCreateTaskModal({TaskType? initialType}) {
+    final connectivityProvider = Provider.of<ConnectivityProvider>(
+      context,
+      listen: false,
+    );
+    if (connectivityProvider.isOffline) {
+      _showOfflineDialog(context);
+      return;
+    }
+
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final type =
+        initialType ??
+        (_currentIndex == 0
+            ? (taskProvider.activeSubTabIndex == 0
+                  ? TaskType.personal
+                  : TaskType.group)
+            : TaskType.personal);
+    final initialDate = _currentIndex == 1 ? taskProvider.selectedDate : null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) =>
+          CreateTaskModal(initialType: type, initialDate: initialDate),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final taskProvider = Provider.of<TaskProvider>(context);
+
+    final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
+    if (taskProvider.showXPCapAlert && isCurrentRoute) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showXPLimitDialog(context);
+        taskProvider.dismissXPCapAlert();
+      });
+    }
+
+    final useRail = Responsive.useNavigationRail(context);
+    final useDrawer = Responsive.useDrawer(context);
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? AppColors.stormyNightBackground
+          : null,
+      extendBody: false,
+      appBar: useRail ? _buildAppBar() : null,
+      body: Column(
+        children: [
+          Consumer<ConnectivityProvider>(
+            builder: (context, connectivity, child) {
+              if (!connectivity.isOffline) return const SizedBox.shrink();
+              return Container(
+                width: double.infinity,
+                color: Colors.redAccent.withValues(alpha: 0.8),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4,
+                  horizontal: 16,
+                ),
+                child: const Text(
+                  'ไม่ได้เชื่อมต่ออินเทอร์เน็ต (Offline Mode)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            },
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                // Navigation Rail for Tablet/Desktop
+                if (useRail)
+                  AdaptiveNavBar(
+                    currentIndex: _currentIndex,
+                    onTap: (index) {
+                      setState(() => _currentIndex = index);
+                    },
+                    onFabPressed: _currentIndex != 2
+                        ? () => _showCreateTaskModal()
+                        : null,
+                  ),
+                Expanded(
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: _buildScreens(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      // FAB for Mobile (shown in bottom nav)
+      floatingActionButton: (!useRail && _currentIndex != 2)
+          ? FloatingActionButton(
+              key: TutorialService.fabKey,
+              onPressed: () => _showCreateTaskModal(),
+              backgroundColor: AppColors.stormySkyBlue,
+              child: const Icon(Icons.add),
+            )
+          : null,
+      // Drawer for Mobile only
+      drawer: useDrawer ? const CustomDrawer() : null,
+      bottomNavigationBar: useRail
+          ? null
+          : AdaptiveNavBar(
+              key: TutorialService.navKey,
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                setState(() => _currentIndex = index);
+              },
+              onFabPressed: _currentIndex != 2
+                  ? () => _showCreateTaskModal()
+                  : null,
+            ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: const Text('ตัวช่วยจัดการภารกิจในรูปแบบเกม'),
+      centerTitle: true,
+      elevation: 0,
+      backgroundColor: AppColors.backgroundWhite,
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: Icon(
+            Icons.menu,
+            color: (Theme.of(context).brightness == Brightness.light
+                ? AppColors.stormyDarkSlate
+                : AppColors.textPrimary),
+          ),
+          onPressed: () {
+            Scaffold.of(context).openDrawer();
+          },
+        ),
+      ),
+      actions: [
+        _NotificationBellButton(
+          color: (Theme.of(context).brightness == Brightness.light
+              ? AppColors.stormyDarkSlate
+              : AppColors.textPrimary),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  List<Widget> _buildScreens() {
+    return [
+      _TasksTab(onCreateTask: _showCreateTaskModal),
+      const CalendarScreen(),
+      const SettingsScreen(),
+    ];
+  }
+
+  void _showOfflineDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต'),
+        content: const Text('กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อดำเนินการนี้'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.stormySkyBlue
+                  : null,
+            ),
+            child: const Text('ตกลง'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TasksTab extends StatefulWidget {
+  final Function({TaskType? initialType}) onCreateTask;
+  const _TasksTab({required this.onCreateTask});
+
+  @override
+  State<_TasksTab> createState() => _TasksTabState();
+}
+
+class _TasksTabState extends State<_TasksTab>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        if (mounted) {
+          context.read<TaskProvider>().setActiveSubTabIndex(
+            _tabController.index,
+          );
+        }
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _checkAndShowTutorial(),
+    );
+  }
+
+  Future<void> _checkAndShowTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenTutorial = prefs.getBool('has_seen_tutorial') ?? false;
+
+    if (!hasSeenTutorial && mounted) {
+      final startTour = await showDialog<bool>(
+        context: context,
+        builder: (context) => const WelcomeDialog(),
+      );
+
+      if (!mounted) return;
+
+      await prefs.setBool('has_seen_tutorial', true);
+
+      if (startTour == true) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          TutorialService.showTutorial(context);
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'สวัสดียามเช้า,';
+    if (hour >= 12 && hour < 17) return 'สวัสดีตอนบ่าย,';
+    if (hour >= 17 && hour < 21) return 'สวัสดีตอนเย็น,';
+    return 'ราตรีสวัสดิ์,';
+  }
+
+  String _getFirstName(String? fullName) {
+    if (fullName == null || fullName.isEmpty) return 'User';
+    return fullName.split(' ')[0];
+  }
+
+  Widget _buildHeader() {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.currentUser;
+    final firstName = _getFirstName(user?.name);
+    final greeting = _getGreeting();
+    final formattedDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Left Column (Text)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      greeting,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: theme.brightness == Brightness.dark
+                            ? Colors.white
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      firstName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: theme.brightness == Brightness.dark
+                            ? Colors.white
+                            : theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'วันนี้',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.white
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  formattedDate,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.white
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Middle: Fire Streak (Centered between text and icons)
+          Container(
+            key: TutorialService.streakKey,
+            child: Row(
+              children: [
+                const Text('🔥', style: TextStyle(fontSize: 24)),
+                const SizedBox(width: 4),
+                Text(
+                  '${user?.currentStreak ?? 0}',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: theme.brightness == Brightness.light
+                        ? theme.colorScheme.onSurface
+                        : Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Right Row (Icons)
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Search Icon
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: Icon(
+                    Icons.search,
+                    color: theme.brightness == Brightness.light
+                        ? Colors.teal
+                        : AppColors.stormySkyBlue,
+                    size: 32,
+                  ),
+                  onPressed: () {
+                    showSearch(
+                      context: context,
+                      delegate: TaskSearchDelegate(),
+                    );
+                  },
+                ),
+                const SizedBox(width: 16),
+                // Notification Icon
+                _NotificationBellButton(
+                  color: theme.brightness == Brightness.light
+                      ? theme.colorScheme.onSurface
+                      : Colors.white,
+                  size: 32,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        children: [
+          _buildHeader(),
+          _buildTabBar(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [_PersonalTasksList(), _GroupProjectsList()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+      ),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.light
+            ? AppColors.stormyIceBlue
+            : AppColors.stormyNightBackground,
+        borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        border: theme.brightness == Brightness.dark
+            ? Border.all(color: AppColors.stormyDarkSlate, width: 2)
+            : null,
+      ),
+      child: TabBar(
+        key: TutorialService.switcherKey,
+        controller: _tabController,
+        dividerColor: Colors.transparent,
+        dividerHeight: 0,
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.focused)) {
+            return theme.brightness == Brightness.dark
+                ? AppColors.stormySkyBlue.withValues(alpha: 0.1)
+                : AppColors.stormySkyBlue.withValues(alpha: 0.1);
+          }
+          return Colors.transparent;
+        }),
+        indicator: BoxDecoration(
+          color: theme.brightness == Brightness.light
+              ? AppColors.backgroundWhite
+              : AppColors.stormyDarkSlate,
+          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          boxShadow: [
+            BoxShadow(
+              color: theme.brightness == Brightness.light
+                  ? AppColors.shadowLight
+                  : Colors.black.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelColor: theme.brightness == Brightness.light
+            ? AppColors.stormySkyBlue
+            : Colors.white,
+        unselectedLabelColor: theme.brightness == Brightness.light
+            ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
+            : AppColors.stormyMutedBlueGrey,
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        tabs: const [
+          Tab(text: 'ภารกิจส่วนตัว'),
+          Tab(text: 'ภารกิจกลุ่ม'),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Notification Bottom Sheet Components ---
+
+class _NotificationBellButton extends StatelessWidget {
+  final Color color;
+  final double size;
+  final EdgeInsetsGeometry? padding;
+  final BoxConstraints? constraints;
+
+  const _NotificationBellButton({
+    required this.color,
+    this.size = 24,
+    this.padding,
+    this.constraints,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final userId = context.watch<AuthProvider>().currentUser?.id;
+    final stream = userId == null || userId.isEmpty
+        ? null
+        : FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .collection('notifications')
+              .where('isRead', isEqualTo: false)
+              .snapshots();
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: stream,
+      builder: (context, snapshot) {
+        final hasUnread =
+            snapshot.hasData &&
+            snapshot.data!.docs.any((doc) => doc.data()['deletedAt'] == null);
+
+        return IconButton(
+          padding: padding,
+          constraints: constraints,
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(Icons.notifications_none_outlined, color: color, size: size),
+              if (hasUnread)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          onPressed: () => showNotificationBottomSheet(context),
+        );
+      },
+    );
+  }
+}
+
+class NotificationItem {
+  final String id;
+  final String sender;
+  final String message;
+  final String tag;
+  final Color tagColor;
+  final bool isUnread;
+  final DateTime createdAt;
+  final String? taskId;
+  final String? actorId;
+  final String? friendRequestId;
+  final String? actorAvatarUrl;
+  final String? actorName;
+  bool isRemoving;
+
+  NotificationItem({
+    required this.id,
+    required this.sender,
+    required this.message,
+    required this.tag,
+    required this.tagColor,
+    DateTime? createdAt,
+    this.taskId,
+    this.actorId,
+    this.friendRequestId,
+    this.actorAvatarUrl,
+    this.actorName,
+    this.isUnread = false,
+    this.isRemoving = false,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  bool get showsAvatar {
+    final normalizedTag = tag.toLowerCase();
+    return normalizedTag == 'comment' ||
+        normalizedTag == 'group' ||
+        normalizedTag == 'submission' ||
+        normalizedTag == 'approved' ||
+        normalizedTag == 'rejected' ||
+        normalizedTag == 'friendrequest' ||
+        normalizedTag == 'friendaccepted';
+  }
+
+  bool get isFriendRequest => tag.toLowerCase() == 'friendrequest';
+
+  factory NotificationItem.fromDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    Set<String> removingIds,
+  ) {
+    final data = doc.data();
+    final createdAtValue = data['createdAt'];
+    final createdAt = createdAtValue is Timestamp
+        ? createdAtValue.toDate()
+        : DateTime.now();
+    final tag = (data['type'] ?? 'Update').toString();
+
+    return NotificationItem(
+      id: doc.id,
+      sender: (data['title'] ?? 'Task Reminder').toString(),
+      message: (data['body'] ?? '').toString(),
+      tag: tag,
+      tagColor: _notificationTagColor(tag),
+      createdAt: createdAt,
+      taskId: data['taskId']?.toString(),
+      actorId: data['actorId']?.toString(),
+      friendRequestId: data['friendRequestId']?.toString(),
+      actorAvatarUrl: data['actorAvatarUrl']?.toString(),
+      actorName: data['actorName']?.toString(),
+      isUnread: data['isRead'] != true,
+      isRemoving: removingIds.contains(doc.id),
+    );
+  }
+}
+
+Color _notificationTagColor(String tag) {
+  switch (tag.toLowerCase()) {
+    case 'deadline':
+      return AppColors.accentOrange; // #FFCC80
+    case 'follow-up':
+      return AppColors.accentOrange; // Replaced harsh red with orange
+    case 'reminder':
+      return AppColors.stormySkyBlue; // #88BDF2
+    case 'message':
+      return AppColors.stormySkyBlue;
+    case 'comment':
+      return AppColors.stormySkyBlue;
+    case 'group':
+      return AppColors.stormySkyBlue;
+    case 'submission':
+      return AppColors.stormySkyBlue;
+    case 'approved':
+      return AppColors.stormySkyBlue; // Semantic translucent blue
+    case 'rejected':
+      return AppColors.accentOrange; // Replaced harsh red with orange
+    case 'friendrequest':
+      return AppColors.stormySkyBlue;
+    case 'friendaccepted':
+      return AppColors.stormySkyBlue;
+    case 'update':
+    default:
+      return AppColors.stormySkyBlue;
+  }
+}
+
+void showNotificationBottomSheet(BuildContext context, {bool isEmpty = false}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    // ส่วนสำคัญ: อนุญาตให้ปิดได้เมื่อกดพื้นที่ว่าง (Barrier)
+    isDismissible: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => NotificationPanel(isEmpty: isEmpty),
+  );
+}
+
+class NotificationPanel extends StatefulWidget {
+  final bool isEmpty;
+
+  const NotificationPanel({super.key, this.isEmpty = false});
+
+  @override
+  State<NotificationPanel> createState() => _NotificationPanelState();
+}
+
+class _NotificationPanelState extends State<NotificationPanel> {
+  bool _isClearingAll = false;
+  bool _showClearAllUndoBanner = false;
+  Timer? _clearAllTimer;
+  final FriendRequestService _friendRequestService = FriendRequestService();
+  List<NotificationItem> _clearAllBackup = const [];
+  final Set<String> _clearAllAnimatingIds = {};
+  final List<Timer> _clearAllAnimationTimers = [];
+  final Set<String> _removingNotificationIds = {};
+  final Set<String> _friendActionNotificationIds = {};
+  final Map<String, Timer> _removeTimers = {};
+
+  String? _cachedUserId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userId = context.read<AuthProvider>().currentUser?.id;
+    if (userId != null && userId.isNotEmpty) {
+      _cachedUserId = userId;
+    }
+  }
+
+  CollectionReference<Map<String, dynamic>>? _notificationsRef() {
+    if (_cachedUserId == null || _cachedUserId!.isEmpty) return null;
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(_cachedUserId)
+        .collection('notifications');
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _notificationsStream() {
+    return _notificationsRef()
+        ?.orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots();
+  }
+
+  @override
+  void dispose() {
+    if (_removingNotificationIds.isNotEmpty && _cachedUserId != null) {
+      final ref = FirebaseFirestore.instance
+          .collection('users')
+          .doc(_cachedUserId)
+          .collection('notifications');
+
+      final batch = FirebaseFirestore.instance.batch();
+      final deletedAt = FieldValue.serverTimestamp();
+      for (final id in _removingNotificationIds) {
+        batch.set(ref.doc(id), {
+          'deletedAt': deletedAt,
+        }, SetOptions(merge: true));
+      }
+      // Fire and forget
+      batch.commit().catchError(
+        (e) => debugPrint('Dispose batch delete failed: $e'),
+      );
+    }
+
+    for (final timer in _removeTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _clearAllAnimationTimers) {
+      timer.cancel();
+    }
+    _clearAllTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _confirmClearAll(List<NotificationItem> notifications) async {
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้'),
+        ),
+      );
+      return;
+    }
+    if (_isClearingAll || notifications.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        final isDark = theme.brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'ลบการแจ้งเตือนทั้งหมด?',
+            style: TextStyle(
+              color: AppColors.error,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            'คุณต้องการลบการแจ้งเตือนทั้งหมดไหม',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.stormyIceBlue
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.72),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              style: TextButton.styleFrom(
+                foregroundColor: isDark
+                    ? AppColors.stormySkyBlue
+                    : AppColors.stormyMutedBlueGrey,
+              ),
+              child: const Text('ยกเลิก'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error,
+                backgroundColor: AppColors.error.withValues(alpha: 0.15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('ลบทั้งหมด'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+    await _clearAll(notifications);
+  }
+
+  Future<void> _clearAll(List<NotificationItem> notifications) async {
+    if (_isClearingAll || notifications.isEmpty) return;
+
+    final itemsToClear = List<NotificationItem>.from(notifications);
+    _clearAllTimer?.cancel();
+    for (final timer in _clearAllAnimationTimers) {
+      timer.cancel();
+    }
+    _clearAllAnimationTimers.clear();
+
+    setState(() {
+      _clearAllBackup = itemsToClear;
+      _isClearingAll = true;
+      _showClearAllUndoBanner = false;
+      _clearAllAnimatingIds.clear();
+    });
+
+    const stagger = Duration(milliseconds: 85);
+    const slideDuration = Duration(milliseconds: 360);
+    for (var i = 0; i < itemsToClear.length; i++) {
+      final item = itemsToClear[i];
+      _clearAllAnimationTimers.add(
+        Timer(stagger * i, () {
+          if (!mounted) return;
+          setState(() {
+            _clearAllAnimatingIds.add(item.id);
+          });
+        }),
+      );
+    }
+
+    final totalAnimationDuration =
+        stagger * (itemsToClear.length - 1) + slideDuration;
+    await Future<void>.delayed(totalAnimationDuration);
+    if (!mounted || !_isClearingAll) return;
+
+    await _softDeleteNotifications(itemsToClear);
+    if (!mounted || !_isClearingAll) return;
+
+    setState(() {
+      _clearAllAnimatingIds.clear();
+      _showClearAllUndoBanner = true;
+    });
+
+    _clearAllTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      setState(() {
+        _isClearingAll = false;
+        _showClearAllUndoBanner = false;
+        _clearAllBackup = const [];
+      });
+    });
+  }
+
+  Future<void> _softDeleteNotifications(List<NotificationItem> items) async {
+    final ref = _notificationsRef();
+    if (ref == null || items.isEmpty) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+    final deletedAt = FieldValue.serverTimestamp();
+    for (final item in items.take(500)) {
+      batch.set(ref.doc(item.id), {
+        'deletedAt': deletedAt,
+      }, SetOptions(merge: true));
+    }
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      debugPrint('Failed to clear notifications: $error');
+    }
+  }
+
+  Future<void> _markVisibleNotificationsRead(
+    List<NotificationItem> notifications,
+  ) async {
+    final unreadItems = notifications
+        .where((item) => item.isUnread && !item.isRemoving)
+        .take(50)
+        .toList();
+    final ref = _notificationsRef();
+    if (ref == null || unreadItems.isEmpty) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+    for (final item in unreadItems) {
+      batch.set(ref.doc(item.id), {
+        'isRead': true,
+        'readAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      debugPrint('Failed to mark notifications read: $error');
+    }
+  }
+
+  void _scheduleMarkRead(List<NotificationItem> notifications) {
+    if (notifications.any((item) => item.isUnread && !item.isRemoving)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _markVisibleNotificationsRead(notifications);
+        }
+      });
+    }
+  }
+
+  List<NotificationItem> _itemsFromSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    final items = snapshot.docs
+        .where((doc) => doc.data()['deletedAt'] == null)
+        .map(
+          (doc) => NotificationItem.fromDocument(doc, _removingNotificationIds),
+        )
+        .toList();
+    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return items;
+  }
+
+  void _undoClearAll() {
+    _clearAllTimer?.cancel();
+    for (final timer in _clearAllAnimationTimers) {
+      timer.cancel();
+    }
+    _clearAllAnimationTimers.clear();
+    final itemsToRestore = List<NotificationItem>.from(_clearAllBackup);
+    setState(() {
+      _isClearingAll = false;
+      _showClearAllUndoBanner = false;
+      _clearAllAnimatingIds.clear();
+      _clearAllBackup = const [];
+    });
+    _restoreClearedNotifications(itemsToRestore);
+  }
+
+  Future<void> _restoreClearedNotifications(
+    List<NotificationItem> items,
+  ) async {
+    final ref = _notificationsRef();
+    if (ref == null || items.isEmpty) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+    for (final item in items.take(500)) {
+      batch.set(ref.doc(item.id), {
+        'deletedAt': FieldValue.delete(),
+      }, SetOptions(merge: true));
+    }
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      debugPrint('Failed to undo clear notifications: $error');
+    }
+  }
+
+  void _removeItem(NotificationItem item) {
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้'),
+        ),
+      );
+      return;
+    }
+    if (_removingNotificationIds.contains(item.id)) return;
+
+    setState(() {
+      _removingNotificationIds.add(item.id);
+    });
+
+    _removeTimers[item.id] = Timer(const Duration(seconds: 5), () async {
+      final ref = _notificationsRef();
+      if (ref != null) {
+        try {
+          await ref.doc(item.id).set({
+            'deletedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (error) {
+          debugPrint('Failed to remove notification ${item.id}: $error');
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _removingNotificationIds.remove(item.id);
+        _removeTimers.remove(item.id);
+      });
+    });
+  }
+
+  void _undoRemoveItem(NotificationItem item) {
+    _removeTimers.remove(item.id)?.cancel();
+    setState(() {
+      _removingNotificationIds.remove(item.id);
+    });
+  }
+
+  Future<void> _markNotificationRead(NotificationItem item) async {
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
+    if (currentUserId == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUserId)
+        .collection('notifications')
+        .doc(item.id)
+        .update({
+          'isRead': true,
+          'readAt': FieldValue.serverTimestamp(),
+          'deletedAt': FieldValue.serverTimestamp(),
+        });
+  }
+
+  Future<void> _acceptFriendRequestNotification(NotificationItem item) async {
+    final currentUser = context.read<AuthProvider>().currentUser;
+    final requesterId = item.actorId;
+    final requestId = item.friendRequestId;
+    if (currentUser == null || requesterId == null || requestId == null) return;
+
+    setState(() {
+      _friendActionNotificationIds.add(item.id);
+    });
+
+    try {
+      await _friendRequestService.acceptFriendRequest(
+        requestId: requestId,
+        requesterId: requesterId,
+        currentUser: currentUser,
+        requesterName: item.actorName ?? item.sender,
+        requesterAvatarUrl: item.actorAvatarUrl,
+      );
+      await _markNotificationRead(item);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ยอมรับคำขอเป็นเพื่อนแล้ว'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ยอมรับคำขอเป็นเพื่อนไม่สำเร็จ'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _friendActionNotificationIds.remove(item.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _declineFriendRequestNotification(NotificationItem item) async {
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
+    final requestId = item.friendRequestId;
+    if (currentUserId == null || requestId == null) return;
+
+    setState(() {
+      _friendActionNotificationIds.add(item.id);
+    });
+
+    try {
+      await _friendRequestService.declineFriendRequest(
+        requestId: requestId,
+        recipientId: currentUserId,
+      );
+      await _markNotificationRead(item);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('ปฏิเสธคำขอเป็นเพื่อนแล้ว'),
+          backgroundColor: (Theme.of(context).brightness == Brightness.light
+              ? AppColors.stormyMutedBlueGrey
+              : AppColors.textSecondary),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ปฏิเสธคำขอเป็นเพื่อนไม่สำเร็จ'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _friendActionNotificationIds.remove(item.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _openNotificationTask(NotificationItem item) async {
+    final taskId = item.taskId;
+    if (taskId == null || taskId.isEmpty) return;
+
+    final taskProvider = context.read<TaskProvider>();
+    Task? task;
+    try {
+      task = taskProvider.tasks.firstWhere((task) => task.id == taskId);
+    } catch (_) {
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('tasks')
+            .doc(taskId)
+            .get();
+        final data = snap.data();
+        if (snap.exists && data != null) {
+          task = Task.fromMap(data, snap.id);
+        }
+      } catch (error) {
+        debugPrint('Failed to open notification task $taskId: $error');
+      }
+    }
+
+    if (!mounted || task == null) return;
+    taskProvider.selectTask(task);
+    Navigator.pop(context);
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => TaskDetailScreen(task: task)),
+    );
+  }
+
+  String _formatRelativeTime(DateTime createdAt) {
+    return thaiRelativePast(createdAt);
+  }
+
+  Widget _buildLoadingState(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 48),
+      child: Center(
+        child: CircularProgressIndicator(color: AppColors.stormySkyBlue),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(
+        'Unable to load notifications right now.',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final stream = _notificationsStream();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 80), // Ensure top barrier is reachable
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? AppColors.stormyNightBackground
+            : theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(35)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: theme.brightness == Brightness.light ? 0.08 : 0.4,
+            ),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: stream,
+        builder: (context, snapshot) {
+          final notifications = snapshot.hasData
+              ? _itemsFromSnapshot(snapshot.data!)
+              : <NotificationItem>[];
+          if (snapshot.hasData) {
+            _scheduleMarkRead(notifications);
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                children: [
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 12),
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: theme.brightness == Brightness.light
+                                ? (Theme.of(context).brightness ==
+                                          Brightness.light
+                                      ? AppColors.stormyMutedBlueGrey
+                                      : AppColors.backgroundDarkGrey)
+                                : Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'การแจ้งเตือน',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            if (notifications.isNotEmpty && !_isClearingAll)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 32),
+                                child: TextButton(
+                                  onPressed: () =>
+                                      _confirmClearAll(notifications),
+                                  child: Text(
+                                    'ลบทั้งหมด',
+                                    style: TextStyle(
+                                      color: AppColors.stormySkyBlue,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                  Positioned(
+                    top: 15,
+                    right: 15,
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ],
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (stream == null || widget.isEmpty)
+                        _buildEmptyStateView(context)
+                      else if (snapshot.hasError)
+                        _buildErrorState(context)
+                      else if (!snapshot.hasData)
+                        _buildLoadingState(context)
+                      else if (notifications.isEmpty && !_isClearingAll)
+                        _buildEmptyStateView(context)
+                      else
+                        _buildPopulatedStateView(notifications),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyStateView(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(25),
+            decoration: BoxDecoration(
+              color: theme.brightness == Brightness.dark
+                  ? AppColors.stormyDarkSlate
+                  : AppColors.stormyIceBlue.withValues(alpha: 0.7),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.notifications_none_outlined,
+              size: 80,
+              color: AppColors.stormySkyBlue,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "คุณตามทันทุกการแจ้งเตือนแล้ว",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "ไม่มีการแจ้งเตือนใหม่ในขณะนี้",
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(height: 40),
+          SizedBox(
+            width: 140,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.stormySkyBlue,
+                foregroundColor: theme.brightness == Brightness.dark
+                    ? AppColors.stormyNightBackground
+                    : Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: const Text(
+                'ตกลง',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPopulatedStateView(List<NotificationItem> items) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      itemCount: items.length + (_showClearAllUndoBanner ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (_showClearAllUndoBanner && index == 0) {
+          return _buildClearAllUndoBanner();
+        }
+
+        final actualIndex = _showClearAllUndoBanner ? index - 1 : index;
+        final item = items[actualIndex];
+
+        if (item.isRemoving) {
+          return _buildUndoPlaceholderCard(item);
+        }
+
+        final isClearingThisItem = _clearAllAnimatingIds.contains(item.id);
+        return AnimatedSlide(
+          duration: const Duration(milliseconds: 360),
+          curve: Curves.easeInOutCubic,
+          offset: isClearingThisItem ? const Offset(1.18, 0) : Offset.zero,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            opacity: isClearingThisItem ? 0 : 1,
+            child: Dismissible(
+              key: ObjectKey(item),
+              direction: _isClearingAll
+                  ? DismissDirection.none
+                  : DismissDirection.endToStart,
+              background: Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Icon(Icons.delete_outline, color: Colors.white),
+              ),
+              onDismissed: (direction) {
+                _removeItem(item);
+              },
+              child: _buildNotificationCard(item),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildClearAllUndoBanner() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : (Theme.of(context).brightness == Brightness.light
+                      ? AppColors.stormyIceBlue
+                      : AppColors.backgroundDarkGrey)
+                  .withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'ลบการแจ้งเตือนทั้งหมดแล้ว',
+            style: TextStyle(
+              color: isDark
+                  ? Colors.white
+                  : (Theme.of(context).brightness == Brightness.light
+                        ? AppColors.stormyDarkSlate
+                        : AppColors.textPrimary),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          TextButton(
+            onPressed: _undoClearAll,
+            child: Text(
+              'เลิกทำ',
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.stormySkyBlue
+                    : AppColors.stormyDarkSlate,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUndoPlaceholderCard(NotificationItem item) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      height: 90, // Roughly the same height as a normal card
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : (Theme.of(context).brightness == Brightness.light
+                      ? AppColors.stormyIceBlue
+                      : AppColors.backgroundGrey)
+                  .withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'ลบการแจ้งเตือนแล้ว',
+            style: TextStyle(
+              color: isDark
+                  ? Colors.white70
+                  : (Theme.of(context).brightness == Brightness.light
+                        ? AppColors.stormyMutedBlueGrey
+                        : AppColors.textSecondary),
+              fontWeight: isDark ? FontWeight.w500 : FontWeight.normal,
+            ),
+          ),
+          TextButton(
+            onPressed: () => _undoRemoveItem(item),
+            child: Text(
+              'เลิกทำ',
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.stormySkyBlue
+                    : AppColors.stormyDarkSlate,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationCard(NotificationItem item) {
+    final theme = Theme.of(context);
+    final avatarUrl = item.actorAvatarUrl ?? '';
+    final avatarName = (item.actorName?.isNotEmpty ?? false)
+        ? item.actorName!
+        : item.sender;
+
+    return InkWell(
+      enableFeedback: false,
+      borderRadius: BorderRadius.circular(30),
+      onTap: () {
+        if (item.tag.toLowerCase() == 'friendaccepted') {
+          Navigator.pop(context);
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const FriendsScreen()),
+          );
+        } else if (item.taskId != null) {
+          _openNotificationTask(item);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.brightness == Brightness.dark
+              ? AppColors.stormyDarkSlate
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: theme.brightness == Brightness.light ? 0.04 : 0.4,
+              ),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: theme.brightness == Brightness.dark
+              ? Border.all(color: Colors.white.withValues(alpha: 0.1))
+              : null,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (item.showsAvatar) ...[
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.stormySkyBlue.withValues(alpha: 0.12),
+                ),
+                child: ClipOval(
+                  child: avatarUrl.isNotEmpty
+                      ? Image.network(
+                          avatarUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Text(
+                                avatarName.isEmpty ? '?' : avatarName[0],
+                                style: const TextStyle(
+                                  color: AppColors.stormySkyBlue,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Center(
+                          child: Text(
+                            avatarName.isEmpty ? '?' : avatarName[0],
+                            style: const TextStyle(
+                              color: AppColors.stormySkyBlue,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 14),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.sender,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (item.isUnread) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: AppColors.stormySkyBlue,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.message,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (item.isFriendRequest) ...[
+                    const SizedBox(height: 12),
+                    if (_friendActionNotificationIds.contains(item.id))
+                      const SizedBox(
+                        height: 34,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  _acceptFriendRequestNotification(item),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.stormySkyBlue,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'ยอมรับ',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () =>
+                                  _declineFriendRequestNotification(item),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor:
+                                    (Theme.of(context).brightness ==
+                                        Brightness.light
+                                    ? AppColors.stormyMutedBlueGrey
+                                    : AppColors.textSecondary),
+                                side: BorderSide(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.14,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'ปฏิเสธ',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _formatRelativeTime(item.createdAt),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: item.tagColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    thaiNotificationTag(item.tag),
+                    style: TextStyle(
+                      color: item.tagColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (item.taskId != null) ...[
+                  const SizedBox(height: 10),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PersonalTasksList extends StatefulWidget {
+  const _PersonalTasksList();
+
+  @override
+  State<_PersonalTasksList> createState() => _PersonalTasksListState();
+}
+
+class _PersonalTasksListState extends State<_PersonalTasksList> {
+  static const _completionExitDuration = Duration(milliseconds: 560);
+
+  final Map<String, Task> _exitingTasks = {};
+  final Map<String, int> _exitingTaskIndexes = {};
+  final Set<String> _exitingOverdueTaskIds = {};
+  final Map<String, Timer> _exitTimers = {};
+
+  @override
+  void dispose() {
+    for (final timer in _exitTimers.values) {
+      timer.cancel();
+    }
+    super.dispose();
+  }
+
+  Future<void> _handleToggleComplete(
+    Task task, {
+    required bool isOverdue,
+  }) async {
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้'),
+        ),
+      );
+      return;
+    }
+    final taskProvider = context.read<TaskProvider>();
+    final nextState = !task.isCompleted;
+
+    final latestTask = taskProvider.tasks.firstWhere(
+      (t) => t.id == task.id,
+      orElse: () => task,
+    );
+
+    if (nextState) {
+      if (latestTask.subtasks.isNotEmpty &&
+          latestTask.subtasks.any((s) => !s.isDone)) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('ไม่สามารถเสร็จสิ้นภารกิจได้'),
+            content: const Text(
+              'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormySkyBlue
+                      : AppColors.textSecondary,
+                ),
+                child: const Text('ตกลง'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      final shouldProceed = await LatePenaltyDialog.checkAndShow(context, task);
+      if (!shouldProceed) return;
+      if (!context.mounted) return;
+
+      _stageTaskExit(task, isOverdue: isOverdue);
+      _playTaskCompleteSound();
+      final result = await taskProvider.completeTaskWithSubtasks(task.id, true);
+      if (!mounted) return;
+      await FastCompletionWarningDialog.showCompletionFeedback(context, result);
+
+      if (!mounted) return;
+      SnackBarUtils.showUndoSnackBar(
+        context,
+        message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
+        onUndo: () async {
+          await taskProvider.toggleTaskCompletion(
+            task.id,
+            updateSubtasks: true,
+          );
+        },
+      );
+    } else {
+      _cancelTaskExit(task.id);
+      await taskProvider.toggleTaskCompletion(task.id, updateSubtasks: true);
+    }
+  }
+
+  void _playTaskCompleteSound() {
+    final isSoundEnabled =
+        context.read<AuthProvider>().currentUser?.isSoundEnabled ?? true;
+    unawaited(
+      SoundService.instance.playTaskCompleteSound(
+        isSoundEnabled: isSoundEnabled,
+      ),
+    );
+  }
+
+  void _stageTaskExit(Task task, {required bool isOverdue}) {
+    if (_exitingTasks.containsKey(task.id)) return;
+
+    final pendingTasks = _sortedPendingTasks(
+      isOverdue
+          ? context.read<TaskProvider>().overduePersonalTasks
+          : context.read<TaskProvider>().todayPersonalTasks,
+    );
+    final visualIndex = pendingTasks.indexWhere((item) => item.id == task.id);
+    final completedSubtasks = task.subtasks
+        .map((subtask) => subtask.copyWith(isDone: true))
+        .toList();
+
+    setState(() {
+      _exitingTasks[task.id] = task.copyWith(
+        status: TaskStatus.completed,
+        completedAt: DateTime.now(),
+        subtasks: completedSubtasks,
+      );
+      _exitingTaskIndexes[task.id] = visualIndex < 0 ? 0 : visualIndex;
+      if (isOverdue) {
+        _exitingOverdueTaskIds.add(task.id);
+      } else {
+        _exitingOverdueTaskIds.remove(task.id);
+      }
+    });
+
+    _exitTimers[task.id]?.cancel();
+    _exitTimers[task.id] = Timer(_completionExitDuration, () {
+      if (!mounted) return;
+      setState(() {
+        _exitingTasks.remove(task.id);
+        _exitingTaskIndexes.remove(task.id);
+        _exitingOverdueTaskIds.remove(task.id);
+        _exitTimers.remove(task.id);
+      });
+    });
+  }
+
+  void _cancelTaskExit(String taskId) {
+    final timer = _exitTimers.remove(taskId);
+    timer?.cancel();
+    if (!_exitingTasks.containsKey(taskId)) return;
+
+    setState(() {
+      _exitingTasks.remove(taskId);
+      _exitingTaskIndexes.remove(taskId);
+      _exitingOverdueTaskIds.remove(taskId);
+    });
+  }
+
+  List<Task> _sortedPendingTasks(List<Task> tasks) {
+    return tasks.where((task) => !task.isCompleted).toList()..sort((a, b) {
+      final priorityComparison = b.priority.index.compareTo(a.priority.index);
+      if (priorityComparison != 0) return priorityComparison;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+  }
+
+  List<_TodayTaskListEntry> _buildTaskEntries(
+    List<Task> pendingTasks, {
+    required bool isOverdue,
+  }) {
+    final entries = pendingTasks
+        .where((task) => !_exitingTasks.containsKey(task.id))
+        .map(
+          (task) => _TodayTaskListEntry(
+            task: task,
+            isExiting: false,
+            isOverdue: isOverdue,
+          ),
+        )
+        .toList();
+    final exitingEntries =
+        _exitingTasks.values
+            .where(
+              (task) => _exitingOverdueTaskIds.contains(task.id) == isOverdue,
+            )
+            .toList()
+          ..sort((a, b) {
+            final aIndex = _exitingTaskIndexes[a.id] ?? 0;
+            final bIndex = _exitingTaskIndexes[b.id] ?? 0;
+            return aIndex.compareTo(bIndex);
+          });
+
+    for (final task in exitingEntries) {
+      final insertIndex = (_exitingTaskIndexes[task.id] ?? entries.length)
+          .clamp(0, entries.length)
+          .toInt();
+      entries.insert(
+        insertIndex,
+        _TodayTaskListEntry(task: task, isExiting: true, isOverdue: isOverdue),
+      );
+    }
+
+    return entries;
+  }
+
+  List<Widget> _buildDashboardItems({
+    required List<_TodayTaskListEntry> todayEntries,
+    required List<_TodayTaskListEntry> overdueEntries,
+  }) {
+    final hasTodayTasks = todayEntries.isNotEmpty;
+    final items = <Widget>[];
+
+    void addTaskEntry(_TodayTaskListEntry entry, bool isLast) {
+      items.add(
+        _CompletingTaskListItem(
+          key: ValueKey(
+            'personal-${entry.task.id}-${entry.isExiting}-${entry.isOverdue}',
+          ),
+          isExiting: entry.isExiting,
+          bottomSpacing: isLast ? 0 : AppConstants.paddingMedium,
+          child: _TodayTaskCard(
+            task: entry.task,
+            onToggleComplete: (task) =>
+                _handleToggleComplete(task, isOverdue: entry.isOverdue),
+            isCompleted: entry.task.isCompleted,
+            isOverdue: entry.isOverdue,
+          ),
+        ),
+      );
+    }
+
+    for (var i = 0; i < todayEntries.length; i++) {
+      final isLast = i == todayEntries.length - 1 && overdueEntries.isEmpty;
+      addTaskEntry(todayEntries[i], isLast);
+    }
+
+    if (hasTodayTasks && overdueEntries.isNotEmpty) {
+      items.add(const Divider(height: 30, thickness: 1));
+      items.add(const _OverdueSectionHeader());
+      items.add(const SizedBox(height: AppConstants.paddingMedium));
+    }
+
+    for (var i = 0; i < overdueEntries.length; i++) {
+      addTaskEntry(overdueEntries[i], i == overdueEntries.length - 1);
+    }
+
+    return items;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final taskProvider = context.watch<TaskProvider>();
+    final pendingTodayTasks = _sortedPendingTasks(
+      taskProvider.todayPersonalTasks,
+    );
+    final pendingOverdueTasks = _sortedPendingTasks(
+      taskProvider.overduePersonalTasks,
+    );
+    final todayEntries = _buildTaskEntries(pendingTodayTasks, isOverdue: false);
+    final overdueEntries = _buildTaskEntries(
+      pendingOverdueTasks,
+      isOverdue: true,
+    );
+    final dashboardItems = _buildDashboardItems(
+      todayEntries: todayEntries,
+      overdueEntries: overdueEntries,
+    );
+    final hasTodayTasks = todayEntries.isNotEmpty;
+    final showOverdueOnlyHeader = !hasTodayTasks && overdueEntries.isNotEmpty;
+
+    final theme = Theme.of(context);
+
+    return Responsive.centerContent(
+      context,
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppConstants.paddingMedium,
+          AppConstants.paddingMedium,
+          AppConstants.paddingMedium,
+          0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                color: AppColors.stormySkyBlue,
+                backgroundColor: theme.brightness == Brightness.dark
+                    ? AppColors.stormyNightBackground
+                    : AppColors.backgroundWhite,
+                onRefresh: () async {
+                  final connectivity = context.read<ConnectivityProvider>();
+                  if (connectivity.isOffline) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('ไม่ได้เชื่อมต่ออินเทอร์เน็ต'),
+                      ),
+                    );
+                    return;
+                  }
+                  await Future.delayed(const Duration(seconds: 1));
+                },
+                child: dashboardItems.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          Text(
+                            showOverdueOnlyHeader
+                                ? 'ภารกิจที่ยังไม่เสร็จ'
+                                : 'สิ่งที่ต้องทำวันนี้',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              color: showOverdueOnlyHeader
+                                  ? Colors.redAccent
+                                  : theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: AppConstants.paddingMedium),
+                          const SizedBox(
+                            height: 300,
+                            child: _TodayEmptyState(),
+                          ),
+                        ],
+                      )
+                    : ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(
+                          bottom: AppConstants.paddingXLarge,
+                        ),
+                        children: [
+                          Text(
+                            showOverdueOnlyHeader
+                                ? 'ภารกิจที่ยังไม่เสร็จ'
+                                : 'สิ่งที่ต้องทำวันนี้',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              color: showOverdueOnlyHeader
+                                  ? Colors.redAccent
+                                  : theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: AppConstants.paddingMedium),
+                          ...dashboardItems,
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayTaskListEntry {
+  final Task task;
+  final bool isExiting;
+  final bool isOverdue;
+
+  const _TodayTaskListEntry({
+    required this.task,
+    required this.isExiting,
+    required this.isOverdue,
+  });
+}
+
+class _OverdueSectionHeader extends StatelessWidget {
+  const _OverdueSectionHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Text(
+      'ภารกิจที่ยังไม่เสร็จ',
+      style: theme.textTheme.headlineMedium?.copyWith(
+        color: Colors.redAccent,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+class _CompletingTaskListItem extends StatefulWidget {
+  final bool isExiting;
+  final double bottomSpacing;
+  final Widget child;
+
+  const _CompletingTaskListItem({
+    super.key,
+    required this.isExiting,
+    required this.bottomSpacing,
+    required this.child,
+  });
+
+  @override
+  State<_CompletingTaskListItem> createState() =>
+      _CompletingTaskListItemState();
+}
+
+class _CompletingTaskListItemState extends State<_CompletingTaskListItem> {
+  static const _holdCompletedDuration = Duration(milliseconds: 160);
+  static const _collapseDuration = Duration(milliseconds: 400);
+
+  bool _isVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isExiting) {
+      Timer(_holdCompletedDuration, () {
+        if (mounted) {
+          setState(() => _isVisible = false);
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: AnimatedAlign(
+        duration: _collapseDuration,
+        curve: Curves.easeInOutCubic,
+        alignment: Alignment.topCenter,
+        heightFactor: _isVisible ? 1 : 0,
+        child: AnimatedSlide(
+          duration: _collapseDuration,
+          curve: Curves.easeInOutCubic,
+          offset: _isVisible ? Offset.zero : const Offset(0, -0.08),
+          child: AnimatedOpacity(
+            duration: _collapseDuration,
+            curve: Curves.easeOutCubic,
+            opacity: _isVisible ? 1 : 0,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: widget.bottomSpacing),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayTaskCard extends StatelessWidget {
+  final Task task;
+  final Function(Task) onToggleComplete;
+  final bool isCompleted;
+  final bool isOverdue;
+
+  const _TodayTaskCard({
+    required this.task,
+    required this.onToggleComplete,
+    required this.isCompleted,
+    this.isOverdue = false,
+  });
+
+  Future<void> _openEditTaskModal(BuildContext context, Task task) async {
+    await showModalBottomSheet<Task>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CreateTaskModal(task: task),
+    );
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext parentContext,
+    TaskProvider taskProvider,
+    Task task,
+  ) {
+    showDialog(
+      context: parentContext,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(parentContext).brightness == Brightness.dark
+            ? AppColors.stormyDarkSlate
+            : Theme.of(parentContext).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'ยืนยันการลบภารกิจ',
+          style: TextStyle(
+            color: AppColors.accentRed,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจนี้โดยส่งไปที่ถังขยะ?',
+          style: TextStyle(
+            color: Theme.of(parentContext).brightness == Brightness.dark
+                ? AppColors.stormyIceBlue
+                : Theme.of(
+                    parentContext,
+                  ).colorScheme.onSurface.withValues(alpha: 0.82),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Theme.of(parentContext).brightness == Brightness.dark
+                  ? AppColors.stormySkyBlue
+                  : AppColors.textSecondary,
+            ),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () {
+              final connectivity = parentContext.read<ConnectivityProvider>();
+              if (connectivity.isOffline) {
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                    ),
+                  ),
+                );
+                Navigator.pop(dialogContext);
+                return;
+              }
+              final rootNavigator = Navigator.of(
+                parentContext,
+                rootNavigator: true,
+              );
+              taskProvider.deleteTask(task.id);
+              Navigator.pop(dialogContext);
+
+              if (!parentContext.mounted) return;
+              SnackBarUtils.showNavigationSnackBar(
+                parentContext,
+                message: 'ย้ายไปยังถังขยะแล้ว',
+                actionLabel: 'ดูถังขยะ',
+                onNavigate: () {
+                  rootNavigator.push(
+                    MaterialPageRoute(builder: (ctx) => const BinScreen()),
+                  );
+                },
+              );
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: AppColors.accentRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'ยืนยันการลบ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final taskProvider = context.read<TaskProvider>();
+    final theme = Theme.of(context);
+    final mutedColor = theme.colorScheme.onSurface.withValues(alpha: 0.62);
+    final tagColor = theme.colorScheme.tertiary;
+
+    return Material(
+      color: theme.brightness == Brightness.dark
+          ? AppColors.stormyDarkSlate
+          : theme.cardColor,
+      borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+      child: InkWell(
+        enableFeedback: false,
+        borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        onTap: () async {
+          taskProvider.selectTask(task);
+          await Navigator.pushNamed(context, '/task-detail');
+        },
+        child: Container(
+          padding: const EdgeInsets.all(AppConstants.paddingMedium),
+          decoration: BoxDecoration(
+            color: theme.brightness == Brightness.dark
+                ? AppColors.stormyDarkSlate
+                : theme.cardColor,
+            borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+            border: Border.all(
+              color: isOverdue
+                  ? Colors.redAccent
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.08),
+              width: isOverdue ? 1.5 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withValues(alpha: 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TodayCompletionCheckbox(
+                    task: task,
+                    onToggle: () => onToggleComplete(task),
+                    isCompleted: isCompleted,
+                  ),
+                  const SizedBox(width: AppConstants.paddingMedium),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          task.title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: isCompleted
+                                ? theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.45,
+                                  )
+                                : theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                            decoration: isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                        if (task.description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            task.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isCompleted
+                                  ? mutedColor.withValues(alpha: 0.55)
+                                  : mutedColor,
+                              height: 1.35,
+                              decoration: isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                        ],
+                        if (task.subtasks.isNotEmpty) ...[
+                          const SizedBox(height: AppConstants.paddingSmall),
+                          _TodaySubtasks(
+                            task: task,
+                            onToggleComplete: onToggleComplete,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppConstants.paddingSmall),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _TimeLabel(dateTime: task.dateTime),
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'edit':
+                              _openEditTaskModal(context, task);
+                              break;
+                            case 'toggle_complete':
+                              onToggleComplete(task);
+                              break;
+                            case 'delete':
+                              _showDeleteConfirmation(
+                                context,
+                                taskProvider,
+                                task,
+                              );
+                              break;
+                          }
+                        },
+                        icon: Icon(
+                          Icons.more_vert,
+                          size: 20,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.edit_outlined,
+                                  color: AppColors.stormySkyBlue,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 10),
+                                Text('แก้ไข'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 10),
+                                Text('ลบ', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (task.subtasks.isNotEmpty) ...[
+                const SizedBox(height: AppConstants.paddingMedium),
+                Padding(
+                  padding: const EdgeInsets.only(left: 40),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${task.completedCount}/${task.subtasks.length} tasks',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: task.progress,
+                          backgroundColor: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.08),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.stormySkyBlue,
+                          ),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppConstants.paddingMedium),
+              Padding(
+                padding: const EdgeInsets.only(left: 40),
+                child: Wrap(
+                  spacing: AppConstants.paddingSmall,
+                  runSpacing: AppConstants.paddingSmall,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (task.category != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.brightness == Brightness.dark
+                              ? AppColors.stormyNightBackground
+                              : tagColor.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(
+                            AppConstants.radiusSmall,
+                          ),
+                        ),
+                        child: Text(
+                          thaiCategoryLabel(task.category!),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.brightness == Brightness.dark
+                                ? AppColors.stormyIceBlue
+                                : tagColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (!task.isPersonal && task.assigneeIds.isNotEmpty) ...[
+                const SizedBox(height: AppConstants.paddingMedium),
+                Padding(
+                  padding: const EdgeInsets.only(left: 40),
+                  child: _AssigneeAvatars(task: task),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimeLabel extends StatelessWidget {
+  final DateTime dateTime;
+
+  const _TimeLabel({required this.dateTime});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accentColor = theme.colorScheme.tertiary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule, size: 14, color: accentColor),
+          const SizedBox(width: 4),
+          Text(
+            DateFormat('HH:mm น.').format(dateTime),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: accentColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayCompletionCheckbox extends StatelessWidget {
+  final Task task;
+  final Function() onToggle;
+  final bool isCompleted;
+
+  const _TodayCompletionCheckbox({
+    required this.task,
+    required this.onToggle,
+    required this.isCompleted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        enableFeedback: false,
+        borderRadius: BorderRadius.circular(6),
+        onTap: onToggle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: isCompleted
+                ? (theme.brightness == Brightness.dark
+                      ? AppColors.stormySkyBlue
+                      : theme.colorScheme.primary)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isCompleted
+                  ? (theme.brightness == Brightness.dark
+                        ? AppColors.stormySkyBlue
+                        : theme.colorScheme.primary)
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.18),
+              width: 2,
+            ),
+          ),
+          child: isCompleted
+              ? Icon(
+                  Icons.check,
+                  size: 16,
+                  color: theme.brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : theme.colorScheme.onPrimary,
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _TodaySubtasks extends StatelessWidget {
+  final Task task;
+  final Function(Task) onToggleComplete;
+
+  const _TodaySubtasks({required this.task, required this.onToggleComplete});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final taskProvider = context.read<TaskProvider>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in task.subtasks.asMap().entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: InkWell(
+              enableFeedback: false,
+              borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+              onTap: () async {
+                final connectivity = context.read<ConnectivityProvider>();
+                if (connectivity.isOffline) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                final isCheckingLast =
+                    !entry.value.isDone &&
+                    task.subtasks.where((s) => !s.isDone).length == 1;
+
+                unawaited(taskProvider.toggleSubtask(task.id, entry.key));
+
+                if (isCheckingLast && !task.isCompleted) {
+                  onToggleComplete(task);
+                }
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TodaySubtaskCheckbox(isDone: entry.value.isDone),
+                  const SizedBox(width: AppConstants.paddingSmall),
+                  Flexible(
+                    child: Text(
+                      entry.value.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: entry.value.isDone
+                            ? theme.colorScheme.onSurface.withValues(alpha: 0.4)
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.72,
+                              ),
+                        decoration: entry.value.isDone
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TodaySubtaskCheckbox extends StatelessWidget {
+  final bool isDone;
+
+  const _TodaySubtaskCheckbox({required this.isDone});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: isDone
+            ? (theme.brightness == Brightness.dark
+                  ? AppColors.stormySkyBlue
+                  : theme.colorScheme.primary)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isDone
+              ? (theme.brightness == Brightness.dark
+                    ? AppColors.stormySkyBlue
+                    : theme.colorScheme.primary)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.22),
+          width: 2,
+        ),
+      ),
+      child: isDone
+          ? Icon(
+              Icons.check,
+              size: 12,
+              color: theme.brightness == Brightness.dark
+                  ? AppColors.stormyNightBackground
+                  : theme.colorScheme.onPrimary,
+            )
+          : null,
+    );
+  }
+}
+
+class _AssigneeAvatars extends StatelessWidget {
+  final Task task;
+
+  const _AssigneeAvatars({required this.task});
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleAssignees = task.assigneeIds.take(4).toList();
+
+    return SizedBox(
+      height: AppConstants.avatarSmall,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var i = 0; i < visibleAssignees.length; i++)
+            Positioned(
+              left: i * 20,
+              child: _AssigneeAvatar(userId: visibleAssignees[i]),
+            ),
+          if (task.assigneeIds.length > visibleAssignees.length)
+            Positioned(
+              left: visibleAssignees.length * 20,
+              child: _MoreAssigneesBadge(
+                count: task.assigneeIds.length - visibleAssignees.length,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssigneeAvatar extends StatelessWidget {
+  final String userId;
+
+  const _AssigneeAvatar({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final user = context.read<TaskProvider>().getUserById(userId);
+    final avatar = user?.avatarUrl;
+    final initial = (user?.name.isNotEmpty ?? false) ? user!.name[0] : '?';
+
+    return Container(
+      width: AppConstants.avatarSmall,
+      height: AppConstants.avatarSmall,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: theme.colorScheme.surfaceContainerHighest,
+        border: Border.all(color: theme.cardColor, width: 2),
+      ),
+      child: ClipOval(
+        child: avatar != null && avatar.isNotEmpty
+            ? Image.network(
+                avatar,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _AvatarInitial(initial: initial);
+                },
+              )
+            : _AvatarInitial(initial: initial),
+      ),
+    );
+  }
+}
+
+class _AvatarInitial extends StatelessWidget {
+  final String initial;
+
+  const _AvatarInitial({required this.initial});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Text(
+        initial,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreAssigneesBadge extends StatelessWidget {
+  final int count;
+
+  const _MoreAssigneesBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: AppConstants.avatarSmall,
+      height: AppConstants.avatarSmall,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: theme.colorScheme.surfaceContainerHighest,
+        border: Border.all(color: theme.cardColor, width: 2),
+      ),
+      child: Center(
+        child: Text(
+          '+$count',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayEmptyState extends StatelessWidget {
+  const _TodayEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accentColor = theme.colorScheme.tertiary;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConstants.paddingXLarge),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.self_improvement_outlined,
+                size: 46,
+                color: accentColor,
+              ),
+            ),
+            const SizedBox(height: AppConstants.paddingLarge),
+            Text(
+              'วันนี้ไม่มีภารกิจค้าง!',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppConstants.paddingSmall),
+            Text(
+              'พักผ่อนให้เต็มที่',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupProjectsList extends StatefulWidget {
+  const _GroupProjectsList();
+
+  @override
+  State<_GroupProjectsList> createState() => _GroupProjectsListState();
+}
+
+class _GroupProjectsListState extends State<_GroupProjectsList> {
+  static const _completionExitDuration = Duration(milliseconds: 560);
+
+  final Map<String, Task> _exitingProjects = {};
+  final Map<String, int> _exitingProjectIndexes = {};
+  final Set<String> _exitingOverdueProjectIds = {};
+  final Map<String, Timer> _exitTimers = {};
+
+  @override
+  void dispose() {
+    for (final timer in _exitTimers.values) {
+      timer.cancel();
+    }
+    super.dispose();
+  }
+
+  Future<void> _handleToggleComplete(
+    Task project, {
+    required bool isOverdue,
+  }) async {
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้'),
+        ),
+      );
+      return;
+    }
+    final taskProvider = context.read<TaskProvider>();
+    final nextState = !project.isCompleted;
+
+    final latestProject = taskProvider.tasks.firstWhere(
+      (t) => t.id == project.id,
+      orElse: () => project,
+    );
+
+    if (nextState) {
+      if (latestProject.subtasks.isNotEmpty &&
+          latestProject.subtasks.any((s) => !s.isDone)) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('ไม่สามารถเสร็จสิ้นภารกิจได้'),
+            content: const Text(
+              'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormySkyBlue
+                      : AppColors.textSecondary,
+                ),
+                child: const Text('ตกลง'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      _stageProjectExit(project, isOverdue: isOverdue);
+      _playTaskCompleteSound();
+      final result = await taskProvider.completeTaskWithSubtasks(
+        project.id,
+        true,
+      );
+      if (!mounted) return;
+      await FastCompletionWarningDialog.showCompletionFeedback(context, result);
+
+      if (!mounted) return;
+      SnackBarUtils.showUndoSnackBar(
+        context,
+        message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
+        onUndo: () async {
+          await taskProvider.toggleTaskCompletion(
+            project.id,
+            updateSubtasks: true,
+          );
+        },
+      );
+    } else {
+      _cancelProjectExit(project.id);
+      await taskProvider.toggleTaskCompletion(project.id, updateSubtasks: true);
+    }
+  }
+
+  void _playTaskCompleteSound() {
+    final isSoundEnabled =
+        context.read<AuthProvider>().currentUser?.isSoundEnabled ?? true;
+    unawaited(
+      SoundService.instance.playTaskCompleteSound(
+        isSoundEnabled: isSoundEnabled,
+      ),
+    );
+  }
+
+  void _stageProjectExit(Task project, {required bool isOverdue}) {
+    if (_exitingProjects.containsKey(project.id)) return;
+
+    final pendingProjects = _sortedPendingProjects(
+      isOverdue
+          ? context.read<TaskProvider>().overdueGroupTasks
+          : context.read<TaskProvider>().todayGroupTasks,
+    );
+    final visualIndex = pendingProjects.indexWhere(
+      (item) => item.id == project.id,
+    );
+    final completedSubtasks = project.subtasks
+        .map((subtask) => subtask.copyWith(isDone: true))
+        .toList();
+
+    setState(() {
+      _exitingProjects[project.id] = project.copyWith(
+        status: TaskStatus.completed,
+        completedAt: DateTime.now(),
+        subtasks: completedSubtasks,
+      );
+      _exitingProjectIndexes[project.id] = visualIndex < 0 ? 0 : visualIndex;
+      if (isOverdue) {
+        _exitingOverdueProjectIds.add(project.id);
+      } else {
+        _exitingOverdueProjectIds.remove(project.id);
+      }
+    });
+
+    _exitTimers[project.id]?.cancel();
+    _exitTimers[project.id] = Timer(_completionExitDuration, () {
+      if (!mounted) return;
+      setState(() {
+        _exitingProjects.remove(project.id);
+        _exitingProjectIndexes.remove(project.id);
+        _exitingOverdueProjectIds.remove(project.id);
+        _exitTimers.remove(project.id);
+      });
+    });
+  }
+
+  void _cancelProjectExit(String projectId) {
+    final timer = _exitTimers.remove(projectId);
+    timer?.cancel();
+    if (!_exitingProjects.containsKey(projectId)) return;
+
+    setState(() {
+      _exitingProjects.remove(projectId);
+      _exitingProjectIndexes.remove(projectId);
+      _exitingOverdueProjectIds.remove(projectId);
+    });
+  }
+
+  List<Task> _sortedPendingProjects(List<Task> projects) {
+    return projects.where((project) => !project.isCompleted).toList()
+      ..sort((a, b) {
+        final priorityComparison = b.priority.index.compareTo(a.priority.index);
+        if (priorityComparison != 0) return priorityComparison;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+  }
+
+  List<_TodayTaskListEntry> _buildProjectEntries(
+    List<Task> pendingProjects, {
+    required bool isOverdue,
+  }) {
+    final entries = pendingProjects
+        .where((project) => !_exitingProjects.containsKey(project.id))
+        .map(
+          (project) => _TodayTaskListEntry(
+            task: project,
+            isExiting: false,
+            isOverdue: isOverdue,
+          ),
+        )
+        .toList();
+    final exitingEntries =
+        _exitingProjects.values
+            .where(
+              (project) =>
+                  _exitingOverdueProjectIds.contains(project.id) == isOverdue,
+            )
+            .toList()
+          ..sort((a, b) {
+            final aIndex = _exitingProjectIndexes[a.id] ?? 0;
+            final bIndex = _exitingProjectIndexes[b.id] ?? 0;
+            return aIndex.compareTo(bIndex);
+          });
+
+    for (final project in exitingEntries) {
+      final insertIndex = (_exitingProjectIndexes[project.id] ?? entries.length)
+          .clamp(0, entries.length)
+          .toInt();
+      entries.insert(
+        insertIndex,
+        _TodayTaskListEntry(
+          task: project,
+          isExiting: true,
+          isOverdue: isOverdue,
+        ),
+      );
+    }
+
+    return entries;
+  }
+
+  List<Widget> _buildDashboardItems({
+    required List<_TodayTaskListEntry> todayEntries,
+    required List<_TodayTaskListEntry> overdueEntries,
+    required TaskProvider taskProvider,
+  }) {
+    final hasTodayTasks = todayEntries.isNotEmpty;
+    final items = <Widget>[];
+
+    void addProjectEntry(_TodayTaskListEntry entry, bool isLast) {
+      items.add(
+        _CompletingTaskListItem(
+          key: ValueKey(
+            'group-${entry.task.id}-${entry.isExiting}-${entry.isOverdue}',
+          ),
+          isExiting: entry.isExiting,
+          bottomSpacing: isLast ? 0 : 20,
+          child: GroupProjectCard(
+            project: entry.task,
+            onDelete: (id) => taskProvider.deleteGroupProjectTask(id),
+            onToggleComplete: (project) =>
+                _handleToggleComplete(project, isOverdue: entry.isOverdue),
+            isCompletedOverride: entry.task.isCompleted,
+            isOverdue: entry.isOverdue,
+          ),
+        ),
+      );
+    }
+
+    for (var i = 0; i < todayEntries.length; i++) {
+      final isLast = i == todayEntries.length - 1 && overdueEntries.isEmpty;
+      addProjectEntry(todayEntries[i], isLast);
+    }
+
+    if (hasTodayTasks && overdueEntries.isNotEmpty) {
+      items.add(const Divider(height: 30, thickness: 1));
+      items.add(const _OverdueSectionHeader());
+      items.add(const SizedBox(height: AppConstants.paddingMedium));
+    }
+
+    for (var i = 0; i < overdueEntries.length; i++) {
+      addProjectEntry(overdueEntries[i], i == overdueEntries.length - 1);
+    }
+
+    return items;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final taskProvider = context.watch<TaskProvider>();
+    final pendingTodayProjects = _sortedPendingProjects(
+      taskProvider.todayGroupTasks,
+    );
+    final pendingOverdueProjects = _sortedPendingProjects(
+      taskProvider.overdueGroupTasks,
+    );
+    final todayEntries = _buildProjectEntries(
+      pendingTodayProjects,
+      isOverdue: false,
+    );
+    final overdueEntries = _buildProjectEntries(
+      pendingOverdueProjects,
+      isOverdue: true,
+    );
+    final dashboardItems = _buildDashboardItems(
+      todayEntries: todayEntries,
+      overdueEntries: overdueEntries,
+      taskProvider: taskProvider,
+    );
+    final hasTodayTasks = todayEntries.isNotEmpty;
+    final showOverdueOnlyHeader = !hasTodayTasks && overdueEntries.isNotEmpty;
+    final theme = Theme.of(context);
+
+    return Responsive.centerContent(
+      context,
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppConstants.paddingMedium,
+          AppConstants.paddingMedium,
+          AppConstants.paddingMedium,
+          0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                color: AppColors.stormySkyBlue,
+                backgroundColor: theme.brightness == Brightness.dark
+                    ? AppColors.stormyNightBackground
+                    : AppColors.backgroundWhite,
+                onRefresh: () async {
+                  final connectivity = context.read<ConnectivityProvider>();
+                  if (connectivity.isOffline) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('ไม่ได้เชื่อมต่ออินเทอร์เน็ต'),
+                      ),
+                    );
+                    return;
+                  }
+                  await Future.delayed(const Duration(seconds: 1));
+                },
+                child: dashboardItems.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          Text(
+                            showOverdueOnlyHeader
+                                ? 'ภารกิจที่ยังไม่เสร็จ'
+                                : 'สิ่งที่ต้องทำวันนี้',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              color: showOverdueOnlyHeader
+                                  ? Colors.redAccent
+                                  : theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: AppConstants.paddingMedium),
+                          const SizedBox(
+                            height: 300,
+                            child: _TodayGroupEmptyState(),
+                          ),
+                        ],
+                      )
+                    : ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(
+                          bottom: AppConstants.paddingXLarge,
+                        ),
+                        children: [
+                          Text(
+                            showOverdueOnlyHeader
+                                ? 'ภารกิจที่ยังไม่เสร็จ'
+                                : 'สิ่งที่ต้องทำวันนี้',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              color: showOverdueOnlyHeader
+                                  ? Colors.redAccent
+                                  : theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: AppConstants.paddingMedium),
+                          ...dashboardItems,
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayGroupEmptyState extends StatelessWidget {
+  const _TodayGroupEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConstants.paddingXLarge),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.groups_2_outlined,
+                size: 46,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: AppConstants.paddingLarge),
+            Text(
+              'ไม่มีภารกิจกลุ่มสำหรับวันนี้',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
+Widget _buildEmptyState(
+  BuildContext context,
+  String title,
+  String subtitle,
+  IconData icon,
+) {
+  final theme = Theme.of(context);
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.all(AppConstants.paddingXLarge),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: theme.brightness == Brightness.light
+                  ? (Theme.of(context).brightness == Brightness.light
+                        ? AppColors.stormyIceBlue
+                        : AppColors.backgroundGrey)
+                  : Colors.white.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 50,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
+          ),
+          const SizedBox(height: AppConstants.paddingLarge),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppConstants.paddingSmall),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
