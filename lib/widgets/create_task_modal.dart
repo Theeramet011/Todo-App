@@ -182,11 +182,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     final onSurface = theme.colorScheme.onSurface;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return AnimatedPadding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      duration: const Duration(milliseconds: 100),
-      curve: Curves.decelerate,
-      child: Container(
+    return Container(
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
               ? AppColors.stormyNightBackground
@@ -255,11 +251,11 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                 // Form
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: EdgeInsets.fromLTRB(
                       AppConstants.paddingLarge,
                       12,
                       AppConstants.paddingLarge,
-                      95, // Extra padding to keep clear distance from fixed button
+                      95 + bottomInset, // Extra padding to keep clear distance from fixed button & keyboard
                     ),
                     child: Form(
                       key: _formKey,
@@ -340,6 +336,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                 child: ElevatedButton(
                   onPressed: _createTask,
                   style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.zero,
                     backgroundColor: AppColors.stormySkyBlue,
                     foregroundColor:
                         Theme.of(context).brightness == Brightness.dark
@@ -357,11 +354,17 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                 : AppColors.stormySkyBlue)
                             .withValues(alpha: 0.4),
                   ),
-                  child: Text(
-                    widget.task != null ? 'อัปเดตภารกิจ' : 'สร้างภารกิจ',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.task != null ? 'อัปเดตภารกิจ' : 'สร้างภารกิจ',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -423,9 +426,8 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
   Widget _buildCombinedRatingsRow() {
     final theme = Theme.of(context);
@@ -2248,6 +2250,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         },
         child: InputDecorator(
           decoration: InputDecoration(
+            isDense: true,
             labelText: 'วันที่',
             floatingLabelBehavior: FloatingLabelBehavior.always,
             labelStyle: TextStyle(
@@ -2257,9 +2260,14 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             ),
             prefixIcon: Icon(
               Icons.calendar_today_outlined,
+              size: 20,
               color: isLight
                   ? AppColors.stormyMutedBlueGrey
                   : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 36,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.0),
@@ -2279,13 +2287,18 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               ),
             ),
             contentPadding: const EdgeInsets.symmetric(
-              vertical: 16.0,
-              horizontal: 12.0,
+              vertical: 12.0,
+              horizontal: 8.0,
             ),
           ),
-          child: Text(
-            '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-            style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+              maxLines: 1,
+              style: TextStyle(fontSize: 15, color: theme.colorScheme.onSurface),
+            ),
           ),
         ),
       ),
@@ -2315,6 +2328,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         },
         child: InputDecorator(
           decoration: InputDecoration(
+            isDense: true,
             labelText: 'เวลา',
             floatingLabelBehavior: FloatingLabelBehavior.always,
             labelStyle: TextStyle(
@@ -2324,9 +2338,14 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             ),
             prefixIcon: Icon(
               Icons.access_time_outlined,
+              size: 20,
               color: isLight
                   ? AppColors.stormyMutedBlueGrey
                   : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 36,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.0),
@@ -2346,13 +2365,18 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               ),
             ),
             contentPadding: const EdgeInsets.symmetric(
-              vertical: 16.0,
-              horizontal: 12.0,
+              vertical: 12.0,
+              horizontal: 8.0,
             ),
           ),
-          child: Text(
-            _selectedTime.format(context),
-            style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _selectedTime.format(context),
+              maxLines: 1,
+              style: TextStyle(fontSize: 15, color: theme.colorScheme.onSurface),
+            ),
           ),
         ),
       ),
@@ -3517,6 +3541,7 @@ class _CustomReminderSheetContentState
         },
         child: InputDecorator(
           decoration: InputDecoration(
+            isDense: true,
             labelText: 'วันที่',
             floatingLabelBehavior: FloatingLabelBehavior.always,
             labelStyle: TextStyle(
@@ -3526,9 +3551,14 @@ class _CustomReminderSheetContentState
             ),
             prefixIcon: Icon(
               Icons.calendar_today_outlined,
+              size: 20,
               color: isLight
                   ? AppColors.stormyMutedBlueGrey
                   : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 36,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.0),
@@ -3548,13 +3578,18 @@ class _CustomReminderSheetContentState
               ),
             ),
             contentPadding: const EdgeInsets.symmetric(
-              vertical: 16.0,
-              horizontal: 12.0,
+              vertical: 12.0,
+              horizontal: 8.0,
             ),
           ),
-          child: Text(
-            '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-            style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+              maxLines: 1,
+              style: TextStyle(fontSize: 15, color: theme.colorScheme.onSurface),
+            ),
           ),
         ),
       ),

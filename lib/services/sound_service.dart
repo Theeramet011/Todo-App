@@ -9,6 +9,7 @@ class SoundService {
   static const _taskCompleteAsset = 'sounds/complete.mp3';
   static const _levelUpAsset = 'sounds/levelup.mp3';
   static const _fastCompletionFailAsset = 'sounds/fail.mp3';
+  static const _clickAsset = 'sounds/click.mp3';
 
   final AudioPlayer _taskCompletePlayer = AudioPlayer(
     playerId: 'task_complete_sound',
@@ -17,6 +18,7 @@ class SoundService {
   final AudioPlayer _fastCompletionFailPlayer = AudioPlayer(
     playerId: 'fast_completion_fail_sound',
   );
+  final AudioPlayer _clickPlayer = AudioPlayer(playerId: 'click_sound');
   bool _isConfigured = false;
 
   Future<void> playTaskCompleteSound({required bool isSoundEnabled}) {
@@ -39,6 +41,14 @@ class SoundService {
     return _play(
       player: _fastCompletionFailPlayer,
       assetPath: _fastCompletionFailAsset,
+      isSoundEnabled: isSoundEnabled,
+    );
+  }
+
+  Future<void> playClickSound({required bool isSoundEnabled}) {
+    return _play(
+      player: _clickPlayer,
+      assetPath: _clickAsset,
       isSoundEnabled: isSoundEnabled,
     );
   }
@@ -66,12 +76,14 @@ class SoundService {
       _taskCompletePlayer.setReleaseMode(ReleaseMode.stop),
       _levelUpPlayer.setReleaseMode(ReleaseMode.stop),
       _fastCompletionFailPlayer.setReleaseMode(ReleaseMode.stop),
+      _clickPlayer.setReleaseMode(ReleaseMode.stop),
       // พรีโหลดไฟล์เสียงเพื่อลดความหน่วงแทนการใช้ lowLatency
       _taskCompletePlayer.setSource(AssetSource(_taskCompleteAsset)),
       _levelUpPlayer.setSource(AssetSource(_levelUpAsset)),
       _fastCompletionFailPlayer.setSource(
         AssetSource(_fastCompletionFailAsset),
       ),
+      _clickPlayer.setSource(AssetSource(_clickAsset)),
     ]);
     _isConfigured = true;
   }

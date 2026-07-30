@@ -476,41 +476,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     if (!context.mounted) return;
                   }
 
-                  unawaited(taskProvider.toggleSubtask(task.id, index));
+                  final result = await taskProvider.toggleSubtask(task.id, index);
 
-                  if (isCheckingLast && !task.isCompleted) {
+                  if (isCheckingLast && !task.isCompleted && result != null) {
                     if (!context.mounted) return;
-                    final isSoundEnabled =
-                        context
-                            .read<AuthProvider>()
-                            .currentUser
-                            ?.isSoundEnabled ??
-                        true;
-                    unawaited(
-                      SoundService.instance.playTaskCompleteSound(
-                        isSoundEnabled: isSoundEnabled,
-                      ),
-                    );
-                    final result = await taskProvider.completeTaskWithSubtasks(
-                      task.id,
-                      true,
-                    );
-                    if (!context.mounted) return;
-                    await FastCompletionWarningDialog.showCompletionFeedback(
-                      context,
-                      result,
-                    );
-                    if (!context.mounted) return;
-                    SnackBarUtils.showUndoSnackBar(
-                      context,
-                      message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
-                      onUndo: () async {
-                        await taskProvider.toggleTaskCompletion(
-                          task.id,
-                          updateSubtasks: true,
-                        );
-                      },
-                    );
+                    
+                    if (result.status != CompletionRewardStatus.noChange) {
+                      final isSoundEnabled =
+                          context
+                              .read<AuthProvider>()
+                              .currentUser
+                              ?.isSoundEnabled ??
+                          true;
+                      unawaited(
+                        SoundService.instance.playTaskCompleteSound(
+                          isSoundEnabled: isSoundEnabled,
+                        ),
+                      );
+                      await FastCompletionWarningDialog.showCompletionFeedback(
+                        context,
+                        result,
+                      );
+                      if (!context.mounted) return;
+                      SnackBarUtils.showUndoSnackBar(
+                        context,
+                        message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
+                        onUndo: () async {
+                          await taskProvider.toggleTaskCompletion(
+                            task.id,
+                            updateSubtasks: true,
+                          );
+                        },
+                      );
+                    }
                   }
                 },
                 child: Container(

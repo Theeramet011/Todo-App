@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/colors.dart';
 import '../providers/auth_provider.dart';
-import 'package:flutter/services.dart';
+import '../services/sound_service.dart';
 
 class CustomRecurringConfig {
   final String mode; // 'byDueDate' | 'byFixedDate'
@@ -158,9 +158,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
   void _playScrollSound() {
     final isSoundEnabled =
         context.read<AuthProvider>().currentUser?.isSoundEnabled ?? true;
-    if (isSoundEnabled) {
-      SystemSound.play(SystemSoundType.click);
-    }
+    SoundService.instance.playClickSound(isSoundEnabled: isSoundEnabled);
   }
 
   void _deduplicateFixedDates() {

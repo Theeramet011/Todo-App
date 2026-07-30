@@ -709,14 +709,21 @@ class TaskProvider with ChangeNotifier {
           : revertedTask.calculateXP;
       final currentXP = _readInt(data?['totalXP']);
       final currentTasksCompleted = _readInt(data?['tasksCompleted']);
+      final currentPersonalCompletedToday = _readInt(
+        data?['personalTasksCompletedToday'],
+      );
       final newXP = calculateFinalXpWithLevelBonus(currentXP, -xpToRemove);
       final oldLevel = calculateLevelProgress(currentXP).currentLevel;
       final newLevel = calculateLevelProgress(newXP).currentLevel;
       taskWithoutAward = revertedTask.copyWith(awardedXP: 0);
 
+      final newPersonalCompletedToday =
+          (currentPersonalCompletedToday - 1).clamp(0, 1 << 31).toInt();
+
       transaction.set(userRef, {
         'totalXP': newXP,
         'tasksCompleted': (currentTasksCompleted - 1).clamp(0, 1 << 31).toInt(),
+        'personalTasksCompletedToday': newPersonalCompletedToday,
         'currentLevel': newLevel,
         ..._milestoneRewardFields(
           data: data,
@@ -1611,55 +1618,16 @@ class TaskProvider with ChangeNotifier {
         return;
       }
 
-      final wasCompleted = task.isCompleted;
-
-      if (wasCompleted && task.isGroup) {
-        await _handleGroupTaskCompletionRewards(task, false);
-      }
-
       final updatedTask = task.copyWith(
         isDeleted: false,
-        status: TaskStatus.inProgress,
-        clearCompletedAt: true,
-        awardedXP: 0,
-        rewardBlocked: false,
-        clearRewardBlockedReason: true,
-        clearRewardBlockedAt: true,
-        clearRewardBlockedBy: true,
-        clearCompletionAgeSeconds: true,
       );
       _tasks[index] = updatedTask;
       _calculateInitialXP();
       notifyListeners();
-
-      if (wasCompleted && task.isPersonal) {
-        final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
-        if (currentUserId != null &&
-            (task.creatorId == currentUserId ||
-                task.assigneeIds.contains(currentUserId))) {
-          final xpToRemove = calculateRestoredPersonalTaskXpRemoval(
-            awardedXP: task.awardedXP,
-            baseXP: task.calculateXP,
-          );
-          await _updateUserProgress(
-            currentUserId,
-            xpDelta: -xpToRemove,
-            personalTaskDelta: -1,
-          );
-        }
-      }
     }
 
     await _firestore.collection('tasks').doc(taskId).set({
       'isDeleted': false,
-      'status': TaskStatus.inProgress.name,
-      'completedAt': null,
-      'awardedXP': 0,
-      'rewardBlocked': false,
-      'rewardBlockedReason': null,
-      'rewardBlockedAt': null,
-      'rewardBlockedBy': null,
-      'completionAgeSeconds': null,
     }, SetOptions(merge: true));
   }
 
@@ -1669,8 +1637,6 @@ class TaskProvider with ChangeNotifier {
     final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
     final restoredTasks = <Task>[];
     final locallyRestoredGroupTaskIds = <String>{};
-    var xpToRemove = 0;
-    var personalTaskCountToRemove = 0;
 
     for (final id in taskIds) {
       final index = _tasks.indexWhere((t) => t.id == id);
@@ -1702,41 +1668,14 @@ class TaskProvider with ChangeNotifier {
           continue;
         }
 
-        final wasCompleted = task.isCompleted;
-
-        if (wasCompleted && task.isGroup) {
-          await _handleGroupTaskCompletionRewards(task, false);
-        }
-
         final updatedTask = task.copyWith(
           isDeleted: false,
-          status: TaskStatus.inProgress,
-          clearCompletedAt: true,
-          awardedXP: 0,
-          rewardBlocked: false,
-          clearRewardBlockedReason: true,
-          clearRewardBlockedAt: true,
-          clearRewardBlockedBy: true,
-          clearCompletionAgeSeconds: true,
         );
         _tasks[index] = updatedTask;
         restoredTasks.add(updatedTask);
 
         if (_selectedTask?.id == id) {
           _selectedTask = updatedTask;
-        }
-
-        if (wasCompleted && task.isPersonal && currentUserId != null) {
-          final shouldUpdatePersonalStats =
-              task.creatorId == currentUserId ||
-              task.assigneeIds.contains(currentUserId);
-          if (shouldUpdatePersonalStats) {
-            xpToRemove += calculateRestoredPersonalTaskXpRemoval(
-              awardedXP: task.awardedXP,
-              baseXP: task.calculateXP,
-            );
-            personalTaskCountToRemove += 1;
-          }
         }
       }
     }
@@ -1755,43 +1694,8 @@ class TaskProvider with ChangeNotifier {
       } else {
         batch.set(_firestore.collection('tasks').doc(task.id), {
           'isDeleted': false,
-          'status': TaskStatus.inProgress.name,
-          'completedAt': null,
-          'awardedXP': 0,
-          'rewardBlocked': false,
-          'rewardBlockedReason': null,
-          'rewardBlockedAt': null,
-          'rewardBlockedBy': null,
-          'completionAgeSeconds': null,
         }, SetOptions(merge: true));
       }
-    }
-
-    if (currentUserId != null &&
-        (xpToRemove > 0 || personalTaskCountToRemove > 0)) {
-      final userRef = _firestore.collection('users').doc(currentUserId);
-      final userSnap = await userRef.get();
-      final data = userSnap.data();
-      final currentXP = _readInt(data?['totalXP']);
-      final currentTasksCompleted = _readInt(data?['tasksCompleted']);
-      final newXP = calculateFinalXpWithLevelBonus(currentXP, -xpToRemove);
-      final oldLevel = calculateLevelProgress(currentXP).currentLevel;
-      final newLevel = calculateLevelProgress(newXP).currentLevel;
-      final newTasksCompleted =
-          (currentTasksCompleted - personalTaskCountToRemove)
-              .clamp(0, 1 << 31)
-              .toInt();
-
-      batch.set(userRef, {
-        'totalXP': newXP,
-        'tasksCompleted': newTasksCompleted,
-        'currentLevel': newLevel,
-        ..._milestoneRewardFields(
-          data: data,
-          oldLevel: oldLevel,
-          newLevel: newLevel,
-        ),
-      }, SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -2074,11 +1978,6 @@ class TaskProvider with ChangeNotifier {
     if (wasCompleted == isNowCompleted) {
       return CompletionRewardResult.noChange;
     }
-    final completedAt = DateTime.now();
-    final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
-    final previousLevel = isNowCompleted && currentUserId != null
-        ? await _userLevelFor(currentUserId)
-        : null;
 
     final updatedSubtasks = updateSubtasks
         ? task.subtasks
@@ -2090,6 +1989,17 @@ class TaskProvider with ChangeNotifier {
               )
               .toList()
         : task.subtasks;
+
+    _tasks[index] = task.copyWith(
+      status: newStatus,
+      subtasks: updatedSubtasks,
+    );
+
+    final completedAt = DateTime.now();
+    final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
+    final previousLevel = isNowCompleted && currentUserId != null
+        ? await _userLevelFor(currentUserId)
+        : null;
 
     var updatedTask = task.copyWith(
       status: newStatus,
@@ -2210,12 +2120,14 @@ class TaskProvider with ChangeNotifier {
     );
   }
 
-  Future<void> toggleSubtask(String taskId, int subtaskIndex) async {
+  Future<CompletionRewardResult?> toggleSubtask(String taskId, int subtaskIndex) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
-    if (index == -1) return;
+    if (index == -1) return null;
 
     final task = _tasks[index];
-    if (subtaskIndex < 0 || subtaskIndex >= task.subtasks.length) return;
+    if (subtaskIndex < 0 || subtaskIndex >= task.subtasks.length) return null;
+
+    final wasCompleted = task.isCompleted;
 
     final updatedSubtasks = List<SubTask>.from(task.subtasks);
     final subtask = updatedSubtasks[subtaskIndex];
@@ -2231,15 +2143,16 @@ class TaskProvider with ChangeNotifier {
     final allSubtasksDone =
         updatedSubtasks.isNotEmpty && updatedSubtasks.every((s) => s.isDone);
 
-    if (allSubtasksDone && !task.isCompleted) {
-      await toggleTaskCompletion(taskId, forceStatus: true);
-    } else if (!allSubtasksDone && task.isCompleted) {
-      await toggleTaskCompletion(taskId, forceStatus: false);
+    if (allSubtasksDone && !wasCompleted) {
+      return await toggleTaskCompletion(taskId, forceStatus: true);
+    } else if (!allSubtasksDone && wasCompleted) {
+      return await toggleTaskCompletion(taskId, forceStatus: false);
     } else {
       await _firestore
           .collection('tasks')
           .doc(taskId)
           .set(updatedTask.toMap(), SetOptions(merge: true));
+      return CompletionRewardResult.noChange;
     }
   }
 

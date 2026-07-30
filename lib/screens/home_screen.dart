@@ -402,31 +402,35 @@ class _TasksTabState extends State<_TasksTab>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      greeting,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: theme.brightness == Brightness.dark
-                            ? Colors.white
-                            : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: greeting,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: theme.brightness == Brightness.dark
+                              ? Colors.white
+                              : theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      firstName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: theme.brightness == Brightness.dark
-                            ? Colors.white
-                            : theme.colorScheme.onSurface,
+                      const TextSpan(text: ' '),
+                      TextSpan(
+                        text: firstName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: theme.brightness == Brightness.dark
+                              ? Colors.white
+                              : theme.colorScheme.onSurface,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'วันนี้',
@@ -1906,6 +1910,7 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
   Future<void> _handleToggleComplete(
     Task task, {
     required bool isOverdue,
+    Future<CompletionRewardResult?>? pendingResult,
   }) async {
     final connectivity = context.read<ConnectivityProvider>();
     if (connectivity.isOffline) {
@@ -1925,7 +1930,8 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
     );
 
     if (nextState) {
-      if (latestTask.subtasks.isNotEmpty &&
+      if (pendingResult == null &&
+          latestTask.subtasks.isNotEmpty &&
           latestTask.subtasks.any((s) => !s.isDone)) {
         showDialog(
           context: context,
@@ -1960,7 +1966,18 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
 
       _stageTaskExit(task, isOverdue: isOverdue);
       _playTaskCompleteSound();
-      final result = await taskProvider.completeTaskWithSubtasks(task.id, true);
+      
+      CompletionRewardResult result;
+      if (pendingResult != null) {
+        final res = await pendingResult;
+        if (res == null || res.status == CompletionRewardStatus.noChange) {
+          _cancelTaskExit(task.id);
+          return;
+        }
+        result = res;
+      } else {
+        result = await taskProvider.completeTaskWithSubtasks(task.id, true);
+      }
       if (!mounted) return;
       await FastCompletionWarningDialog.showCompletionFeedback(context, result);
 
@@ -2106,8 +2123,8 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
           bottomSpacing: isLast ? 0 : AppConstants.paddingMedium,
           child: _TodayTaskCard(
             task: entry.task,
-            onToggleComplete: (task) =>
-                _handleToggleComplete(task, isOverdue: entry.isOverdue),
+            onToggleComplete: (task, {pendingResult}) =>
+                _handleToggleComplete(task, isOverdue: entry.isOverdue, pendingResult: pendingResult),
             isCompleted: entry.task.isCompleted,
             isOverdue: entry.isOverdue,
           ),
@@ -2331,7 +2348,7 @@ class _CompletingTaskListItemState extends State<_CompletingTaskListItem> {
 
 class _TodayTaskCard extends StatelessWidget {
   final Task task;
-  final Function(Task) onToggleComplete;
+  final void Function(Task, {Future<CompletionRewardResult?>? pendingResult}) onToggleComplete;
   final bool isCompleted;
   final bool isOverdue;
 
@@ -2785,7 +2802,7 @@ class _TodayCompletionCheckbox extends StatelessWidget {
 
 class _TodaySubtasks extends StatelessWidget {
   final Task task;
-  final Function(Task) onToggleComplete;
+  final void Function(Task, {Future<CompletionRewardResult?>? pendingResult}) onToggleComplete;
 
   const _TodaySubtasks({required this.task, required this.onToggleComplete});
 
@@ -2819,10 +2836,14 @@ class _TodaySubtasks extends StatelessWidget {
                     !entry.value.isDone &&
                     task.subtasks.where((s) => !s.isDone).length == 1;
 
-                unawaited(taskProvider.toggleSubtask(task.id, entry.key));
-
                 if (isCheckingLast && !task.isCompleted) {
-                  onToggleComplete(task);
+                  final futureResult = taskProvider.toggleSubtask(task.id, entry.key);
+                  onToggleComplete(
+                    task,
+                    pendingResult: futureResult,
+                  );
+                } else {
+                  await taskProvider.toggleSubtask(task.id, entry.key);
                 }
               },
               child: Row(

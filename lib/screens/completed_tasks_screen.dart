@@ -568,7 +568,7 @@ class _CompletedTaskCard extends StatelessWidget {
                     _showGroupRestoreBlockedSnackBar(context);
                     return;
                   }
-                  await taskProvider.toggleTaskCompletion(task.id);
+                  await taskProvider.toggleTaskCompletion(task.id, updateSubtasks: true);
                 } else if (value == 'delete') {
                   _showDeleteDialog(context, taskProvider);
                 }

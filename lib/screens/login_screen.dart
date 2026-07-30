@@ -102,9 +102,12 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 child: Container(
                                   width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 48,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal:
+                                        MediaQuery.of(context).size.width < 380
+                                            ? 20
+                                            : 28,
+                                    vertical: 36,
                                   ),
                                   decoration: BoxDecoration(
                                     color: isDark
@@ -319,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen>
       },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -346,12 +349,17 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
             const SizedBox(width: 12),
-            const Text(
-              'เข้าสู่ระบบด้วย Google',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: const Text(
+                  'เข้าสู่ระบบด้วย Google',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
               ),
             ),
           ],
