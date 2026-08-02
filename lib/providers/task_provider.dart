@@ -2143,6 +2143,14 @@ class TaskProvider with ChangeNotifier {
     final allSubtasksDone =
         updatedSubtasks.isNotEmpty && updatedSubtasks.every((s) => s.isDone);
 
+    if (task.type == TaskType.group || task.members.isNotEmpty) {
+      await _firestore
+          .collection('tasks')
+          .doc(taskId)
+          .set(updatedTask.toMap(), SetOptions(merge: true));
+      return CompletionRewardResult.noChange;
+    }
+
     if (allSubtasksDone && !wasCompleted) {
       return await toggleTaskCompletion(taskId, forceStatus: true);
     } else if (!allSubtasksDone && wasCompleted) {
@@ -2154,6 +2162,69 @@ class TaskProvider with ChangeNotifier {
           .set(updatedTask.toMap(), SetOptions(merge: true));
       return CompletionRewardResult.noChange;
     }
+  }
+
+  Future<void> toggleMemberSubtask(
+    String taskId,
+    String memberId,
+    String subtaskTitle,
+  ) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final task = _tasks[index];
+    final memberIndex = task.members.indexWhere((m) => m.id == memberId);
+    if (memberIndex == -1) return;
+
+    final targetMember = task.members[memberIndex];
+    final updatedCompleted = List<String>.from(targetMember.completedSubTasks);
+    final trimmedTitle = subtaskTitle.trim();
+
+    final existingIndex =
+        updatedCompleted.indexWhere((s) => s.trim() == trimmedTitle);
+    if (existingIndex != -1) {
+      updatedCompleted.removeAt(existingIndex);
+    } else {
+      updatedCompleted.add(subtaskTitle);
+    }
+
+    final updatedMembers = List<Member>.from(task.members);
+
+    for (int i = 0; i < updatedMembers.length; i++) {
+      final m = updatedMembers[i];
+      if (m.id == memberId ||
+          (targetMember.taskTitle != null &&
+              targetMember.taskTitle!.isNotEmpty &&
+              m.taskTitle == targetMember.taskTitle)) {
+        updatedMembers[i] = m.copyWith(completedSubTasks: updatedCompleted);
+      }
+    }
+
+    List<SubTask> updatedSubtasks = List<SubTask>.from(task.subtasks);
+    bool subtasksChanged = false;
+    final isNowDone = updatedCompleted.any((s) => s.trim() == trimmedTitle);
+    for (int i = 0; i < updatedSubtasks.length; i++) {
+      if (updatedSubtasks[i].title.trim() == trimmedTitle) {
+        updatedSubtasks[i] = updatedSubtasks[i].copyWith(isDone: isNowDone);
+        subtasksChanged = true;
+      }
+    }
+
+    final updatedTask = task.copyWith(
+      members: updatedMembers,
+      subtasks: subtasksChanged ? updatedSubtasks : task.subtasks,
+    );
+
+    _tasks[index] = updatedTask;
+    if (_selectedTask?.id == taskId) {
+      _selectedTask = updatedTask;
+    }
+    notifyListeners();
+
+    await _firestore
+        .collection('tasks')
+        .doc(taskId)
+        .set(updatedTask.toMap(), SetOptions(merge: true));
   }
 
   Future<void> addComment(String taskId, Comment comment) async {

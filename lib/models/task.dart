@@ -36,6 +36,8 @@ class Member {
   final String workload;
   final String risk;
   final List<String> subTasks;
+  final List<String>? _completedSubTasks;
+  List<String> get completedSubTasks => _completedSubTasks ?? const [];
   final String? score;
   final List<String> coAssigneeIds;
 
@@ -49,9 +51,10 @@ class Member {
     this.workload = 'Small',
     this.risk = 'None',
     this.subTasks = const [],
+    List<String>? completedSubTasks,
     this.score,
     this.coAssigneeIds = const [],
-  });
+  }) : _completedSubTasks = completedSubTasks;
 
   factory Member.fromUser(User user) {
     return Member(id: user.id, name: user.name, avatarUrl: user.avatarUrl);
@@ -67,9 +70,20 @@ class Member {
       difficulty: data['difficulty'] ?? 'Easy',
       workload: data['workload'] ?? 'Small',
       risk: data['risk'] ?? 'None',
-      subTasks: List<String>.from(data['subTasks'] ?? []),
+      subTasks:
+          (data['subTasks'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
+      completedSubTasks:
+          (data['completedSubTasks'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       score: data['score']?.toString(),
-      coAssigneeIds: List<String>.from(data['coAssigneeIds'] ?? []),
+      coAssigneeIds:
+          (data['coAssigneeIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
   }
 
@@ -83,6 +97,7 @@ class Member {
     'workload': workload,
     'risk': risk,
     'subTasks': subTasks,
+    'completedSubTasks': completedSubTasks,
     'score': score,
     'coAssigneeIds': coAssigneeIds,
   };
@@ -97,6 +112,7 @@ class Member {
     String? workload,
     String? risk,
     List<String>? subTasks,
+    List<String>? completedSubTasks,
     String? score,
     List<String>? coAssigneeIds,
   }) {
@@ -110,6 +126,7 @@ class Member {
       workload: workload ?? this.workload,
       risk: risk ?? this.risk,
       subTasks: subTasks ?? this.subTasks,
+      completedSubTasks: completedSubTasks ?? this.completedSubTasks,
       score: score ?? this.score,
       coAssigneeIds: coAssigneeIds ?? this.coAssigneeIds,
     );

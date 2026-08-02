@@ -10,6 +10,7 @@ import '../config/colors.dart';
 import '../config/constants.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
+import '../providers/connectivity_provider.dart';
 
 class MemberAssignmentDetailScreen extends StatefulWidget {
   final Member member;
@@ -34,7 +35,7 @@ class _MemberAssignmentDetailScreenState
     extends State<MemberAssignmentDetailScreen> {
   // ดึงข้อมูลสมาชิก (Assignee) ล่าสุดจาก TaskProvider เสมอ เพื่อให้การแก้ไขคะแนนหรือภารกิจแสดงผลแบบเรียลไทม์
   Member get member {
-    final taskProvider = Provider.of<TaskProvider>(context);
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final taskId = widget.task?.id;
     // ค้นหางานล่าสุดจากรายการใน Provider
     final currentTask = taskId != null
@@ -54,7 +55,7 @@ class _MemberAssignmentDetailScreenState
 
   // ดึงข้อมูลภารกิจ (Task) ล่าสุดจาก TaskProvider เพื่อความสอดคล้องของข้อมูล
   Task? get task {
-    final taskProvider = Provider.of<TaskProvider>(context);
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final taskId = widget.task?.id;
     return taskId != null
         ? taskProvider.tasks.firstWhere(
@@ -70,6 +71,7 @@ class _MemberAssignmentDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    Provider.of<TaskProvider>(context);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -408,6 +410,14 @@ class _MemberAssignmentDetailScreenState
   Widget _buildSubTasksSection(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final currentTask = task;
+    final completedCount = member.subTasks
+        .where(
+          (st) => member.completedSubTasks.any((c) => c.trim() == st.trim()),
+        )
+        .length;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -442,6 +452,26 @@ class _MemberAssignmentDetailScreenState
                   color: theme.colorScheme.onSurface,
                 ),
               ),
+              const Spacer(),
+              if (member.subTasks.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$completedCount/${member.subTasks.length}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryPurple,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -453,30 +483,71 @@ class _MemberAssignmentDetailScreenState
               ),
             )
           else
-            ...member.subTasks.map(
-              (task) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_box_outline_blank,
-                      size: 20,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        task,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurface,
+            ...member.subTasks.map((subTaskTitle) {
+              final isDone = member.completedSubTasks.any(
+                (c) => c.trim() == subTaskTitle.trim(),
+              );
+              return InkWell(
+                onTap: () async {
+                  if (currentTask == null) return;
+                  final connectivity = context.read<ConnectivityProvider>();
+                  if (connectivity.isOffline) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
                         ),
                       ),
-                    ),
-                  ],
+                    );
+                    return;
+                  }
+                  await taskProvider.toggleMemberSubtask(
+                    currentTask.id,
+                    member.id,
+                    subTaskTitle,
+                  );
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isDone
+                            ? Icons.check_box_rounded
+                            : Icons.check_box_outline_blank_rounded,
+                        size: 22,
+                        color: isDone
+                            ? AppColors.primaryGreen
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          subTaskTitle,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDone
+                                ? theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.5,
+                                  )
+                                : theme.colorScheme.onSurface,
+                            decoration: isDone
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            }),
         ],
       ),
     );

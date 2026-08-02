@@ -387,6 +387,41 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
+  bool _hasAnyMemberSubmission(Task task) {
+    final hasText =
+        task.submissionText != null && task.submissionText!.trim().isNotEmpty;
+    final hasFiles = task.attachments.isNotEmpty;
+    final hasSubmitter =
+        task.submittedBy != null && task.submittedBy!.isNotEmpty;
+    final isPending = task.status == TaskStatus.pending;
+    return hasText || hasFiles || hasSubmitter || isPending;
+  }
+
+  void _showNoMemberSubmissionAlert(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ไม่สามารถเสร็จงานได้'),
+        content: const Text('ยังไม่มีการส่งงานของสมาชิกใดๆเข้ามา'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormySkyBlue
+                      : AppColors.textSecondary,
+            ),
+            child: const Text('ตกลง'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSubtasksSection(Task task, TaskProvider taskProvider) {
     if (task.subtasks.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
@@ -462,6 +497,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                     );
                     return;
+                  }
+
+                  if (task.type == TaskType.group ||
+                      task.members.isNotEmpty) {
+                    if (!_hasAnyMemberSubmission(task)) {
+                      _showNoMemberSubmissionAlert(context);
+                      return;
+                    }
                   }
                   final isCheckingLast =
                       !subtask.isDone &&
@@ -945,6 +988,80 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             child: ElevatedButton.icon(
               onPressed: canSubmit
                   ? () async {
+                      bool hasIncompleteSubtasks = false;
+
+                      if (task.type == TaskType.group ||
+                          task.members.isNotEmpty) {
+                        final submitterId =
+                            firebase_auth
+                                .FirebaseAuth
+                                .instance
+                                .currentUser
+                                ?.uid ??
+                            context.read<AuthProvider>().currentUser?.id ??
+                            '';
+                        final myMember = task.members.firstWhere(
+                          (m) => m.id == submitterId,
+                          orElse: () => task.members.firstWhere(
+                            (m) => m.subTasks.isNotEmpty,
+                            orElse: () => task.members.isNotEmpty
+                                ? task.members.first
+                                : const Member(
+                                    id: '',
+                                    name: '',
+                                    avatarUrl: '',
+                                  ),
+                          ),
+                        );
+
+                        if (myMember.subTasks.isNotEmpty) {
+                          hasIncompleteSubtasks = myMember.subTasks.any(
+                            (st) => !myMember.completedSubTasks.any(
+                              (c) => c.trim() == st.trim(),
+                            ),
+                          );
+                        } else if (task.subtasks.isNotEmpty) {
+                          hasIncompleteSubtasks = task.subtasks.any(
+                            (s) => !s.isDone,
+                          );
+                        }
+                      } else {
+                        if (task.subtasks.isNotEmpty) {
+                          hasIncompleteSubtasks = task.subtasks.any(
+                            (s) => !s.isDone,
+                          );
+                        }
+                      }
+
+                      if (hasIncompleteSubtasks) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('ไม่สามารถส่งงานได้'),
+                            content: const Text(
+                              'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการส่งงานให้หัวหน้า',
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.0),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppColors.stormySkyBlue
+                                          : AppColors.textSecondary,
+                                ),
+                                child: const Text('ตกลง'),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
+
                       if (task.attachments.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -2032,6 +2149,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (member.subTasks.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'ภารกิจย่อย: ${member.completedSubTasks.length}/${member.subTasks.length}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryPurple,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     if (hasSubmission && task.submittedAt != null)
                       Text(
@@ -3201,6 +3329,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   Navigator.pop(context);
                 } else {
                   if (!task.isCompleted) {
+                    final isLeader = taskProvider.isLeaderForTask(
+                      task,
+                      context.read<AuthProvider>().currentUser?.id,
+                    );
+                    if (isLeader &&
+                        (task.type == TaskType.group ||
+                            task.members.isNotEmpty)) {
+                      if (!_hasAnyMemberSubmission(task)) {
+                        Navigator.pop(sheetContext);
+                        _showNoMemberSubmissionAlert(context);
+                        return;
+                      }
+                    }
+
                     final latestTask = taskProvider.tasks.firstWhere(
                       (t) => t.id == task.id,
                       orElse: () => task,

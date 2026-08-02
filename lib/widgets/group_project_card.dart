@@ -129,6 +129,52 @@ class GroupProjectCard extends StatelessWidget {
                             );
                             return;
                           }
+                          if (!project.isCompleted) {
+                            final hasText =
+                                project.submissionText != null &&
+                                project.submissionText!.trim().isNotEmpty;
+                            final hasFiles = project.attachments.isNotEmpty;
+                            final hasSubmitter =
+                                project.submittedBy != null &&
+                                project.submittedBy!.isNotEmpty;
+                            final isPending =
+                                project.status == TaskStatus.pending;
+                            final hasSubmission =
+                                hasText ||
+                                hasFiles ||
+                                hasSubmitter ||
+                                isPending;
+
+                            if (!hasSubmission) {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('ไม่สามารถเสร็จงานได้'),
+                                  content: const Text(
+                                    'ยังไม่มีการส่งงานของสมาชิกใดๆเข้ามา',
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16.0),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor:
+                                            Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? AppColors.stormySkyBlue
+                                                : AppColors.textSecondary,
+                                      ),
+                                      child: const Text('ตกลง'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              return;
+                            }
+                          }
+
                           if (onToggleComplete != null) {
                             onToggleComplete!(project);
                           } else {
@@ -282,8 +328,8 @@ class GroupProjectCard extends StatelessWidget {
                 backgroundColor: theme.colorScheme.onSurface.withValues(
                   alpha: 0.08,
                 ),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.primary,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.stormySkyBlue,
                 ),
                 minHeight: 8,
               ),

@@ -3133,6 +3133,51 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
     );
 
     if (nextState) {
+      final isLeader = taskProvider.isLeaderForTask(
+        latestProject,
+        context.read<AuthProvider>().currentUser?.id,
+      );
+      if (isLeader &&
+          (latestProject.type == TaskType.group ||
+              latestProject.members.isNotEmpty)) {
+        final hasText =
+            latestProject.submissionText != null &&
+            latestProject.submissionText!.trim().isNotEmpty;
+        final hasFiles = latestProject.attachments.isNotEmpty;
+        final hasSubmitter =
+            latestProject.submittedBy != null &&
+            latestProject.submittedBy!.isNotEmpty;
+        final isPending = latestProject.status == TaskStatus.pending;
+        final hasSubmission =
+            hasText || hasFiles || hasSubmitter || isPending;
+
+        if (!hasSubmission) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('ไม่สามารถเสร็จงานได้'),
+              content: const Text('ยังไม่มีการส่งงานของสมาชิกใดๆเข้ามา'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.stormySkyBlue
+                            : AppColors.textSecondary,
+                  ),
+                  child: const Text('ตกลง'),
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+      }
+
       if (latestProject.subtasks.isNotEmpty &&
           latestProject.subtasks.any((s) => !s.isDone)) {
         showDialog(
