@@ -1,0 +1,70 @@
+name: Publish
+
+# PyPI Trusted Publishing (OIDC). Trigger only via GitHub Release.
+# Mouth: Beta MCP proof kernel — not Enterprise Ready.
+# Do not publish until L3 A/B evidence or explicit Beta-with-OPEN scorecard.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install + SBOM
+        run: |
+          python -m pip install -U pip
+          pip install -e .
+          pip install cyclonedx-bom
+          cyclonedx-py environment -o sbom.cdx.json
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: godkiller-mcp-sbom
+          path: sbom.cdx.json
+      - name: Attach SBOM to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" sbom.cdx.json --clobber
+        continue-on-error: true
+
+  publish:
+    needs: sbom
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          python -m pip install -U pip build
+          rm -rf dist build src/*.egg-info *.egg-info src/godkiller_mcp.egg-info
+          python -m build
+          # Fail if egg-info leaked into sdist
+          python - <<'PY'
+          import tarfile, pathlib, sys
+          sdists = list(pathlib.Path("dist").glob("*.tar.gz"))
+          assert sdists, "no sdist"
+          with tarfile.open(sdists[0], "r:gz") as tf:
+              names = tf.getnames()
+          bad = [n for n in names if ".egg-info" in n or n.endswith(".venv") or "/tests/" in n]
+          if bad:
+              print("sdist leak:", bad[:20])
+              sys.exit(1)
+          print("sdist clean:", sdists[0].name, "entries", len(names))
+          PY
+      - name: Publish to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1

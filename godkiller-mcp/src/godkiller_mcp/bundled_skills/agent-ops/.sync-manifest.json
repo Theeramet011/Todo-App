@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "skills": {
+    "babysit": { "lastSyncedAt": 1785486591835 },
+    "loop": { "lastSyncedAt": 1785486591835 },
+    "review": { "lastSyncedAt": 1785486591835 },
+    "review-security": { "lastSyncedAt": 1785486591835 },
+    "shell": { "lastSyncedAt": 1785486591835 },
+    "split-to-prs": { "lastSyncedAt": 1785486591835 }
+  },
+  "lastInventoryAt": 1785486591835,
+  "note": "Vendor IDE playbooks removed from ship pack; host-neutral agent-ops only."
+}
