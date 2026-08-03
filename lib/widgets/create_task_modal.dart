@@ -3323,6 +3323,15 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       _selectedTime.minute,
     );
 
+    final isDateTimeChanged = widget.task == null ||
+        !widget.task!.dateTime.isAtSameMomentAs(dateTime);
+
+    final bool resetNotified = isDateTimeChanged;
+
+    final Map<String, bool> finalCustomReminders = isDateTimeChanged
+        ? customReminders.map((k, v) => MapEntry(k, false))
+        : Map<String, bool>.from(customReminders);
+
     final updatedTask = Task(
       id: widget.task?.id ?? 'task_${DateTime.now().millisecondsSinceEpoch}',
       title: _titleController.text,
@@ -3353,7 +3362,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       completedAt: widget.task?.completedAt,
       isDeleted: widget.task?.isDeleted ?? false,
       notificationFormat: _selectedNotification,
-      customReminders: Map<String, bool>.from(customReminders),
+      customReminders: finalCustomReminders,
       isRecurring: _isRecurring,
       recurringType: _isRecurring ? _selectedRecurringType : 'daily',
       recurringDate: _isRecurring && _selectedRecurringType == 'custom'
@@ -3382,11 +3391,11 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
           _isRecurring && _selectedRecurringType == 'custom'
               ? _customRecurringConfig.fixedDates
               : null,
-      notified1Week: widget.task?.notified1Week ?? false,
-      notified1Day: widget.task?.notified1Day ?? false,
-      notified1Hour: widget.task?.notified1Hour ?? false,
-      notifiedExact: widget.task?.notifiedExact ?? false,
-      notifiedFollowUp: widget.task?.notifiedFollowUp ?? false,
+      notified1Week: resetNotified ? false : (widget.task?.notified1Week ?? false),
+      notified1Day: resetNotified ? false : (widget.task?.notified1Day ?? false),
+      notified1Hour: resetNotified ? false : (widget.task?.notified1Hour ?? false),
+      notifiedExact: resetNotified ? false : (widget.task?.notifiedExact ?? false),
+      notifiedFollowUp: resetNotified ? false : (widget.task?.notifiedFollowUp ?? false),
       difficulty: _difficultyToInt(_selectedComplexity),
       workload: _workloadToInt(_selectedWorkload),
       risk: _riskToInt(_selectedRisk),

@@ -69,6 +69,8 @@ function notificationRecipients(taskData, isPersonalTask, projectData = null) {
   if (isPersonalTask) {
     setRecipientRole(recipientRoles, taskData.assigneeId, "personal");
     setRecipientRoles(recipientRoles, taskData.assigneeIds, "personal");
+    setRecipientRole(recipientRoles, taskData.creatorId, "personal");
+    setRecipientRole(recipientRoles, taskData.userId, "personal");
     return [...recipientRoles].map(([userId, role]) => ({userId, role}));
   }
 
@@ -583,6 +585,11 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
           `(type=${taskData.type || "-"}, category=${taskData.category || "-"})`
         );
         console.log(`👥 ผู้รับแจ้งเตือนภารกิจ ${taskId}: ${recipients.length} คน`);
+
+        if (recipients.length === 0) {
+          console.log(`⚠️ ภารกิจ ${taskId} เข้าเงื่อนไขเตือน [${flagToUpdateTag}] แต่ไม่พบผู้รับแจ้งเตือน (ข้ามการอัปเดต flag)`);
+          continue;
+        }
 
         for (const recipient of recipients) {
           const userId = recipient.userId;
