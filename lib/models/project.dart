@@ -1,3 +1,7 @@
+// Project Model - โมเดลสำหรับโปรเจกต์และการจัดหมวดหมู่งาน (Project Data Structure)
+//
+// กำหนดโครงสร้างข้อมูลโปรเจกต์ เช่น ชื่องานกลุ่ม หัวหน้าโปรเจกต์ สมาชิก สถานะโปรเจกต์ (planning, active, completed)
+// และการแปลงข้อมูลไป-กลับกับ Firebase Firestore
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../utils/thai_display.dart';

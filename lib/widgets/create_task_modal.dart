@@ -55,6 +55,12 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   final _formKey = GlobalKey<FormState>();
   final GlobalKey _titleFieldKey = GlobalKey();
   final GlobalKey _memberSectionKey = GlobalKey();
+  final GlobalKey _subtaskKey = GlobalKey();
+  final FocusNode _subtaskFocusNode = FocusNode();
+  int? _editingSubtaskIndex;
+  final TextEditingController _inlineSubtaskController =
+      TextEditingController();
+  final FocusNode _inlineSubtaskFocusNode = FocusNode();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   final _subtaskController = TextEditingController();
@@ -134,6 +140,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         frequencyNum: task.customRecurringNum ?? 1,
         frequencyUnit: task.customRecurringUnit ?? 'สัปดาห์',
         selectedDays: task.customRecurringDays ?? const ['จ.', 'ศ.'],
+        fixedDates: task.customRecurringFixedDates ?? const [],
       );
     }
     _selectedPriority = task?.priority ?? Priority.low;
@@ -157,7 +164,6 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         _ensureLeaderFirst(authProvider);
       }
     } else {
-      // Requirement 2: Auto-Initialize Member List with currently logged-in user
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (authProvider.currentUser != null) {
           setState(() {
@@ -166,6 +172,36 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         }
       });
     }
+
+    _subtaskFocusNode.addListener(() {
+      if (_subtaskFocusNode.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 250), () {
+          if (mounted && _subtaskKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              _subtaskKey.currentContext!,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              alignment: 0.5,
+            );
+          }
+        });
+      }
+    });
+
+    _inlineSubtaskFocusNode.addListener(() {
+      if (_inlineSubtaskFocusNode.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 250), () {
+          if (mounted && _subtaskKey.currentContext != null) {
+            Scrollable.ensureVisible(
+              _subtaskKey.currentContext!,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              alignment: 0.5,
+            );
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -173,6 +209,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     _titleController.dispose();
     _descriptionController.dispose();
     _subtaskController.dispose();
+    _subtaskFocusNode.dispose();
+    _inlineSubtaskController.dispose();
+    _inlineSubtaskFocusNode.dispose();
     super.dispose();
   }
 
@@ -329,7 +368,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             Positioned(
               left: AppConstants.paddingLarge,
               right: AppConstants.paddingLarge,
-              bottom: AppConstants.paddingLarge,
+              bottom: AppConstants.paddingLarge + bottomInset,
               child: SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -1100,11 +1139,114 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _subtasks.length,
                       itemBuilder: (context, index) {
+                        final isEditingThis = _editingSubtaskIndex == index;
+
+                        if (isEditingThis) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 7),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : AppColors.stormySkyBlue
+                                      .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.stormySkyBlue,
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.only(
+                                    left: 4,
+                                    right: 8,
+                                  ),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.stormySkyBlue,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _inlineSubtaskController,
+                                    focusNode: _inlineSubtaskFocusNode,
+                                    autofocus: true,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 6,
+                                      ),
+                                      border: InputBorder.none,
+                                    ),
+                                    onSubmitted: (val) =>
+                                        _saveInlineSubtask(index),
+                                  ),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  style: IconButton.styleFrom(
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    minimumSize: Size.zero,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.check,
+                                    size: 18,
+                                    color: AppColors.success,
+                                  ),
+                                  onPressed: () => _saveInlineSubtask(index),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 26,
+                                    minHeight: 26,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  tooltip: 'บันทึก',
+                                ),
+                                const SizedBox(width: 2),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  style: IconButton.styleFrom(
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    minimumSize: Size.zero,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: AppColors.accentRed,
+                                  ),
+                                  onPressed: _cancelInlineSubtask,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 26,
+                                    minHeight: 26,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  tooltip: 'ยกเลิก',
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
                         return Container(
                           margin: const EdgeInsets.only(bottom: 7),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                            horizontal: 10,
+                            vertical: 8,
                           ),
                           decoration: BoxDecoration(
                             color: isDark
@@ -1147,6 +1289,44 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                 ),
                               ),
                               IconButton(
+                                visualDensity: VisualDensity.compact,
+                                style: IconButton.styleFrom(
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  minimumSize: Size.zero,
+                                  padding: EdgeInsets.zero,
+                                ),
+                                icon: Icon(
+                                  Icons.edit_outlined,
+                                  size: 18,
+                                  color: (Theme.of(context).brightness ==
+                                          Brightness.light
+                                      ? AppColors.stormySkyBlue
+                                      : AppColors.primaryBlue),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _editingSubtaskIndex = index;
+                                    _inlineSubtaskController.text =
+                                        _subtasks[index].title;
+                                  });
+                                  Future.microtask(() =>
+                                      _inlineSubtaskFocusNode.requestFocus());
+                                },
+                                constraints: const BoxConstraints(
+                                  minHeight: 28,
+                                ),
+                                padding: EdgeInsets.zero,
+                              ),
+                              const SizedBox(width: 2),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                style: IconButton.styleFrom(
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  minimumSize: Size.zero,
+                                  padding: EdgeInsets.zero,
+                                ),
                                 icon: const Icon(
                                   Icons.delete_outline,
                                   size: 18,
@@ -1154,8 +1334,11 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                 ),
                                 onPressed: () =>
                                     setState(() => _subtasks.removeAt(index)),
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.all(2),
+                                constraints: const BoxConstraints(
+                                  minWidth: 26,
+                                  minHeight: 26,
+                                ),
+                                padding: EdgeInsets.zero,
                               ),
                             ],
                           ),
@@ -1164,10 +1347,12 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                     ),
                   if (_subtasks.isNotEmpty) const SizedBox(height: 4),
                   Row(
+                    key: _subtaskKey,
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _subtaskController,
+                          focusNode: _subtaskFocusNode,
                           style: TextStyle(
                             fontSize: 13,
                             color: theme.colorScheme.onSurface,
@@ -1236,6 +1421,22 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         _isSubtasksExpanded = true;
       });
     }
+  }
+
+  void _saveInlineSubtask(int index) {
+    final newTitle = _inlineSubtaskController.text.trim();
+    if (newTitle.isNotEmpty && index >= 0 && index < _subtasks.length) {
+      setState(() {
+        _subtasks[index] = _subtasks[index].copyWith(title: newTitle);
+        _editingSubtaskIndex = null;
+      });
+    }
+  }
+
+  void _cancelInlineSubtask() {
+    setState(() {
+      _editingSubtaskIndex = null;
+    });
   }
 
   Member? _leaderMember(AuthProvider authProvider) {
@@ -3177,6 +3378,10 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       customRecurringDays: _isRecurring && _selectedRecurringType == 'custom'
           ? _customRecurringConfig.selectedDays
           : null,
+      customRecurringFixedDates:
+          _isRecurring && _selectedRecurringType == 'custom'
+              ? _customRecurringConfig.fixedDates
+              : null,
       notified1Week: widget.task?.notified1Week ?? false,
       notified1Day: widget.task?.notified1Day ?? false,
       notified1Hour: widget.task?.notified1Hour ?? false,

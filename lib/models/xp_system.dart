@@ -1,3 +1,7 @@
+// XPSystem Model - โมเดลระบบคำนวณค่าประสบการณ์และระดับเลเวล (XP & Level System)
+//
+// กำหนดโครงสร้างข้อมูลคำนวณเลเวลผู้ใช้งาน (LevelProgress) สถิติการทำภารกิจประจำวัน (PersonalTaskCounter)
+// และฟังก์ชันแปลงค่า XP รวมเป็นระดับเลเวลปัจจุบันและเปอร์เซ็นต์ความคืบหน้า
 import '../config/constants.dart';
 
 class LevelProgress {

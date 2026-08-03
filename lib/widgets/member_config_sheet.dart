@@ -57,6 +57,10 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
   late TextEditingController _scoreController;
 
   late List<String> _subTasks;
+  int? _editingSubTaskIndex;
+  final TextEditingController _inlineSubTaskController =
+      TextEditingController();
+  final FocusNode _inlineSubTaskFocusNode = FocusNode();
 
   late String _complexity;
   late String _workload;
@@ -130,6 +134,8 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
     descController.dispose();
     _subTaskController.dispose();
     _scoreController.dispose();
+    _inlineSubTaskController.dispose();
+    _inlineSubTaskFocusNode.dispose();
     super.dispose();
   }
 
@@ -1406,11 +1412,110 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _subTasks.length,
                       itemBuilder: (context, index) {
+                        final isEditingThis = _editingSubTaskIndex == index;
+
+                        if (isEditingThis) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 7),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : AppColors.stormySkyBlue
+                                      .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.stormySkyBlue,
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.only(
+                                    left: 4,
+                                    right: 8,
+                                  ),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.stormySkyBlue,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _inlineSubTaskController,
+                                    focusNode: _inlineSubTaskFocusNode,
+                                    autofocus: true,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 6,
+                                      ),
+                                      border: InputBorder.none,
+                                    ),
+                                    onSubmitted: (val) =>
+                                        _saveInlineSubTask(index),
+                                  ),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  style: IconButton.styleFrom(
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    minimumSize: Size.zero,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.check,
+                                    size: 18,
+                                    color: AppColors.success,
+                                  ),
+                                  onPressed: () => _saveInlineSubTask(index),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 26,
+                                    minHeight: 26,
+                                  ),
+                                  tooltip: 'บันทึก',
+                                ),
+                                const SizedBox(width: 2),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  style: IconButton.styleFrom(
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    minimumSize: Size.zero,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: AppColors.accentRed,
+                                  ),
+                                  onPressed: _cancelInlineSubTask,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 26,
+                                    minHeight: 26,
+                                  ),
+                                  tooltip: 'ยกเลิก',
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 3),
+                          margin: const EdgeInsets.only(bottom: 7),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                            horizontal: 10,
+                            vertical: 8,
                           ),
                           decoration: BoxDecoration(
                             color: isDark
@@ -1452,6 +1557,28 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                   ),
                                 ),
                               ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.edit_outlined,
+                                  size: 18,
+                                  color: (Theme.of(context).brightness ==
+                                          Brightness.light
+                                      ? AppColors.stormySkyBlue
+                                      : AppColors.primaryBlue),
+                                ),
+                                 onPressed: () {
+                                   setState(() {
+                                     _editingSubTaskIndex = index;
+                                     _inlineSubTaskController.text =
+                                         _subTasks[index];
+                                   });
+                                   Future.microtask(() =>
+                                       _inlineSubTaskFocusNode.requestFocus());
+                                 },
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(4),
+                              ),
+                              const SizedBox(width: 4),
                               IconButton(
                                 icon: const Icon(
                                   Icons.delete_outline,
@@ -1531,6 +1658,22 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
         ],
       ),
     );
+  }
+
+  void _saveInlineSubTask(int index) {
+    final newTitle = _inlineSubTaskController.text.trim();
+    if (newTitle.isNotEmpty && index >= 0 && index < _subTasks.length) {
+      setState(() {
+        _subTasks[index] = newTitle;
+        _editingSubTaskIndex = null;
+      });
+    }
+  }
+
+  void _cancelInlineSubTask() {
+    setState(() {
+      _editingSubTaskIndex = null;
+    });
   }
 
   Widget _buildTappableBox({

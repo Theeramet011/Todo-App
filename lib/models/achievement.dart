@@ -1,3 +1,7 @@
+// Achievement Model - โมเดลสำหรับข้อมูลความสำเร็จ/ถ้วยรางวัล (Achievement Data Structure)
+//
+// กำหนดโครงสร้างข้อมูลความสำเร็จ เช่น ไอคอน สี สถานะการปลดล็อก รางวัล XP รูปภาพประจำความสำเร็จ
+// และฟังก์ชันคำนวณการปลดล็อก achievement สำหรับผู้ใช้งาน
 import 'package:flutter/material.dart';
 
 import '../config/colors.dart';

@@ -1,3 +1,7 @@
+// Task Model - โมเดลหลักสำหรับจัดการภารกิจและงานย่อย (Task Data Structure)
+//
+// กำหนดโครงสร้างข้อมูลงาน (Task), งานย่อย (SubTask), ระดับความสำคัญ (Priority), ประเภทงาน (TaskType)
+// รองรับงานส่วนตัว งานกลุ่ม งานทำซ้ำ (Recurring) ไฟล์แนบ การแจ้งเตือน และแปลงข้อมูลสำหรับ Firestore
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -156,6 +160,7 @@ class Task {
   final DateTime createdAt;
   final DateTime? completedAt;
   final bool isDeleted;
+  final DateTime? deletedAt;
   final List<String> deletedForUserIds;
   final List<String> hiddenForUserIds;
   final String notificationFormat;
@@ -168,6 +173,7 @@ class Task {
   final int? customRecurringNum;
   final String? customRecurringUnit;
   final List<String>? customRecurringDays;
+  final List<DateTime>? customRecurringFixedDates;
   final bool notified1Week;
   final bool notified1Day;
   final bool notified1Hour;
@@ -206,6 +212,7 @@ class Task {
     required this.createdAt,
     this.completedAt,
     this.isDeleted = false,
+    this.deletedAt,
     this.deletedForUserIds = const [],
     this.hiddenForUserIds = const [],
     this.notificationFormat = 'No Notification',
@@ -218,6 +225,7 @@ class Task {
     this.customRecurringNum,
     this.customRecurringUnit,
     this.customRecurringDays,
+    this.customRecurringFixedDates,
     this.notified1Week = false,
     this.notified1Day = false,
     this.notified1Hour = false,
@@ -267,6 +275,7 @@ class Task {
       createdAt: _dateFromFirestore(data['createdAt']) ?? DateTime.now(),
       completedAt: _dateFromFirestore(data['completedAt']),
       isDeleted: data['isDeleted'] ?? false,
+      deletedAt: _dateFromFirestore(data['deletedAt']),
       deletedForUserIds: List<String>.from(data['deletedForUserIds'] ?? []),
       hiddenForUserIds: List<String>.from(data['hiddenForUserIds'] ?? []),
       notificationFormat: data['notificationFormat'] ?? 'No Notification',
@@ -282,6 +291,15 @@ class Task {
       customRecurringUnit: data['customRecurringUnit'] as String?,
       customRecurringDays: data['customRecurringDays'] != null
           ? List<String>.from(data['customRecurringDays'])
+          : null,
+      customRecurringFixedDates: data['customRecurringFixedDates'] != null
+          ? (data['customRecurringFixedDates'] as List<dynamic>)
+              .map((e) {
+                if (e is Timestamp) return e.toDate();
+                if (e is String) return DateTime.parse(e);
+                return DateTime.now();
+              })
+              .toList()
           : null,
       notified1Week: data['notified1Week'] ?? false,
       notified1Day: data['notified1Day'] ?? false,
@@ -341,6 +359,7 @@ class Task {
         ? null
         : Timestamp.fromDate(completedAt!),
     'isDeleted': isDeleted,
+    'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
     'deletedForUserIds': deletedForUserIds,
     'hiddenForUserIds': hiddenForUserIds,
     'notificationFormat': notificationFormat,
@@ -355,6 +374,9 @@ class Task {
     'customRecurringNum': customRecurringNum,
     'customRecurringUnit': customRecurringUnit,
     'customRecurringDays': customRecurringDays,
+    'customRecurringFixedDates': customRecurringFixedDates
+        ?.map((d) => Timestamp.fromDate(d))
+        .toList(),
     'notified1Week': notified1Week,
     'notified1Day': notified1Day,
     'notified1Hour': notified1Hour,
@@ -402,6 +424,8 @@ class Task {
     DateTime? completedAt,
     bool clearCompletedAt = false,
     bool? isDeleted,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
     List<String>? deletedForUserIds,
     List<String>? hiddenForUserIds,
     String? notificationFormat,
@@ -416,6 +440,7 @@ class Task {
     int? customRecurringNum,
     String? customRecurringUnit,
     List<String>? customRecurringDays,
+    List<DateTime>? customRecurringFixedDates,
     bool? notified1Week,
     bool? notified1Day,
     bool? notified1Hour,
@@ -461,6 +486,7 @@ class Task {
       createdAt: createdAt ?? this.createdAt,
       completedAt: clearCompletedAt ? null : completedAt ?? this.completedAt,
       isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
       deletedForUserIds: deletedForUserIds ?? this.deletedForUserIds,
       hiddenForUserIds: hiddenForUserIds ?? this.hiddenForUserIds,
       notificationFormat: notificationFormat ?? this.notificationFormat,
@@ -477,6 +503,8 @@ class Task {
       customRecurringNum: customRecurringNum ?? this.customRecurringNum,
       customRecurringUnit: customRecurringUnit ?? this.customRecurringUnit,
       customRecurringDays: customRecurringDays ?? this.customRecurringDays,
+      customRecurringFixedDates:
+          customRecurringFixedDates ?? this.customRecurringFixedDates,
       notified1Week: notified1Week ?? this.notified1Week,
       notified1Day: notified1Day ?? this.notified1Day,
       notified1Hour: notified1Hour ?? this.notified1Hour,

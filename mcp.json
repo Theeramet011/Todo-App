@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "godkiller": {
+      "command": "node",
+      "args": [
+        "C:/Users/A/OneDrive/Desktop/todoapp/godkiller-mcp/build/index.js"
+      ]
+    }
+  }
+}

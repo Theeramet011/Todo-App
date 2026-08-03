@@ -1,3 +1,7 @@
+// ThemeProvider - ตัวจัดการสถานะธีมของแอปพลิเคชัน (Theme State Management)
+//
+// ควบคุมและสลับโหมดการแสดงผลระหว่าง Light Mode และ Dark Mode
+// พร้อมบันทึกความตั้งค่าผู้ใช้ลงใน SharedPreferences เพื่อใช้อย่างต่อเนื่องในการเปิดแอปครั้งถัดไป
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

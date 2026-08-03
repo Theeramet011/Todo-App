@@ -1,3 +1,7 @@
+// ConnectivityProvider - ตัวจัดการสถานะการเชื่อมต่ออินเทอร์เน็ต (Network Connectivity State Management)
+//
+// ติดตามและแจ้งเตือนสถานะการเชื่อมต่อเครือข่าย (Online/Offline) แบบ Realtime
+// เพื่อให้แอปพลิเคชันตอบสนองได้อย่างถูกต้องเมื่อสัญญาณอินเทอร์เน็ตขาดหาย
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';

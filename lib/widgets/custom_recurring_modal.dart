@@ -195,15 +195,50 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
   }
 
   void _onSave() {
-    _deduplicateFixedDates();
-    final config = CustomRecurringConfig(
-      mode: _selectedMode,
-      frequencyNum: _frequencyNum,
-      frequencyUnit: _frequencyUnit,
-      selectedDays: _selectedDays,
-      fixedDates: _fixedDates,
-    );
-    Navigator.pop(context, config);
+    if (_selectedMode == 'byDueDate') {
+      // Mode 1: ตามวันถึงกำหนด (FREQUENCY)
+      if (_frequencyUnit == 'สัปดาห์' && _selectedDays.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('กรุณาเลือกวันในสัปดาห์อย่างน้อย 1 วัน'),
+            backgroundColor: AppColors.accentRed,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final config = CustomRecurringConfig(
+        mode: 'byDueDate',
+        frequencyNum: _frequencyNum,
+        frequencyUnit: _frequencyUnit,
+        selectedDays: List<String>.from(_selectedDays),
+        fixedDates: const [], // Ignore calendar date selections
+      );
+      Navigator.pop(context, config);
+    } else if (_selectedMode == 'byFixedDate') {
+      // Mode 2: ตามวันที่กำหนด (SPECIFIC_DATES)
+      _deduplicateFixedDates();
+      if (_fixedDates.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('กรุณาเลือกวันที่ทำซ้ำอย่างน้อย 1 วัน'),
+            backgroundColor: AppColors.accentRed,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final config = CustomRecurringConfig(
+        mode: 'byFixedDate',
+        frequencyNum: 1,
+        frequencyUnit: 'วัน',
+        selectedDays: const [], // Ignore frequency & weekday rules
+        fixedDates: List<DateTime>.from(_fixedDates),
+      );
+      Navigator.pop(context, config);
+    }
   }
 
   void _showRecurringInfoDialog(BuildContext context) {

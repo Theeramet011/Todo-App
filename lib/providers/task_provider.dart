@@ -1,3 +1,7 @@
+// TaskProvider - ตัวจัดการสถานะภารกิจ งานกลุ่ม และการอัปโหลดไฟล์ (Task State Management)
+//
+// จัดการข้อมูลงานทั้งหมดในแอป (CRUD Tasks) งานส่วนตัว งานกลุ่ม ถังขยะ (Bin) การคำนวณ XP การปลดล็อกรางวัล
+// และการอัปโหลด/ลบไฟล์แนบบน Firebase Storage
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -307,9 +311,9 @@ class TaskProvider with ChangeNotifier {
   List<Task> get deletedTasks {
     final deleted = _tasks.where(_isTaskInCurrentUserBin).toList();
     deleted.sort((a, b) {
-      final priorityComparison = b.priority.index.compareTo(a.priority.index);
-      if (priorityComparison != 0) return priorityComparison;
-      return b.createdAt.compareTo(a.createdAt);
+      final aTime = a.deletedAt ?? a.createdAt;
+      final bTime = b.deletedAt ?? b.createdAt;
+      return bTime.compareTo(aTime);
     });
     return List.unmodifiable(deleted);
   }
@@ -1119,8 +1123,18 @@ class TaskProvider with ChangeNotifier {
     final mode = task.customRecurringMode ?? 'byDueDate';
 
     DateTime baseDate = task.dateTime;
-    if (mode == 'byFixedDate' && task.recurringDate != null) {
-      baseDate = task.recurringDate!;
+    if (mode == 'byFixedDate') {
+      final fixed = task.customRecurringFixedDates ?? [];
+      if (fixed.isNotEmpty) {
+        final upcoming = fixed.where((d) => d.isAfter(task.dateTime)).toList()
+          ..sort((a, b) => a.compareTo(b));
+        if (upcoming.isNotEmpty) {
+          return upcoming.first;
+        }
+      }
+      if (task.recurringDate != null) {
+        baseDate = task.recurringDate!;
+      }
     }
 
     DateTime nextDate;
@@ -1670,6 +1684,7 @@ class TaskProvider with ChangeNotifier {
 
         final updatedTask = task.copyWith(
           isDeleted: false,
+          clearDeletedAt: true,
         );
         _tasks[index] = updatedTask;
         restoredTasks.add(updatedTask);
@@ -1694,6 +1709,7 @@ class TaskProvider with ChangeNotifier {
       } else {
         batch.set(_firestore.collection('tasks').doc(task.id), {
           'isDeleted': false,
+          'deletedAt': FieldValue.delete(),
         }, SetOptions(merge: true));
       }
     }
@@ -1912,6 +1928,7 @@ class TaskProvider with ChangeNotifier {
       }
     }
 
+    final now = DateTime.now();
     for (final id in expandedTaskIds) {
       final index = _tasks.indexWhere((t) => t.id == id);
       if (index != -1) {
@@ -1921,6 +1938,7 @@ class TaskProvider with ChangeNotifier {
             (!_isCurrentUserLeaderOfTask(task) || task.isCompleted)) {
           localGroupTaskIds.add(id);
           _tasks[index] = task.copyWith(
+            deletedAt: now,
             deletedForUserIds: {
               ...task.deletedForUserIds,
               currentUserId,
@@ -1931,7 +1949,10 @@ class TaskProvider with ChangeNotifier {
           if (task.isGroup) {
             globalGroupTaskIds.add(id);
           }
-          _tasks[index] = task.copyWith(isDeleted: true);
+          _tasks[index] = task.copyWith(
+            isDeleted: true,
+            deletedAt: now,
+          );
         }
       }
     }
@@ -1941,6 +1962,7 @@ class TaskProvider with ChangeNotifier {
     final batch = _firestore.batch();
     for (final id in localGroupTaskIds) {
       batch.set(_firestore.collection('tasks').doc(id), {
+        'deletedAt': Timestamp.fromDate(now),
         'deletedForUserIds': FieldValue.arrayUnion([currentUserId]),
         'hiddenForUserIds': FieldValue.arrayRemove([currentUserId]),
       }, SetOptions(merge: true));
@@ -1948,6 +1970,7 @@ class TaskProvider with ChangeNotifier {
     for (final id in globalTaskIds) {
       batch.set(_firestore.collection('tasks').doc(id), {
         'isDeleted': true,
+        'deletedAt': Timestamp.fromDate(now),
         if (globalGroupTaskIds.contains(id)) 'deletedForUserIds': [],
       }, SetOptions(merge: true));
     }

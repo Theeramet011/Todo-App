@@ -1,3 +1,7 @@
+// User Model - โมเดลข้อมูลผู้ใช้งานและสถิติส่วนบุคคล (User Data Structure)
+//
+// กำหนดโครงสร้างข้อมูลผู้ใช้ เช่น โปรไฟล์, ค่า XP, Level, จำนวนงานที่ทำเสร็จ, สถิติต่อเนื่อง (Streak)
+// ข้อมูลการตั้งค่าระบบ (เสียง/การแจ้งเตือน) และการรับส่งข้อมูลกับระบบ Firebase Firestore
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/thai_display.dart';
 import 'xp_system.dart';

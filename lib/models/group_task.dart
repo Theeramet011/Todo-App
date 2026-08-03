@@ -1,3 +1,7 @@
+// GroupTask Model - โมเดลสำหรับงานกลุ่มและสมาชิกในทีม (Group Task & Member Data Structures)
+//
+// กำหนดโครงสร้างข้อมูลสมาชิกกลุ่ม (GroupMember) งานย่อยของกลุ่ม (GroupSubTask)
+// และลิงก์การส่งงาน การตรวจประเมินคะแนนของสมาชิกในแต่ละภารกิจ
 class GroupMember {
   final String id;
   final String name;

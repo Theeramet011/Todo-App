@@ -1,3 +1,7 @@
+// AuthProvider - ตัวจัดการสถานะระบบยืนยันตัวตนและการเข้าใช้งาน (Authentication State Management)
+//
+// จัดการสถานะผู้ใช้ปัจจุบัน (User State) การเข้าสู่ระบบด้วย Google/Email การออกจากระบบ
+// การอัปเดตข้อมูลส่วนตัว (Profile/XP/Streak) และการเชื่อมโยงข้อมูลผู้ใช้กับ Firebase Firestore
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';

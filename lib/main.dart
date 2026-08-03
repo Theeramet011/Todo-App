@@ -43,16 +43,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
-const String taskReminderChannelId = 'task_reminder_alerts_v2';
-const String taskCommentChannelId = 'task_comment_alerts_v1';
+const String taskReminderChannelId = 'task_reminder_alerts_v3';
+const String taskCommentChannelId = 'task_comment_alerts_v2';
 
-// 🔥 3. สร้างท่อสัญญาณ (Channel) สำหรับ Android
+// 🔥 3. สร้างท่อสัญญาณ (Channel) สำหรับ Android ที่ใช้เสียงแจ้งเตือนแบบกำหนดเอง (notification.wav)
 final AndroidNotificationChannel channel = AndroidNotificationChannel(
   taskReminderChannelId,
   'Task Reminder Alerts',
-  description: 'Time-sensitive task reminder notifications.',
+  description: 'Time-sensitive task reminder notifications with custom sound.',
   importance: Importance.max,
   playSound: true,
+  sound: const RawResourceAndroidNotificationSound('notification'),
   enableVibration: true,
   vibrationPattern: Int64List.fromList(<int>[0, 700, 250, 700]),
   audioAttributesUsage: AudioAttributesUsage.alarm,
@@ -61,9 +62,10 @@ final AndroidNotificationChannel channel = AndroidNotificationChannel(
 final AndroidNotificationChannel commentChannel = AndroidNotificationChannel(
   taskCommentChannelId,
   'Task Comment Alerts',
-  description: 'High priority alerts when someone comments on your tasks.',
+  description: 'High priority alerts when someone comments on your tasks with custom sound.',
   importance: Importance.max,
   playSound: true,
+  sound: const RawResourceAndroidNotificationSound('notification'),
   enableVibration: true,
   vibrationPattern: Int64List.fromList(<int>[0, 350, 150, 350, 150, 550]),
   audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
@@ -181,6 +183,7 @@ Future<void> _showTaskReminderNotification(RemoteMessage message) async {
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
+        sound: const RawResourceAndroidNotificationSound('notification'),
         enableVibration: true,
         vibrationPattern: Int64List.fromList(
           _notificationVibrationPattern(message),
