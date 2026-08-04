@@ -199,8 +199,10 @@ class CustomDrawer extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: value,
                             backgroundColor: Colors.white24,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Colors.tealAccent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? AppColors.stormySkyBlue
+                                  : AppColors.stormyDeepBlue,
                             ),
                             minHeight: 8,
                           ),

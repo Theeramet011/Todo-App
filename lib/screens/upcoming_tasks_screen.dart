@@ -362,7 +362,9 @@ class _UpcomingSectionBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accentColor = theme.colorScheme.tertiary;
+    final accentColor = theme.brightness == Brightness.dark
+        ? theme.colorScheme.tertiary
+        : AppColors.stormySkyBlue;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppConstants.paddingXLarge),
@@ -557,6 +559,9 @@ class _UpcomingTaskCard extends StatelessWidget {
     final accentColor = theme.colorScheme.tertiary;
     final softPink = theme.colorScheme.primary;
     final isCompleted = task.isCompleted;
+    final iconColor = theme.brightness == Brightness.dark
+        ? accentColor
+        : AppColors.stormySkyBlue;
 
     return Material(
       color: Colors.transparent,
@@ -592,17 +597,17 @@ class _UpcomingTaskCard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.16),
+                  color: iconColor.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(
                     AppConstants.radiusMedium,
                   ),
                   border: Border.all(
-                    color: accentColor.withValues(alpha: 0.28),
+                    color: iconColor.withValues(alpha: 0.28),
                   ),
                 ),
                 child: Icon(
                   isCompleted ? Icons.check_circle_outline : _icon,
-                  color: accentColor,
+                  color: iconColor,
                   size: 30,
                 ),
               ),

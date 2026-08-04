@@ -11,6 +11,9 @@ class AppColors {
   /// #88BDF2 — Primary / FAB / Active UI elements
   static const Color stormySkyBlue = Color(0xFF88BDF2);
 
+  /// #3877EE — Deep Royal Blue for Level Progress Bar in Light Mode
+  static const Color stormyDeepBlue = Color(0xFF3877EE);
+
   /// #384959 — Primary Text / AppBar Text / Active Icons
   static const Color stormyDarkSlate = Color(0xFF384959);
 

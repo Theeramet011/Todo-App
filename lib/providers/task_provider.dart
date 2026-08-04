@@ -320,7 +320,17 @@ class TaskProvider with ChangeNotifier {
 
   List<Task> get personalTasks => tasks.where((t) => t.isPersonal).toList();
   List<Task> get groupTasks => tasks.where((t) => t.isGroup).toList();
-  List<Task> get completedTasks => tasks.where((t) => t.isCompleted).toList();
+  List<Task> get completedTasks {
+    final list = tasks.where((t) => t.isCompleted).toList();
+    list.sort((a, b) {
+      final aTime = a.completedAt ?? a.dateTime;
+      final bTime = b.completedAt ?? b.dateTime;
+      final timeComp = bTime.compareTo(aTime);
+      if (timeComp != 0) return timeComp;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+    return List.unmodifiable(list);
+  }
   List<Task> get pendingTasks => tasks.where((t) => !t.isCompleted).toList();
 
   List<Task> get todayTasks => todayPersonalTasks;

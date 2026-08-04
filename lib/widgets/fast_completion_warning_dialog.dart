@@ -12,7 +12,7 @@ class FastCompletionWarningDialog extends StatelessWidget {
   const FastCompletionWarningDialog({super.key});
 
   static const message =
-      'เห้ยๆ งานพึ่งสร้างแต่กดเสร็จแล้วหรอ? คิดจะปั๊ม XP? แบบนี้ไม่ให้คะแนนนะคนเก่ง';
+      'เราพบว่าคุณกดเสร็จสิ้นภารกิจเร็วผิดปกติ จึงไม่ได้รับ XP ในภารกิจนี้ ดังนั้นจะบันทึกสถิติงานไว้อย่างเดียว';
 
   static Future<void> showIfBlocked(
     BuildContext context,
@@ -103,7 +103,7 @@ class FastCompletionWarningDialog extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  'เข้าใจแล้ว ผิดไปแล้วจริงๆ',
+                  'เข้าใจแล้ว T_T',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),

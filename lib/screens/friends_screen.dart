@@ -276,7 +276,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       ? Colors.white24
                       : AppColors.backgroundWhite.withValues(alpha: 0.3),
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    isDark ? AppColors.stormySkyBlue : AppColors.accentYellow,
+                    isDark ? AppColors.stormySkyBlue : AppColors.stormyDeepBlue,
                   ),
                   minHeight: 8,
                 ),

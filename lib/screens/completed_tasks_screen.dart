@@ -423,6 +423,15 @@ class CompletedTasksScreen extends StatelessWidget {
   }
 
   List<_TaskGroup> _groupTasksByCompletionDate(List<Task> tasks) {
+    final sortedTasks = List<Task>.from(tasks);
+    sortedTasks.sort((a, b) {
+      final aTime = a.completedAt ?? a.dateTime;
+      final bTime = b.completedAt ?? b.dateTime;
+      final timeComp = bTime.compareTo(aTime);
+      if (timeComp != 0) return timeComp;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
@@ -434,7 +443,7 @@ class CompletedTasksScreen extends StatelessWidget {
     final thisWeekTasks = <Task>[];
     final olderTasks = <Task>[];
 
-    for (final task in tasks) {
+    for (final task in sortedTasks) {
       final completedAt = task.completedAt ?? task.dateTime;
       final date = DateTime(
         completedAt.year,
