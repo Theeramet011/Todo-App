@@ -368,7 +368,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             Positioned(
               left: AppConstants.paddingLarge,
               right: AppConstants.paddingLarge,
-              bottom: AppConstants.paddingLarge + bottomInset,
+              bottom: AppConstants.paddingLarge,
               child: SizedBox(
                 width: double.infinity,
                 height: 56,

@@ -295,12 +295,16 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต'),
         content: const Text('กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อดำเนินการนี้'),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.stormySkyBlue,
               foregroundColor: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.stormySkyBlue
-                  : null,
+                  ? AppColors.stormyNightBackground
+                  : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
             ),
             child: const Text('ตกลง'),
           ),
@@ -1944,13 +1948,17 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
               borderRadius: BorderRadius.circular(16.0),
             ),
             actions: [
-              TextButton(
+              ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.stormySkyBlue,
                   foregroundColor:
                       Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.stormySkyBlue
-                      : AppColors.textSecondary,
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
                 ),
                 child: const Text('ตกลง'),
               ),
@@ -3161,13 +3169,17 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
                 borderRadius: BorderRadius.circular(16.0),
               ),
               actions: [
-                TextButton(
+                ElevatedButton(
                   onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.stormySkyBlue,
                     foregroundColor:
                         Theme.of(context).brightness == Brightness.dark
-                            ? AppColors.stormySkyBlue
-                            : AppColors.textSecondary,
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
                   ),
                   child: const Text('ตกลง'),
                 ),
@@ -3191,13 +3203,17 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
               borderRadius: BorderRadius.circular(16.0),
             ),
             actions: [
-              TextButton(
+              ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.stormySkyBlue,
                   foregroundColor:
                       Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.stormySkyBlue
-                      : AppColors.textSecondary,
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
                 ),
                 child: const Text('ตกลง'),
               ),

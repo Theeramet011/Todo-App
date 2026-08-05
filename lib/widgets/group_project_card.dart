@@ -157,14 +157,18 @@ class GroupProjectCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(16.0),
                                   ),
                                   actions: [
-                                    TextButton(
+                                    ElevatedButton(
                                       onPressed: () => Navigator.pop(context),
-                                      style: TextButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.stormySkyBlue,
                                         foregroundColor:
                                             Theme.of(context).brightness ==
                                                     Brightness.dark
-                                                ? AppColors.stormySkyBlue
-                                                : AppColors.textSecondary,
+                                                ? AppColors.stormyNightBackground
+                                                : Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8.0),
+                                        ),
                                       ),
                                       child: const Text('ตกลง'),
                                     ),

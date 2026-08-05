@@ -444,15 +444,19 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                 ),
               ),
               actions: [
-                TextButton(
+                ElevatedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'ตกลง',
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.stormySkyBlue,
+                    foregroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
+                  child: const Text('ตกลง'),
                 ),
               ],
             );
