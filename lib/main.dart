@@ -450,9 +450,11 @@ class MyApp extends StatelessWidget {
             ],
             supportedLocales: const [Locale('th', 'TH'), Locale('en', 'US')],
             builder: (context, child) {
-              return _AchievementUnlockListener(
-                child: _LevelUpListener(
-                  child: child ?? const SizedBox.shrink(),
+              return _AppLifecycleObserver(
+                child: _AchievementUnlockListener(
+                  child: _LevelUpListener(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               );
             },
@@ -642,5 +644,47 @@ class _AchievementUnlockListenerState
     if (mounted) {
       _isShowingDialog = false;
     }
+  }
+}
+
+class _AppLifecycleObserver extends StatefulWidget {
+  final Widget child;
+
+  const _AppLifecycleObserver({required this.child});
+
+  @override
+  State<_AppLifecycleObserver> createState() => _AppLifecycleObserverState();
+}
+
+class _AppLifecycleObserverState extends State<_AppLifecycleObserver>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    if (state == AppLifecycleState.resumed) {
+      authProvider.setOnlineStatus(true);
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      authProvider.setOnlineStatus(false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
   }
 }

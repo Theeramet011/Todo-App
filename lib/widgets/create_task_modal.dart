@@ -61,9 +61,16 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   final TextEditingController _inlineSubtaskController =
       TextEditingController();
   final FocusNode _inlineSubtaskFocusNode = FocusNode();
+  final FocusNode _descriptionFocusNode = FocusNode();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   final _subtaskController = TextEditingController();
+
+  void _onDescriptionFocusChange() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   late String _selectedCategory;
   late String _selectedLocation;
@@ -206,6 +213,8 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
 
   @override
   void dispose() {
+    _descriptionFocusNode.removeListener(_onDescriptionFocusChange);
+    _descriptionFocusNode.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
     _subtaskController.dispose();
@@ -462,6 +471,13 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                     ],
                   ),
                 ),
+              ),
+            if (_descriptionFocusNode.hasFocus && bottomInset > 0)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: bottomInset,
+                child: _buildKeyboardToolbar(),
               ),
           ],
         ),
@@ -1290,6 +1306,26 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                               ),
                               IconButton(
                                 visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  if (_inlineSubtaskFocusNode.hasFocus) {
+                                    _inlineSubtaskFocusNode.unfocus();
+                                  }
+                                  final targetTitle = _subtasks[index].title;
+                                  setState(() {
+                                    _editingSubtaskIndex = index;
+                                    _inlineSubtaskController.text = targetTitle;
+                                    _inlineSubtaskController.selection =
+                                        TextSelection.collapsed(
+                                      offset: targetTitle.length,
+                                    );
+                                  });
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    if (mounted) {
+                                      _inlineSubtaskFocusNode.requestFocus();
+                                    }
+                                  });
+                                },
                                 style: IconButton.styleFrom(
                                   tapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
@@ -1304,15 +1340,6 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                       ? AppColors.stormySkyBlue
                                       : AppColors.primaryBlue),
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _editingSubtaskIndex = index;
-                                    _inlineSubtaskController.text =
-                                        _subtasks[index].title;
-                                  });
-                                  Future.microtask(() =>
-                                      _inlineSubtaskFocusNode.requestFocus());
-                                },
                                 constraints: const BoxConstraints(
                                   minHeight: 28,
                                 ),
@@ -2364,6 +2391,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     final theme = Theme.of(context);
     return TextFormField(
       controller: _descriptionController,
+      focusNode: _descriptionFocusNode,
       minLines: 1,
       maxLines: 3,
       style: TextStyle(
@@ -2415,6 +2443,93 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             width: 1.5,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildKeyboardToolbar() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.stormyDarkSlate : AppColors.backgroundWhite,
+        border: Border(
+          top: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.12)
+                : AppColors.stormyMutedBlueGrey.withValues(alpha: 0.5),
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+            blurRadius: 6,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.edit_note_rounded,
+                size: 20,
+                color: isDark
+                    ? AppColors.stormySkyBlue
+                    : AppColors.stormyDarkSlate,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'กำลังพิมพ์รายละเอียด...',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          InkWell(
+            onTap: () {
+              FocusScope.of(context).unfocus();
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.stormySkyBlue,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(
+                    Icons.check,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'เสร็จสิ้น',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

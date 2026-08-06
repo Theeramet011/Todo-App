@@ -1571,13 +1571,24 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                       : AppColors.primaryBlue),
                                 ),
                                  onPressed: () {
+                                   if (_inlineSubTaskFocusNode.hasFocus) {
+                                     _inlineSubTaskFocusNode.unfocus();
+                                   }
+                                   final targetTitle = _subTasks[index];
                                    setState(() {
                                      _editingSubTaskIndex = index;
-                                     _inlineSubTaskController.text =
-                                         _subTasks[index];
+                                     _inlineSubTaskController.text = targetTitle;
+                                     _inlineSubTaskController.selection =
+                                         TextSelection.collapsed(
+                                       offset: targetTitle.length,
+                                     );
                                    });
-                                   Future.microtask(() =>
-                                       _inlineSubTaskFocusNode.requestFocus());
+                                   WidgetsBinding.instance
+                                       .addPostFrameCallback((_) {
+                                     if (mounted) {
+                                       _inlineSubTaskFocusNode.requestFocus();
+                                     }
+                                   });
                                  },
                                 constraints: const BoxConstraints(),
                                 padding: const EdgeInsets.all(4),

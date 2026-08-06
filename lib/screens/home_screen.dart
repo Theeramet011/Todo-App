@@ -1772,11 +1772,14 @@ class _NotificationPanelState extends State<NotificationPanel> {
                           child: SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.stormySkyBlue,
+                            ),
                           ),
                         ),
                       )
-                    else
+                    else 
                       Row(
                         children: [
                           Expanded(
@@ -1837,6 +1840,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                           ),
                         ],
                       ),
+                    
                   ],
                 ],
               ),

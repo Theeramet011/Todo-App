@@ -176,7 +176,11 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
             if (_isRemoving)
               Container(
                 color: Colors.black.withValues(alpha: 0.35),
-                child: const Center(child: CircularProgressIndicator()),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.stormySkyBlue,
+                  ),
+                ),
               ),
           ],
         ),

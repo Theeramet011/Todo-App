@@ -310,6 +310,20 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Update Online Status
+  Future<void> setOnlineStatus(bool isOnline) async {
+    if (_currentUser == null) return;
+    try {
+      await _firestore.collection('users').doc(_currentUser!.id).set({
+        'isOnline': isOnline,
+      }, SetOptions(merge: true));
+      _currentUser = _currentUser!.copyWith(isOnline: isOnline);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error updating online status: $e');
+    }
+  }
+
   // Update User Profile
   void updateUser(User user) {
     _currentUser = user;

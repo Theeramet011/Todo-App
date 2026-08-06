@@ -29,17 +29,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.openAddFriendModal) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TaskProvider>().loadFriends();
+      if (widget.openAddFriendModal) {
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (context) => const AddFriendModal(),
         );
-      });
-    }
+      }
+    });
   }
 
   @override
@@ -509,7 +510,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     size: AppConstants.avatarMedium,
                     showShadow: false,
                   ),
-                  if (friend.isOnline)
                     Positioned(
                       bottom: 0,
                       right: 0,
@@ -517,7 +517,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: AppColors.success,
+                          color: friend.isOnline
+                              ? AppColors.success
+                              : (theme.brightness == Brightness.dark
+                                    ? Colors.grey.shade600
+                                    : Colors.grey.shade400),
                           shape: BoxShape.circle,
                           border: Border.all(color: theme.cardColor, width: 2),
                         ),
@@ -548,17 +552,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (friend.isOnline) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.success,
-                              shape: BoxShape.circle,
-                            ),
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: friend.isOnline
+                                ? AppColors.success
+                                : (theme.brightness == Brightness.dark
+                                      ? Colors.grey.shade600
+                                      : Colors.grey.shade400),
+                            shape: BoxShape.circle,
                           ),
-                        ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),

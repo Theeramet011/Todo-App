@@ -59,6 +59,8 @@ class TaskProvider with ChangeNotifier {
   final List<Project> _allProjects = [];
   final List<Project> _projects = [];
   final List<User> _friends = [];
+  final Map<String, User> _userCache = {};
+  final Set<String> _pendingUserFetches = {};
   final List<StreamSubscription> _subscriptions = [];
   StreamSubscription<firebase_auth.User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _taskSubscription;
@@ -269,6 +271,54 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
+  /// โหลดข้อมูลเพื่อนของผู้ใช้ปัจจุบัน แล้วอัปเดต cache และ _friends
+  Future<List<User>> loadFriends() async {
+    final realFriends = await getRealFriendsList();
+    _friends
+      ..clear()
+      ..addAll(realFriends);
+    for (final friend in realFriends) {
+      _userCache[friend.id] = friend;
+    }
+    notifyListeners();
+    return realFriends;
+  }
+
+  /// ดึงข้อมูล User ทีละคนตาม ID ( On-demand Fetching + Cache )
+  Future<User?> fetchUser(String userId) async {
+    if (_userCache.containsKey(userId)) return _userCache[userId];
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (!doc.exists || doc.data() == null) return null;
+      final user = User.fromMap(doc.data()!, doc.id);
+      _userCache[userId] = user;
+      return user;
+    } catch (e) {
+      debugPrint('Error fetching user $userId: $e');
+      return null;
+    }
+  }
+
+  void _fetchUserAndNotify(String userId) {
+    if (_pendingUserFetches.contains(userId)) return;
+    _pendingUserFetches.add(userId);
+    fetchUser(userId).then((user) {
+      _pendingUserFetches.remove(userId);
+      if (user != null) {
+        notifyListeners();
+      }
+    });
+  }
+
+  /// ล้าง User Cache
+  void invalidateUserCache([String? userId]) {
+    if (userId != null) {
+      _userCache.remove(userId);
+    } else {
+      _userCache.clear();
+    }
+  }
+
   Task? get selectedTask => _selectedTask;
   Project? get selectedProject => _selectedProject;
   DateTime get selectedDate => _selectedDate;
@@ -405,28 +455,22 @@ class TaskProvider with ChangeNotifier {
         notifyListeners();
       }, onError: (error) => debugPrint('Project stream error: $error')),
     );
-
-    _subscriptions.add(
-      _firestore.collection('users').snapshots().listen((snapshot) {
-        _friends
-          ..clear()
-          ..addAll(
-            snapshot.docs.map((doc) => User.fromMap(doc.data(), doc.id)),
-          );
-        notifyListeners();
-      }, onError: (error) => debugPrint('User stream error: $error')),
-    );
   }
 
   void _handleAuthUserChanged(String? userId) {
     if (_currentUserId == userId) return;
     _currentUserId = userId;
     _tasks.clear();
+    _friends.clear();
+    _userCache.clear();
     _applyProjectFilter();
     _selectedTask = null;
     _selectedProject = null;
     _totalXP = 0;
     _listenToCurrentUserTasks(userId);
+    if (userId != null) {
+      loadFriends();
+    }
     notifyListeners();
   }
 
@@ -809,11 +853,16 @@ class TaskProvider with ChangeNotifier {
 
   User? getUserById(String userId) {
     if (userId == MockData.currentUser.id) return MockData.currentUser;
-    try {
-      return _friends.firstWhere((f) => f.id == userId);
-    } catch (_) {
-      return MockData.getUserById(userId);
+    if (_userCache.containsKey(userId)) {
+      return _userCache[userId];
     }
+    final friendMatch = _friends.where((f) => f.id == userId).firstOrNull;
+    if (friendMatch != null) {
+      _userCache[userId] = friendMatch;
+      return friendMatch;
+    }
+    _fetchUserAndNotify(userId);
+    return MockData.getUserById(userId);
   }
 
   void selectTask(Task task) {

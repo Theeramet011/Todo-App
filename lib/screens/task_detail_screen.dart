@@ -2786,6 +2786,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       AppConstants.radiusMedium,
                     ),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
+                      AppConstants.radiusMedium,
+                    ),
+                    borderSide: BorderSide(
+                      color: theme.brightness == Brightness.dark
+                          ? AppColors.stormyMutedBlueGrey.withValues(alpha: 0.6)
+                          : AppColors.stormyMutedBlueGrey,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
+                      AppConstants.radiusMedium,
+                    ),
+                    borderSide: const BorderSide(
+                      color: AppColors.stormySkyBlue,
+                      width: 2,
+                    ),
+                  ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: AppConstants.paddingMedium,
                     vertical: AppConstants.paddingSmall,
@@ -3789,7 +3808,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         child: SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.stormySkyBlue,
+                          ),
                         ),
                       );
                     },
