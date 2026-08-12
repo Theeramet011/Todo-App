@@ -97,6 +97,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   bool _showGroupValidationError = false;
   // สถานะแสดงความผิดพลาดกรณีแอดสมาชิกกลุ่มแล้ว แต่เว้นรายละเอียดงานเป็นค่าว่าง
   bool _showMemberValidationError = false;
+  // สถานะแสดงความผิดพลาดกรณีตั้งเวลาในอดีต
+  bool _showTimeValidationError = false;
+  final GlobalKey _timePickerKey = GlobalKey();
 
   @override
   void initState() {
@@ -418,6 +421,60 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                 ),
               ),
             ),
+            if (_showTimeValidationError)
+              Positioned(
+                top: 85,
+                left: AppConstants.paddingLarge,
+                right: AppConstants.paddingLarge,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentRed,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'ไม่สามารถตั้งเวลาได้\nไม่สามารถตั้งเวลาก่อนเวลาปัจจุบันได้',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _showTimeValidationError = false;
+                          });
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (_showGroupValidationError)
               Positioned(
                 top: 85,
@@ -2538,7 +2595,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     final theme = Theme.of(context);
     final isLight = theme.brightness == Brightness.light;
     final today = DateTime.now();
-    final firstDate = DateTime(2024, 1, 1);
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final selectedDateOnly = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final firstDate = selectedDateOnly.isBefore(todayDate) ? selectedDateOnly : todayDate;
     final defaultLastDate = DateTime(today.year + 1, today.month, today.day);
     final lastDate = _selectedDate.isAfter(defaultLastDate)
         ? DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)
@@ -2625,6 +2684,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     final theme = Theme.of(context);
     final isLight = theme.brightness == Brightness.light;
     return Container(
+      key: _timePickerKey,
       decoration: isLight
           ? BoxDecoration(
               color: AppColors.stormyOffWhite,
@@ -2634,12 +2694,32 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       child: InkWell(
         enableFeedback: false,
         onTap: () async {
-          final picked = await showTimePicker(
-            context: context,
-            initialTime: _selectedTime,
-          );
-          if (picked != null) {
-            setState(() => _selectedTime = picked);
+          TimeOfDay currentTime = _selectedTime;
+          while (true) {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: currentTime,
+            );
+            if (picked != null) {
+              final now = DateTime.now();
+              final isToday = _selectedDate.year == now.year &&
+                  _selectedDate.month == now.month &&
+                  _selectedDate.day == now.day;
+
+              if (isToday) {
+                final pickedTimeInMinutes = picked.hour * 60 + picked.minute;
+                final nowTimeInMinutes = now.hour * 60 + now.minute;
+                if (pickedTimeInMinutes < nowTimeInMinutes) {
+                  if (mounted) {
+                    _triggerTimeValidationError();
+                  }
+                  currentTime = picked;
+                  continue;
+                }
+              }
+              setState(() => _selectedTime = picked);
+            }
+            break;
           }
         },
         child: InputDecorator(
@@ -3327,6 +3407,21 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
 
   bool _isSaving = false;
 
+  void _triggerTimeValidationError() {
+    setState(() {
+      _showTimeValidationError = true;
+      _isSaving = false;
+    });
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && _showTimeValidationError) {
+        setState(() {
+          _showTimeValidationError = false;
+        });
+      }
+    });
+  }
+
   void _triggerGroupValidationError() {
     setState(() {
       _showGroupValidationError = true;
@@ -3378,6 +3473,20 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
 
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    final now = DateTime.now();
+    final isToday = _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+    if (isToday) {
+      final selectedTimeInMinutes = _selectedTime.hour * 60 + _selectedTime.minute;
+      final nowTimeInMinutes = now.hour * 60 + now.minute;
+      if (selectedTimeInMinutes < nowTimeInMinutes) {
+        _triggerTimeValidationError();
+        _scrollToKey(_timePickerKey);
+        return;
+      }
+    }
 
     if (_selectedType == TaskType.group) {
       if (_selectedMembers.length <= 1) {
@@ -3543,8 +3652,8 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
 
     Navigator.pop(context, updatedTask);
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final currentDate = DateTime.now();
+    final today = DateTime(currentDate.year, currentDate.month, currentDate.day);
     final taskDate = DateTime(
       updatedTask.dateTime.year,
       updatedTask.dateTime.month,
@@ -3833,6 +3942,7 @@ class _CustomReminderSheetContentState
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
   String? errorText;
+  bool _showTimeValidationError = false;
 
   @override
   void initState() {
@@ -3855,10 +3965,15 @@ class _CustomReminderSheetContentState
       child: InkWell(
         enableFeedback: false,
         onTap: () async {
+          final today = DateTime.now();
+          final todayDate = DateTime(today.year, today.month, today.day);
+          final selectedDateOnly = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+          final firstDate = selectedDateOnly.isBefore(todayDate) ? selectedDateOnly : todayDate;
+
           final picked = await showDatePicker(
             context: context,
             initialDate: _selectedDate,
-            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+            firstDate: firstDate,
             lastDate: DateTime(2101),
           );
           if (picked != null) {
@@ -3938,15 +4053,44 @@ class _CustomReminderSheetContentState
       child: InkWell(
         enableFeedback: false,
         onTap: () async {
-          final picked = await showTimePicker(
-            context: context,
-            initialTime: _selectedTime,
-          );
-          if (picked != null) {
-            setState(() {
-              _selectedTime = picked;
-              errorText = null;
-            });
+          TimeOfDay currentTime = _selectedTime;
+          while (true) {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: currentTime,
+            );
+            if (picked != null) {
+              final now = DateTime.now();
+              final isToday = _selectedDate.year == now.year &&
+                  _selectedDate.month == now.month &&
+                  _selectedDate.day == now.day;
+
+              if (isToday) {
+                final pickedTimeInMinutes = picked.hour * 60 + picked.minute;
+                final nowTimeInMinutes = now.hour * 60 + now.minute;
+                if (pickedTimeInMinutes < nowTimeInMinutes) {
+                  if (mounted) {
+                    setState(() {
+                      _showTimeValidationError = true;
+                    });
+                    Future.delayed(const Duration(seconds: 3), () {
+                      if (mounted && _showTimeValidationError) {
+                        setState(() {
+                          _showTimeValidationError = false;
+                        });
+                      }
+                    });
+                  }
+                  currentTime = picked;
+                  continue;
+                }
+              }
+              setState(() {
+                _selectedTime = picked;
+                errorText = null;
+              });
+            }
+            break;
           }
         },
         child: InputDecorator(
@@ -4002,8 +4146,11 @@ class _CustomReminderSheetContentState
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -4099,6 +4246,62 @@ class _CustomReminderSheetContentState
             ],
           ),
         ),
+      ),
+      if (_showTimeValidationError)
+            Positioned(
+              top: 14,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.accentRed,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'ไม่สามารถตั้งเวลาได้\nไม่สามารถตั้งเวลาก่อนเวลาปัจจุบันได้',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showTimeValidationError = false;
+                        });
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

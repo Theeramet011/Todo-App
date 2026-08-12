@@ -37,7 +37,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   DartPluginRegistrant.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await _initializeLocalNotifications();
-  // await _showTaskReminderNotification(message);
+  await _showTaskReminderNotification(message);
   debugPrint(
     "📬 ได้รับแจ้งเตือนหลังบ้าน (Background): ${_notificationTitleFromMessage(message)}",
   );
@@ -190,7 +190,6 @@ Future<void> _showTaskReminderNotification(RemoteMessage message) async {
         ),
         category: _androidCategoryFromMessage(message),
         visibility: NotificationVisibility.public,
-        timeoutAfter: 300000,
         audioAttributesUsage: _audioUsageFromMessage(message),
         ticker: title,
         tag: notificationKey,

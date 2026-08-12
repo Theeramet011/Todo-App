@@ -12,6 +12,9 @@
     <!-- สิทธิ์ในการแสดงผลระบบ Push Notification แจ้งเตือนงานกลุ่ม/กำหนดส่ง (สำหรับ Android 13 ขึ้นไป) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- สิทธิ์ในการแสดง Heads-up Notification แบบเต็มจอ เพื่อให้แจ้งเตือนเด้งขึ้นมาทุกครั้งแม้ส่งถี่ๆ -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <!-- ==================== การกำหนดค่าหลักของแอปพลิเคชัน (Application) ==================== -->
     <application
         android:label="QuestLife"
@@ -50,7 +53,7 @@
         <!-- กำหนดไอดีของ Channel ในการส่ง Push Notification ผ่านระบบ Firebase Cloud Messaging (FCM) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="task_reminder_alerts_v2" />
+            android:value="task_reminder_alerts_v3" />
 
         <!-- กำหนดโลโก้ไอคอนแจ้งเตือนที่จะไปแสดงบนแถบ Status Bar ด้านบนเมื่อแอปแจ้งเตือน -->
         <meta-data

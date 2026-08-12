@@ -8,8 +8,8 @@ if (!admin.apps.length) {
 }
 
 const FUNCTION_REGION = "asia-southeast1";
-const TASK_REMINDER_CHANNEL_ID = "task_reminder_alerts_v2";
-const TASK_COMMENT_CHANNEL_ID = "task_comment_alerts_v1";
+const TASK_REMINDER_CHANNEL_ID = "task_reminder_alerts_v3";
+const TASK_COMMENT_CHANNEL_ID = "task_comment_alerts_v2";
 const IN_APP_NOTIFICATION_CHANNEL_ID = TASK_REMINDER_CHANNEL_ID;
 const CLIENT_PUSH_NOTIFICATION_TYPES = new Set([
   "Comment",
@@ -380,24 +380,10 @@ exports.pushInAppNotification = onCall({
     }
 
     const message = {
-      notification: {
-        title,
-        body,
-      },
       data: notificationDataPayload(notificationData, userId, notificationId),
       android: {
-        collapseKey: notificationKey,
         priority: "high",
         ttl: 60 * 60 * 1000,
-        notification: {
-          channelId: androidChannelIdForNotificationType(notificationType),
-          sound: "default",
-          defaultSound: true,
-          defaultVibrateTimings: true,
-          visibility: "public",
-          priority: androidNotificationPriorityForType(notificationType),
-          tag: notificationKey,
-        },
       },
       token: fcmToken,
     };
@@ -652,10 +638,6 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
           }
 
           const message = {
-            notification: {
-              title: copy.title,
-              body: copy.body,
-            },
             data: {
               title: copy.title,
               body: copy.body,
@@ -667,21 +649,11 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
               notificationKey: notificationKey,
               click_action: "FLUTTER_NOTIFICATION_CLICK",
             },
-            // ใช้ notification payload เพื่อให้ Android แสดงตอนแอปอยู่ background,
-            // และเก็บ data payload ไว้ให้แอปยิง local notification เองตอน foreground.
+            // ส่ง data-only message เพื่อให้ Client จัดการแสดง notification เอง
+            // ทำให้ควบคุม เสียง, Heads-up, และ vibration ได้ครบทุกสถานะ
             android: {
-              collapseKey: notificationKey,
               priority: "high",
               ttl: 60 * 60 * 1000,
-              notification: {
-                channelId: TASK_REMINDER_CHANNEL_ID,
-                sound: "default",
-                defaultSound: true,
-                defaultVibrateTimings: true,
-                visibility: "public",
-                priority: "max",
-                tag: notificationKey,
-              },
             },
             token: fcmToken,
           };
