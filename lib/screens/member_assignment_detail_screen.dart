@@ -88,7 +88,7 @@ class _MemberAssignmentDetailScreenState
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'รายละเอียดการมอบหมาย',
+          'รายละเอียดงานมอบหมาย',
           style: TextStyle(
             color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.bold,
@@ -686,10 +686,14 @@ class _MemberAssignmentDetailScreenState
     final isDark = theme.brightness == Brightness.dark;
     final currentTask = task;
     final isSubmissionOwner = currentTask?.submittedBy == member.id;
-    final submittedText = isSubmissionOwner
-        ? currentTask?.submissionText?.trim()
-        : null;
-    final attachments = isSubmissionOwner ? currentTask?.attachments ?? [] : [];
+    final submittedText = member.submissionText?.trim().isNotEmpty == true
+        ? member.submissionText!.trim()
+        : (isSubmissionOwner ? currentTask?.submissionText?.trim() : null);
+    final attachments = member.attachments.isNotEmpty
+        ? member.attachments
+        : (isSubmissionOwner
+              ? currentTask?.attachments ?? []
+              : <TaskAttachment>[]);
 
     final hasContent =
         (submittedText != null && submittedText.isNotEmpty) ||

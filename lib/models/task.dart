@@ -31,34 +31,65 @@ class SubTask {
 }
 
 class Member {
-  final String id;
-  final String name;
-  final String avatarUrl;
+  final String? _id;
+  String get id => _id ?? '';
+  final String? _name;
+  String get name => _name ?? '';
+  final String? _avatarUrl;
+  String get avatarUrl => _avatarUrl ?? '';
   final String? taskTitle;
   final String? description;
-  final String difficulty;
-  final String workload;
-  final String risk;
-  final List<String> subTasks;
+  final String? _difficulty;
+  String get difficulty => _difficulty ?? 'Easy';
+  final String? _workload;
+  String get workload => _workload ?? 'Small';
+  final String? _risk;
+  String get risk => _risk ?? 'None';
+  final List<String>? _subTasks;
+  List<String> get subTasks => _subTasks ?? const [];
   final List<String>? _completedSubTasks;
   List<String> get completedSubTasks => _completedSubTasks ?? const [];
   final String? score;
-  final List<String> coAssigneeIds;
+  final List<String>? _coAssigneeIds;
+  List<String> get coAssigneeIds => _coAssigneeIds ?? const [];
+  final String? submissionText;
+  final DateTime? submittedAt;
+  final String? _status;
+  String get status {
+    final s = _status;
+    return (s != null && s.isNotEmpty) ? s : 'inProgress';
+  }
+  final List<TaskAttachment>? _attachments;
+  List<TaskAttachment> get attachments => _attachments ?? const [];
 
   const Member({
-    required this.id,
-    required this.name,
-    required this.avatarUrl,
+    String id = '',
+    String name = '',
+    String avatarUrl = '',
     this.taskTitle,
     this.description,
-    this.difficulty = 'Easy',
-    this.workload = 'Small',
-    this.risk = 'None',
-    this.subTasks = const [],
+    String difficulty = 'Easy',
+    String workload = 'Small',
+    String risk = 'None',
+    List<String> subTasks = const [],
     List<String>? completedSubTasks,
     this.score,
-    this.coAssigneeIds = const [],
-  }) : _completedSubTasks = completedSubTasks;
+    List<String> coAssigneeIds = const [],
+    this.submissionText,
+    this.submittedAt,
+    String status = 'inProgress',
+    List<TaskAttachment> attachments = const [],
+  })  : _id = id,
+        _name = name,
+        _avatarUrl = avatarUrl,
+        _difficulty = difficulty,
+        _workload = workload,
+        _risk = risk,
+        _subTasks = subTasks,
+        _completedSubTasks = completedSubTasks,
+        _coAssigneeIds = coAssigneeIds,
+        _status = status,
+        _attachments = attachments;
 
   factory Member.fromUser(User user) {
     return Member(id: user.id, name: user.name, avatarUrl: user.avatarUrl);
@@ -66,14 +97,14 @@ class Member {
 
   factory Member.fromMap(Map<String, dynamic> data) {
     return Member(
-      id: data['id'] ?? data['userId'] ?? '',
-      name: data['name'] ?? '',
-      avatarUrl: data['avatarUrl'] ?? '',
-      taskTitle: data['taskTitle'],
-      description: data['description'],
-      difficulty: data['difficulty'] ?? 'Easy',
-      workload: data['workload'] ?? 'Small',
-      risk: data['risk'] ?? 'None',
+      id: (data['id'] ?? data['userId'] ?? '').toString(),
+      name: (data['name'] ?? '').toString(),
+      avatarUrl: (data['avatarUrl'] ?? '').toString(),
+      taskTitle: data['taskTitle']?.toString(),
+      description: data['description']?.toString(),
+      difficulty: (data['difficulty'] ?? 'Easy').toString(),
+      workload: (data['workload'] ?? 'Small').toString(),
+      risk: (data['risk'] ?? 'None').toString(),
       subTasks:
           (data['subTasks'] as List?)?.map((e) => e.toString()).toList() ??
           const [],
@@ -88,6 +119,20 @@ class Member {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      submissionText: data['submissionText']?.toString(),
+      submittedAt: Task._dateFromFirestore(data['submittedAt']),
+      status: (data['status']?.toString().isNotEmpty == true)
+          ? data['status'].toString()
+          : 'inProgress',
+      attachments: (data['attachments'] as List? ?? []).map((item) {
+        if (item is Map) {
+          return TaskAttachment.fromMap(Map<String, dynamic>.from(item));
+        } else {
+          final name = item.toString();
+          final type = name.split('.').last.toLowerCase();
+          return TaskAttachment(fileName: name, fileUrl: name, fileType: type);
+        }
+      }).toList(),
     );
   }
 
@@ -104,6 +149,10 @@ class Member {
     'completedSubTasks': completedSubTasks,
     'score': score,
     'coAssigneeIds': coAssigneeIds,
+    'submissionText': submissionText,
+    'submittedAt': submittedAt == null ? null : Timestamp.fromDate(submittedAt!),
+    'status': status,
+    'attachments': attachments.map((a) => a.toMap()).toList(),
   };
 
   Member copyWith({
@@ -119,6 +168,12 @@ class Member {
     List<String>? completedSubTasks,
     String? score,
     List<String>? coAssigneeIds,
+    String? submissionText,
+    bool clearSubmissionText = false,
+    DateTime? submittedAt,
+    bool clearSubmittedAt = false,
+    String? status,
+    List<TaskAttachment>? attachments,
   }) {
     return Member(
       id: id ?? this.id,
@@ -133,6 +188,12 @@ class Member {
       completedSubTasks: completedSubTasks ?? this.completedSubTasks,
       score: score ?? this.score,
       coAssigneeIds: coAssigneeIds ?? this.coAssigneeIds,
+      submissionText: clearSubmissionText
+          ? null
+          : submissionText ?? this.submissionText,
+      submittedAt: clearSubmittedAt ? null : submittedAt ?? this.submittedAt,
+      status: status ?? this.status,
+      attachments: attachments ?? this.attachments,
     );
   }
 }
@@ -244,9 +305,32 @@ class Task {
 
   factory Task.fromMap(Map<String, dynamic> data, String documentId) {
     final projectId = data['projectId'] as String?;
+    final legacySubmitterId = data['submittedBy'] as String?;
+    final legacySubmissionText = data['submissionText'] as String?;
+    final legacySubmittedAt = _dateFromFirestore(data['submittedAt']);
+    final legacyTaskStatus = _parseStatus(data['status']);
+
     final members = (data['members'] as List? ?? [])
         .whereType<Map>()
-        .map((m) => Member.fromMap(Map<String, dynamic>.from(m)))
+        .map((m) {
+          var member = Member.fromMap(Map<String, dynamic>.from(m));
+          if (legacySubmitterId != null &&
+              legacySubmitterId.isNotEmpty &&
+              member.id == legacySubmitterId) {
+            if (member.submissionText == null && legacySubmissionText != null) {
+              member = member.copyWith(
+                submissionText: legacySubmissionText,
+                submittedAt: legacySubmittedAt,
+                status: legacyTaskStatus == TaskStatus.completed
+                    ? 'completed'
+                    : legacyTaskStatus == TaskStatus.pending
+                    ? 'pending'
+                    : member.status,
+              );
+            }
+          }
+          return member;
+        })
         .toList();
     final assigneeIds = List<String>.from(data['assigneeIds'] ?? []);
     final legacyAssigneeId = data['assigneeId'] as String?;

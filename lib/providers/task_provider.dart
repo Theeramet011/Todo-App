@@ -993,6 +993,162 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
+  Future<void> _notifyNewGroupMembersAdded(
+    Task previousTask,
+    Task updatedTask,
+  ) async {
+    if (!updatedTask.isGroup) return;
+
+    final oldMemberIds = previousTask.members.map((m) => m.id.trim()).toSet();
+    final newMembers = updatedTask.members
+        .where(
+          (m) => m.id.trim().isNotEmpty && !oldMemberIds.contains(m.id.trim()),
+        )
+        .toList();
+
+    if (newMembers.isEmpty) return;
+
+    final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
+    final leader = getUserById(updatedTask.creatorId);
+    final actorUser =
+        currentUserId != null ? getUserById(currentUserId) : leader;
+    final actorName =
+        actorUser?.name ?? _auth.currentUser?.displayName ?? 'หัวหน้ากลุ่ม';
+    final actorAvatarUrl =
+        actorUser?.avatarUrl ?? _auth.currentUser?.photoURL ?? '';
+
+    final newMemberIds = newMembers.map((m) => m.id.trim()).toSet();
+    final newMemberNames = newMembers
+        .map((m) => m.name.trim())
+        .where((name) => name.isNotEmpty)
+        .join(', ');
+
+    try {
+      // 1. แจ้งเตือนไปยังสมาชิกใหม่ทุกคนที่เพิ่งถูกเพิ่มเข้ามา
+      await _createUserNotifications(newMemberIds, {
+        'title': '$actorName เพิ่มคุณเข้าร่วมภารกิจกลุ่ม',
+        'body':
+            'คุณถูกเพิ่มเข้าร่วมภารกิจ "${updatedTask.title}" เปิดดูรายละเอียดและเริ่มภารกิจได้เลย',
+        'type': 'Group',
+        'taskId': updatedTask.id,
+        'taskType': 'group',
+        'notificationStage': 'groupMemberAdded',
+        'notificationKey':
+            '${updatedTask.id}-member-added-${DateTime.now().millisecondsSinceEpoch}',
+        'actorId': currentUserId ?? updatedTask.creatorId,
+        'actorName': actorName,
+        'actorAvatarUrl': actorAvatarUrl,
+      });
+
+      // 2. แจ้งเตือนไปยังสมาชิกเดิมที่เหลือทุกคนในกลุ่ม (ยกเว้นผู้ดำเนินการและสมาชิกใหม่)
+      final existingRecipientIds = _taskNotificationRecipientIds(updatedTask)
+        ..removeAll(newMemberIds);
+      if (currentUserId != null) {
+        existingRecipientIds.remove(currentUserId);
+      }
+
+      if (existingRecipientIds.isNotEmpty) {
+        final displayName =
+            newMemberNames.isNotEmpty ? newMemberNames : 'สมาชิกใหม่';
+        await _createUserNotifications(existingRecipientIds, {
+          'title': 'สมาชิกใหม่ในภารกิจ "${updatedTask.title}"',
+          'body': '$displayName ถูกเพิ่มเข้ากลุ่มแล้ว',
+          'type': 'Group',
+          'taskId': updatedTask.id,
+          'taskType': 'group',
+          'notificationStage': 'groupMemberJoined',
+          'notificationKey':
+              '${updatedTask.id}-member-joined-${DateTime.now().millisecondsSinceEpoch}',
+          'actorId': currentUserId ?? updatedTask.creatorId,
+          'actorName': actorName,
+          'actorAvatarUrl': actorAvatarUrl,
+        });
+      }
+    } catch (error) {
+      debugPrint('Failed to send new member notifications: $error');
+    }
+  }
+
+  Future<void> _notifyGroupTaskUpdated(
+    Task previousTask,
+    Task updatedTask,
+  ) async {
+    if (!updatedTask.isGroup) return;
+
+    final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
+    final leaderId = leaderIdForTask(updatedTask);
+
+    // ตรวจสอบว่าผู้แก้ไขคือหัวหน้ากลุ่มหรือผู้สร้างงาน
+    final isLeaderOrCreator = currentUserId != null &&
+        (currentUserId == leaderId || currentUserId == updatedTask.creatorId);
+
+    if (!isLeaderOrCreator) return;
+
+    // หาผู้รับการแจ้งเตือน (สมาชิกทุกคนในกลุ่ม ยกเว้นตัวหัวหน้าเอง)
+    final recipients = _taskNotificationRecipientIds(updatedTask);
+    recipients.remove(currentUserId);
+    recipients.remove(leaderId);
+    recipients.remove(updatedTask.creatorId);
+
+    // สมาชิกใหม่ที่เพิ่งถูกเพิ่มในรอบนี้ จะได้รับแจ้งเตือน "คุณถูกเพิ่มเข้าร่วมภารกิจ" อยู่แล้ว
+    // จึงคัดแยกสมาชิกใหม่ออก เพื่อไม่ให้ได้รับแจ้งเตือนซ้ำซ้อน
+    final oldMemberIds = previousTask.members.map((m) => m.id.trim()).toSet();
+    final newMemberIds = updatedTask.members
+        .map((m) => m.id.trim())
+        .where((id) => id.isNotEmpty && !oldMemberIds.contains(id))
+        .toSet();
+    recipients.removeAll(newMemberIds);
+
+    if (recipients.isEmpty) return;
+
+    // ตรวจสอบว่ามีการแก้ไขข้อมูลงานหรือไม่
+    final isTaskContentUpdated = previousTask.title != updatedTask.title ||
+        previousTask.description != updatedTask.description ||
+        !previousTask.dateTime.isAtSameMomentAs(updatedTask.dateTime) ||
+        previousTask.priority != updatedTask.priority ||
+        previousTask.subtasks.length != updatedTask.subtasks.length ||
+        previousTask.category != updatedTask.category ||
+        previousTask.location != updatedTask.location;
+
+    final membersContentChanged = previousTask.members.any((oldM) {
+      final newM = updatedTask.members.firstWhere(
+        (m) => m.id == oldM.id,
+        orElse: () => oldM,
+      );
+      return oldM.taskTitle != newM.taskTitle ||
+          oldM.description != newM.description ||
+          oldM.workload != newM.workload ||
+          oldM.difficulty != newM.difficulty ||
+          oldM.risk != newM.risk;
+    });
+
+    if (!isTaskContentUpdated && !membersContentChanged) return;
+
+    final leader = getUserById(currentUserId);
+    final actorName =
+        leader?.name ?? _auth.currentUser?.displayName ?? 'หัวหน้ากลุ่ม';
+    final actorAvatarUrl =
+        leader?.avatarUrl ?? _auth.currentUser?.photoURL ?? '';
+
+    try {
+      await _createUserNotifications(recipients, {
+        'title': '$actorName แก้ไขภารกิจ "${updatedTask.title}"',
+        'body': '$actorName ได้แก้ไขรายละเอียดงานใหม่ เข้าไปเช็คเลย!',
+        'type': 'Group',
+        'taskId': updatedTask.id,
+        'taskType': 'group',
+        'notificationStage': 'groupTaskUpdated',
+        'notificationKey':
+            '${updatedTask.id}-task-updated-${DateTime.now().millisecondsSinceEpoch}',
+        'actorId': currentUserId,
+        'actorName': actorName,
+        'actorAvatarUrl': actorAvatarUrl,
+      });
+    } catch (error) {
+      debugPrint('Failed to send group task update notifications: $error');
+    }
+  }
+
   Future<void> _notifyTaskComment(Task task, Comment comment) async {
     if (!task.isGroup) return;
 
@@ -1025,7 +1181,11 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  Future<void> _notifyTaskSubmitted(Task task, String submitterId) async {
+  Future<void> _notifyTaskSubmitted(
+    Task task,
+    String submitterId, {
+    String? customSubmissionText,
+  }) async {
     if (!task.isGroup) return;
 
     final leaderId = leaderIdForTask(task);
@@ -1036,7 +1196,8 @@ class TaskProvider with ChangeNotifier {
         submitter?.name ?? _auth.currentUser?.displayName ?? 'สมาชิก';
     final actorAvatarUrl =
         submitter?.avatarUrl ?? _auth.currentUser?.photoURL ?? '';
-    final submissionText = task.submissionText?.trim() ?? '';
+    final submissionText =
+        customSubmissionText?.trim() ?? task.submissionText?.trim() ?? '';
     final body = submissionText.isNotEmpty
         ? submissionText
         : 'ส่งงานเข้ามาให้ตรวจแล้ว เปิดดูรายละเอียดและอนุมัติหรือปฏิเสธได้เลย';
@@ -1343,6 +1504,8 @@ class TaskProvider with ChangeNotifier {
 
   Future<void> updateTask(Task updatedTask) async {
     final index = _tasks.indexWhere((t) => t.id == updatedTask.id);
+    final previousTask = index != -1 ? _tasks[index] : null;
+
     if (index != -1) {
       _tasks[index] = updatedTask;
     } else {
@@ -1357,6 +1520,11 @@ class TaskProvider with ChangeNotifier {
         .collection('tasks')
         .doc(updatedTask.id)
         .set(updatedTask.toMap(), SetOptions(merge: true));
+
+    if (updatedTask.isGroup && previousTask != null) {
+      await _notifyNewGroupMembersAdded(previousTask, updatedTask);
+      await _notifyGroupTaskUpdated(previousTask, updatedTask);
+    }
   }
 
   Future<void> submitTaskForReview(String taskId, String submissionText) async {
@@ -1646,6 +1814,334 @@ class TaskProvider with ChangeNotifier {
         task,
         decision: 'rejected',
         submitterId: submitterId,
+        leaderId: leaderId,
+      );
+    }
+  }
+
+  Future<void> submitMemberTaskForReview(
+    String taskId,
+    String memberId,
+    String submissionText,
+  ) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final task = _tasks[index];
+    if (task.isDeleted || task.isCompleted) return;
+
+    final memberIndex = task.members.indexWhere((m) => m.id == memberId);
+    if (memberIndex == -1) return;
+
+    final updatedMembers = List<Member>.from(task.members);
+    final member = updatedMembers[memberIndex];
+    updatedMembers[memberIndex] = member.copyWith(
+      status: 'pending',
+      submissionText: submissionText.trim(),
+      submittedAt: DateTime.now(),
+    );
+
+    final updatedTask = task.copyWith(members: updatedMembers);
+
+    _tasks[index] = updatedTask;
+    if (_selectedTask?.id == taskId) {
+      _selectedTask = updatedTask;
+    }
+    _calculateInitialXP();
+    notifyListeners();
+
+    await _firestore.collection('tasks').doc(taskId).update({
+      'members': updatedMembers.map((m) => m.toMap()).toList(),
+    });
+    await _notifyTaskSubmitted(
+      updatedTask,
+      memberId,
+      customSubmissionText: submissionText,
+    );
+  }
+
+  Future<void> cancelMemberTaskSubmission(
+    String taskId,
+    String memberId,
+  ) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final task = _tasks[index];
+    if (task.isDeleted || task.isCompleted) return;
+
+    final memberIndex = task.members.indexWhere((m) => m.id == memberId);
+    if (memberIndex == -1) return;
+
+    final updatedMembers = List<Member>.from(task.members);
+    final member = updatedMembers[memberIndex];
+    updatedMembers[memberIndex] = member.copyWith(
+      status: 'inProgress',
+      clearSubmissionText: true,
+      clearSubmittedAt: true,
+    );
+
+    final updatedTask = task.copyWith(members: updatedMembers);
+
+    _tasks[index] = updatedTask;
+    if (_selectedTask?.id == taskId) {
+      _selectedTask = updatedTask;
+    }
+    _calculateInitialXP();
+    notifyListeners();
+
+    await _firestore.collection('tasks').doc(taskId).update({
+      'members': updatedMembers.map((m) => m.toMap()).toList(),
+    });
+  }
+
+  Future<void> deleteMemberAttachment(
+    String taskId,
+    String memberId,
+    TaskAttachment attachment,
+  ) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final task = _tasks[index];
+    if (task.isDeleted || task.isCompleted) return;
+
+    final memberIndex = task.members.indexWhere((m) => m.id == memberId);
+    if (memberIndex == -1) return;
+
+    // 1. Delete file from Storage
+    try {
+      final ref = firebase_storage.FirebaseStorage.instance.refFromURL(
+        attachment.fileUrl,
+      );
+      await ref.delete();
+    } catch (e) {
+      debugPrint('Error deleting member storage file: $e');
+    }
+
+    // 2. Remove attachment from member's attachments
+    final updatedMembers = List<Member>.from(task.members);
+    final member = updatedMembers[memberIndex];
+    final updatedAttachments = List<TaskAttachment>.from(member.attachments)
+      ..removeWhere((a) => a.fileUrl == attachment.fileUrl);
+
+    updatedMembers[memberIndex] = member.copyWith(
+      attachments: updatedAttachments,
+    );
+
+    final updatedTask = task.copyWith(members: updatedMembers);
+
+    _tasks[index] = updatedTask;
+    if (_selectedTask?.id == taskId) {
+      _selectedTask = updatedTask;
+    }
+    notifyListeners();
+
+    await _firestore.collection('tasks').doc(taskId).update({
+      'members': updatedMembers.map((m) => m.toMap()).toList(),
+    });
+  }
+
+  Future<void> approveMemberTaskSubmission(
+    String taskId,
+    String memberId,
+  ) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final task = _tasks[index];
+    if (task.isDeleted) return;
+
+    final leaderId = leaderIdForTask(task);
+    if (task.isGroup) {
+      final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
+      if (currentUserId == null || currentUserId != leaderId) {
+        return;
+      }
+    }
+
+    final memberIndex = task.members.indexWhere((m) => m.id == memberId);
+    if (memberIndex == -1) return;
+
+    final member = task.members[memberIndex];
+    final wasMemberCompleted = member.status == 'completed';
+
+    final updatedMembers = List<Member>.from(task.members);
+    updatedMembers[memberIndex] = member.copyWith(
+      status: 'completed',
+    );
+
+    // Check if all members are now completed
+    final allMembersCompleted = updatedMembers.isNotEmpty &&
+        updatedMembers.every((m) => m.status == 'completed');
+
+    final wasTaskCompleted = task.isCompleted;
+    final updatedTask = task.copyWith(
+      members: updatedMembers,
+      status: allMembersCompleted ? TaskStatus.completed : task.status,
+      completedAt: allMembersCompleted
+          ? (task.completedAt ?? DateTime.now())
+          : task.completedAt,
+    );
+
+    _tasks[index] = updatedTask;
+    if (_selectedTask?.id == taskId) {
+      _selectedTask = updatedTask;
+    }
+    _calculateInitialXP();
+    notifyListeners();
+
+    final isLeaderSubmitter = memberId == leaderId;
+    if (!wasMemberCompleted) {
+      int xpAward = task.calculateXP;
+      if (member.score != null && member.score!.isNotEmpty) {
+        final parsed = int.tryParse(member.score!);
+        if (parsed != null && parsed > 0) {
+          xpAward = parsed;
+        }
+      }
+
+      if (member.submittedAt != null) {
+        final diffHours = member.submittedAt!.difference(task.dateTime).inHours;
+        if (diffHours >= 24) {
+          final penalty = (xpAward * 0.12).round();
+          xpAward -= penalty;
+          if (xpAward < 0) xpAward = 0;
+        }
+      }
+
+      await _updateUserProgress(
+        memberId,
+        xpDelta: xpAward,
+        personalTaskDelta: 0,
+        groupTaskDelta: !isLeaderSubmitter ? 1 : 0,
+        memberGroupTaskDelta: !isLeaderSubmitter ? 1 : 0,
+      );
+    }
+
+    if (allMembersCompleted && !wasTaskCompleted) {
+      await _handleGroupTaskCompletionRewards(task, true);
+    }
+
+    final updateData = <String, dynamic>{
+      'members': updatedMembers.map((m) => m.toMap()).toList(),
+    };
+    if (allMembersCompleted && !wasTaskCompleted) {
+      updateData['status'] = TaskStatus.completed.name;
+      updateData['completedAt'] = Timestamp.fromDate(updatedTask.completedAt!);
+    }
+
+    await _firestore.collection('tasks').doc(taskId).update(updateData);
+
+    if (leaderId.isNotEmpty && memberId != leaderId) {
+      await _notifyTaskReviewDecision(
+        updatedTask,
+        decision: 'approved',
+        submitterId: memberId,
+        leaderId: leaderId,
+      );
+    }
+
+    if (allMembersCompleted && !wasTaskCompleted) {
+      await _cloneRecurringTaskAfterCompletion(task);
+    }
+  }
+
+  Future<void> rejectMemberTaskSubmission(
+    String taskId,
+    String memberId,
+  ) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final task = _tasks[index];
+    if (task.isDeleted) return;
+
+    final leaderId = leaderIdForTask(task);
+    if (task.isGroup) {
+      final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
+      if (currentUserId == null || currentUserId != leaderId) {
+        return;
+      }
+    }
+
+    final memberIndex = task.members.indexWhere((m) => m.id == memberId);
+    if (memberIndex == -1) return;
+
+    final member = task.members[memberIndex];
+    final wasMemberCompleted = member.status == 'completed';
+
+    // Delete member's attachments from Storage
+    for (final attachment in member.attachments) {
+      try {
+        final ref = firebase_storage.FirebaseStorage.instance.refFromURL(
+          attachment.fileUrl,
+        );
+        await ref.delete();
+      } catch (e) {
+        debugPrint('Error deleting member storage file on reject: $e');
+      }
+    }
+
+    final updatedMembers = List<Member>.from(task.members);
+    updatedMembers[memberIndex] = member.copyWith(
+      status: 'inProgress',
+      clearSubmissionText: true,
+      clearSubmittedAt: true,
+      attachments: [],
+    );
+
+    final wasTaskCompleted = task.isCompleted;
+    final updatedTask = task.copyWith(
+      members: updatedMembers,
+      status: wasTaskCompleted ? TaskStatus.inProgress : task.status,
+      clearCompletedAt: wasTaskCompleted,
+    );
+
+    _tasks[index] = updatedTask;
+    if (_selectedTask?.id == taskId) {
+      _selectedTask = updatedTask;
+    }
+    _calculateInitialXP();
+    notifyListeners();
+
+    final isLeaderSubmitter = memberId == leaderId;
+    if (wasMemberCompleted) {
+      int xpAward = task.calculateXP;
+      if (member.score != null && member.score!.isNotEmpty) {
+        final parsed = int.tryParse(member.score!);
+        if (parsed != null && parsed > 0) {
+          xpAward = parsed;
+        }
+      }
+      await _updateUserProgress(
+        memberId,
+        xpDelta: -xpAward,
+        personalTaskDelta: 0,
+        groupTaskDelta: !isLeaderSubmitter ? -1 : 0,
+        memberGroupTaskDelta: !isLeaderSubmitter ? -1 : 0,
+      );
+    }
+
+    if (wasTaskCompleted) {
+      await _handleGroupTaskCompletionRewards(task, false);
+    }
+
+    final updateData = <String, dynamic>{
+      'members': updatedMembers.map((m) => m.toMap()).toList(),
+    };
+    if (wasTaskCompleted) {
+      updateData['status'] = TaskStatus.inProgress.name;
+      updateData['completedAt'] = FieldValue.delete();
+    }
+
+    await _firestore.collection('tasks').doc(taskId).update(updateData);
+
+    if (leaderId.isNotEmpty && memberId != leaderId) {
+      await _notifyTaskReviewDecision(
+        updatedTask,
+        decision: 'rejected',
+        submitterId: memberId,
         leaderId: leaderId,
       );
     }
@@ -2439,6 +2935,107 @@ class TaskProvider with ChangeNotifier {
       return attachment;
     } catch (e) {
       debugPrint('Error uploading task attachment: $e');
+      if (e.toString().contains('FILE_TOO_LARGE')) {
+        rethrow;
+      }
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> uploadMemberAttachment(
+    String taskId,
+    String memberId,
+  ) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return null;
+
+    final task = _tasks[index];
+    if (task.isDeleted || task.isCompleted) return null;
+
+    final memberIndex = task.members.indexWhere((m) => m.id == memberId);
+    if (memberIndex == -1) return null;
+
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'png',
+          'jpg',
+          'jpeg',
+          'pdf',
+          'docx',
+          'xlsx',
+          'doc',
+          'xls',
+          'ppt',
+          'pptx',
+        ],
+      );
+
+      if (result == null || result.files.isEmpty) {
+        return null;
+      }
+
+      final pickedFile = result.files.first;
+      if (pickedFile.size > 10485760) {
+        throw Exception('FILE_TOO_LARGE');
+      }
+      final fileName = pickedFile.name;
+      final fileType =
+          pickedFile.extension ?? fileName.split('.').last.toLowerCase();
+
+      final storageRef = firebase_storage.FirebaseStorage.instance
+          .ref()
+          .child('tasks')
+          .child(taskId)
+          .child('members')
+          .child(memberId)
+          .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+
+      firebase_storage.UploadTask uploadTask;
+      if (pickedFile.bytes != null) {
+        uploadTask = storageRef.putData(pickedFile.bytes!);
+      } else if (pickedFile.path != null) {
+        uploadTask = storageRef.putFile(File(pickedFile.path!));
+      } else {
+        return null;
+      }
+
+      final snapshot = await uploadTask;
+      final fileUrl = await snapshot.ref.getDownloadURL();
+
+      final attachmentMap = {
+        'fileName': fileName,
+        'fileUrl': fileUrl,
+        'fileType': fileType,
+        'uploadedAt': Timestamp.now(),
+      };
+      final newAttachment = TaskAttachment.fromMap(attachmentMap);
+
+      final updatedMembers = List<Member>.from(task.members);
+      final member = updatedMembers[memberIndex];
+      final updatedAttachments = List<TaskAttachment>.from(member.attachments)
+        ..add(newAttachment);
+
+      updatedMembers[memberIndex] = member.copyWith(
+        attachments: updatedAttachments,
+      );
+
+      final updatedTask = task.copyWith(members: updatedMembers);
+
+      _tasks[index] = updatedTask;
+      if (_selectedTask?.id == taskId) {
+        _selectedTask = updatedTask;
+      }
+      notifyListeners();
+
+      await _firestore.collection('tasks').doc(taskId).update({
+        'members': updatedMembers.map((m) => m.toMap()).toList(),
+      });
+
+      return attachmentMap;
+    } catch (e) {
+      debugPrint('Error uploading member attachment: $e');
       if (e.toString().contains('FILE_TOO_LARGE')) {
         rethrow;
       }

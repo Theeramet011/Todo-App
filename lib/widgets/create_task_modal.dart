@@ -56,17 +56,18 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   final GlobalKey _titleFieldKey = GlobalKey();
   final GlobalKey _memberSectionKey = GlobalKey();
   final GlobalKey _subtaskKey = GlobalKey();
+  final FocusNode _titleFocusNode = FocusNode();
+  final FocusNode _descriptionFocusNode = FocusNode();
   final FocusNode _subtaskFocusNode = FocusNode();
   int? _editingSubtaskIndex;
   final TextEditingController _inlineSubtaskController =
       TextEditingController();
   final FocusNode _inlineSubtaskFocusNode = FocusNode();
-  final FocusNode _descriptionFocusNode = FocusNode();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   final _subtaskController = TextEditingController();
 
-  void _onDescriptionFocusChange() {
+  void _onFocusChange() {
     if (mounted) {
       setState(() {});
     }
@@ -97,8 +98,6 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   bool _showGroupValidationError = false;
   // สถานะแสดงความผิดพลาดกรณีแอดสมาชิกกลุ่มแล้ว แต่เว้นรายละเอียดงานเป็นค่าว่าง
   bool _showMemberValidationError = false;
-  // สถานะแสดงความผิดพลาดกรณีตั้งเวลาในอดีต
-  bool _showTimeValidationError = false;
   final GlobalKey _timePickerKey = GlobalKey();
 
   @override
@@ -183,6 +182,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       });
     }
 
+    _titleFocusNode.addListener(_onFocusChange);
+    _descriptionFocusNode.addListener(_onFocusChange);
+
     _subtaskFocusNode.addListener(() {
       if (_subtaskFocusNode.hasFocus) {
         Future.delayed(const Duration(milliseconds: 250), () {
@@ -216,7 +218,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
 
   @override
   void dispose() {
-    _descriptionFocusNode.removeListener(_onDescriptionFocusChange);
+    _titleFocusNode.removeListener(_onFocusChange);
+    _titleFocusNode.dispose();
+    _descriptionFocusNode.removeListener(_onFocusChange);
     _descriptionFocusNode.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
@@ -421,60 +425,16 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                 ),
               ),
             ),
-            if (_showTimeValidationError)
+
+            if (bottomInset > 0 &&
+                (_titleFocusNode.hasFocus || _descriptionFocusNode.hasFocus))
               Positioned(
-                top: 85,
-                left: AppConstants.paddingLarge,
-                right: AppConstants.paddingLarge,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentRed,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text(
-                          'ไม่สามารถตั้งเวลาได้\nไม่สามารถตั้งเวลาก่อนเวลาปัจจุบันได้',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _showTimeValidationError = false;
-                          });
-                        },
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                ),
+                left: 0,
+                right: 0,
+                bottom: bottomInset,
+                child: _buildKeyboardToolbar(),
               ),
+
             if (_showGroupValidationError)
               Positioned(
                 top: 85,
@@ -1746,20 +1706,15 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : (Theme.of(context).brightness == Brightness.light
-                      ? AppColors.stormyOffWhite
-                      : AppColors.backgroundLightGrey),
-            borderRadius: BorderRadius.circular(20),
+                ? AppColors.stormyDarkSlate
+                : AppColors.stormyOffWhite,
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _showMemberValidationError
                   ? AppColors.error
                   : (isDark
-                        ? Colors.grey[800]!
-                        : (Theme.of(context).brightness == Brightness.light
-                                  ? AppColors.stormyMutedBlueGrey
-                                  : AppColors.backgroundDarkGrey)
-                              .withValues(alpha: 0.5)),
+                        ? AppColors.stormyMutedBlueGrey.withValues(alpha: 0.6)
+                        : AppColors.stormyMutedBlueGrey),
               width: _showMemberValidationError ? 1.5 : 1.0,
             ),
           ),
@@ -2393,6 +2348,8 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     return TextFormField(
       key: _titleFieldKey,
       controller: _titleController,
+      focusNode: _titleFocusNode,
+      textInputAction: TextInputAction.next,
       style: TextStyle(
         color: theme.brightness == Brightness.dark
             ? Colors.white
@@ -2507,6 +2464,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   Widget _buildKeyboardToolbar() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTitle = _titleFocusNode.hasFocus;
 
     return Container(
       height: 44,
@@ -2535,7 +2493,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
           Row(
             children: [
               Icon(
-                Icons.edit_note_rounded,
+                isTitle ? Icons.title_rounded : Icons.edit_note_rounded,
                 size: 20,
                 color: isDark
                     ? AppColors.stormySkyBlue
@@ -2543,7 +2501,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               ),
               const SizedBox(width: 6),
               Text(
-                'กำลังพิมพ์รายละเอียด...',
+                isTitle ? 'กำลังพิมพ์ชื่อภารกิจ...' : 'กำลังพิมพ์รายละเอียด...',
                 style: TextStyle(
                   fontSize: 13,
                   color: isDark
@@ -2567,19 +2525,23 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Icon(
                     Icons.check,
                     size: 16,
-                    color: Colors.white,
+                    color: isDark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
                   ),
-                  SizedBox(width: 4),
+                  const SizedBox(width: 4),
                   Text(
                     'เสร็จสิ้น',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: isDark
+                          ? AppColors.stormyNightBackground
+                          : Colors.white,
                     ),
                   ),
                 ],
@@ -2680,6 +2642,64 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     );
   }
 
+  Future<void> _showTimeInPastDialog(BuildContext context) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        title: Row(
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.accentRed,
+              size: 28,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'ไม่สามารถตั้งเวลาได้',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'ไม่สามารถตั้งเวลาก่อนเวลาปัจจุบันได้',
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.85)
+                : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.stormySkyBlue,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text(
+              'ตกลง',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTimeField() {
     final theme = Theme.of(context);
     final isLight = theme.brightness == Brightness.light;
@@ -2695,30 +2715,42 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         enableFeedback: false,
         onTap: () async {
           TimeOfDay currentTime = _selectedTime;
-          while (true) {
+          while (mounted) {
             final picked = await showTimePicker(
               context: context,
               initialTime: currentTime,
             );
-            if (picked != null) {
-              final now = DateTime.now();
-              final isToday = _selectedDate.year == now.year &&
-                  _selectedDate.month == now.month &&
-                  _selectedDate.day == now.day;
-
-              if (isToday) {
-                final pickedTimeInMinutes = picked.hour * 60 + picked.minute;
-                final nowTimeInMinutes = now.hour * 60 + now.minute;
-                if (pickedTimeInMinutes < nowTimeInMinutes) {
-                  if (mounted) {
-                    _triggerTimeValidationError();
-                  }
-                  currentTime = picked;
-                  continue;
-                }
-              }
-              setState(() => _selectedTime = picked);
+            if (picked == null) {
+              break;
             }
+
+            final now = DateTime.now();
+            final isToday = _selectedDate.year == now.year &&
+                _selectedDate.month == now.month &&
+                _selectedDate.day == now.day;
+
+            if (isToday) {
+              final pickedTimeInMinutes = picked.hour * 60 + picked.minute;
+              final nowTimeInMinutes = now.hour * 60 + now.minute;
+              if (pickedTimeInMinutes < nowTimeInMinutes) {
+                if (!mounted) break;
+
+                // รีเซ็ตเวลากลับไปเป็นเวลาปัจจุบันทันทีตามคำขอ
+                final nowTime = TimeOfDay.now();
+                setState(() {
+                  _selectedTime = nowTime;
+                });
+                currentTime = nowTime;
+
+                // แสดง AlertDialog แจ้งเตือน
+                await _showTimeInPastDialog(context);
+
+                // หลังจากผู้ใช้กด "ตกลง" ให้ continue เพื่อเปิด showTimePicker ต่อทันที
+                continue;
+              }
+            }
+
+            setState(() => _selectedTime = picked);
             break;
           }
         },
@@ -3407,21 +3439,6 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
 
   bool _isSaving = false;
 
-  void _triggerTimeValidationError() {
-    setState(() {
-      _showTimeValidationError = true;
-      _isSaving = false;
-    });
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted && _showTimeValidationError) {
-        setState(() {
-          _showTimeValidationError = false;
-        });
-      }
-    });
-  }
-
   void _triggerGroupValidationError() {
     setState(() {
       _showGroupValidationError = true;
@@ -3479,10 +3496,15 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         _selectedDate.month == now.month &&
         _selectedDate.day == now.day;
     if (isToday) {
-      final selectedTimeInMinutes = _selectedTime.hour * 60 + _selectedTime.minute;
+      final selectedTimeInMinutes =
+          _selectedTime.hour * 60 + _selectedTime.minute;
       final nowTimeInMinutes = now.hour * 60 + now.minute;
       if (selectedTimeInMinutes < nowTimeInMinutes) {
-        _triggerTimeValidationError();
+        final nowTime = TimeOfDay.now();
+        setState(() {
+          _selectedTime = nowTime;
+        });
+        _showTimeInPastDialog(context);
         _scrollToKey(_timePickerKey);
         return;
       }
@@ -4247,60 +4269,7 @@ class _CustomReminderSheetContentState
           ),
         ),
       ),
-      if (_showTimeValidationError)
-            Positioned(
-              top: 14,
-              left: 20,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.accentRed,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'ไม่สามารถตั้งเวลาได้\nไม่สามารถตั้งเวลาก่อนเวลาปัจจุบันได้',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _showTimeValidationError = false;
-                        });
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+
         ],
       ),
     );

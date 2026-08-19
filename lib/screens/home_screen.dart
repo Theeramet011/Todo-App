@@ -749,28 +749,27 @@ class NotificationItem {
 
 Color _notificationTagColor(String tag) {
   switch (tag.toLowerCase()) {
-    case 'deadline':
-      return AppColors.accentOrange; // #FFCC80
-    case 'follow-up':
-      return AppColors.accentOrange; // Replaced harsh red with orange
-    case 'reminder':
-      return AppColors.stormySkyBlue; // #88BDF2
-    case 'message':
-      return AppColors.stormySkyBlue;
-    case 'comment':
-      return AppColors.stormySkyBlue;
-    case 'group':
-      return AppColors.stormySkyBlue;
-    case 'submission':
-      return AppColors.stormySkyBlue;
     case 'approved':
-      return AppColors.stormySkyBlue; // Semantic translucent blue
+      return const Color(0xFF00C896); // Emerald Green
     case 'rejected':
-      return AppColors.accentOrange; // Replaced harsh red with orange
+      return const Color(0xFFFF5252); // Coral Red
+    case 'deadline':
+      return const Color(0xFFFF6B00); // Vibrant Orange
+    case 'follow-up':
+      return const Color(0xFF6366F1); // Indigo / Deep Violet (#6366F1)
+    case 'group':
+      return AppColors.stormyDeepBlue; // Royal Blue / Indigo (#3877EE)
+    case 'submission':
+      return const Color(0xFF06B6D4); // Cyan / Teal
     case 'friendrequest':
-      return AppColors.stormySkyBlue;
+      return const Color(0xFF8B5CF6); // Purple / Violet
     case 'friendaccepted':
-      return AppColors.stormySkyBlue;
+      return const Color(0xFF10B981); // Mint Green
+    case 'reminder':
+      return AppColors.stormySkyBlue; // Sky Blue (#88BDF2)
+    case 'message':
+    case 'comment':
+      return const Color(0xFFEC4899); // Vibrant Pink / Rose (#EC4899)
     case 'update':
     default:
       return AppColors.stormySkyBlue;
@@ -1779,7 +1778,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                           ),
                         ),
                       )
-                    else 
+                    else
                       Row(
                         children: [
                           Expanded(
@@ -1840,7 +1839,6 @@ class _NotificationPanelState extends State<NotificationPanel> {
                           ),
                         ],
                       ),
-                    
                   ],
                 ],
               ),
@@ -1863,14 +1861,16 @@ class _NotificationPanelState extends State<NotificationPanel> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: item.tagColor.withValues(alpha: 0.15),
+                    color: item.tagColor.withValues(
+                      alpha: theme.brightness == Brightness.dark ? 0.20 : 0.12,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     thaiNotificationTag(item.tag),
                     style: TextStyle(
                       color: item.tagColor,
-                      fontSize: 10,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1978,7 +1978,7 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
 
       _stageTaskExit(task, isOverdue: isOverdue);
       _playTaskCompleteSound();
-      
+
       CompletionRewardResult result;
       if (pendingResult != null) {
         final res = await pendingResult;
@@ -2135,8 +2135,11 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
           bottomSpacing: isLast ? 0 : AppConstants.paddingMedium,
           child: _TodayTaskCard(
             task: entry.task,
-            onToggleComplete: (task, {pendingResult}) =>
-                _handleToggleComplete(task, isOverdue: entry.isOverdue, pendingResult: pendingResult),
+            onToggleComplete: (task, {pendingResult}) => _handleToggleComplete(
+              task,
+              isOverdue: entry.isOverdue,
+              pendingResult: pendingResult,
+            ),
             isCompleted: entry.task.isCompleted,
             isOverdue: entry.isOverdue,
           ),
@@ -2360,7 +2363,8 @@ class _CompletingTaskListItemState extends State<_CompletingTaskListItem> {
 
 class _TodayTaskCard extends StatelessWidget {
   final Task task;
-  final void Function(Task, {Future<CompletionRewardResult?>? pendingResult}) onToggleComplete;
+  final void Function(Task, {Future<CompletionRewardResult?>? pendingResult})
+  onToggleComplete;
   final bool isCompleted;
   final bool isOverdue;
 
@@ -2814,7 +2818,8 @@ class _TodayCompletionCheckbox extends StatelessWidget {
 
 class _TodaySubtasks extends StatelessWidget {
   final Task task;
-  final void Function(Task, {Future<CompletionRewardResult?>? pendingResult}) onToggleComplete;
+  final void Function(Task, {Future<CompletionRewardResult?>? pendingResult})
+  onToggleComplete;
 
   const _TodaySubtasks({required this.task, required this.onToggleComplete});
 
@@ -2849,11 +2854,11 @@ class _TodaySubtasks extends StatelessWidget {
                     task.subtasks.where((s) => !s.isDone).length == 1;
 
                 if (isCheckingLast && !task.isCompleted) {
-                  final futureResult = taskProvider.toggleSubtask(task.id, entry.key);
-                  onToggleComplete(
-                    task,
-                    pendingResult: futureResult,
+                  final futureResult = taskProvider.toggleSubtask(
+                    task.id,
+                    entry.key,
                   );
+                  onToggleComplete(task, pendingResult: futureResult);
                 } else {
                   await taskProvider.toggleSubtask(task.id, entry.key);
                 }
@@ -3152,40 +3157,97 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
       if (isLeader &&
           (latestProject.type == TaskType.group ||
               latestProject.members.isNotEmpty)) {
-        final hasText =
-            latestProject.submissionText != null &&
-            latestProject.submissionText!.trim().isNotEmpty;
-        final hasFiles = latestProject.attachments.isNotEmpty;
-        final hasSubmitter =
-            latestProject.submittedBy != null &&
-            latestProject.submittedBy!.isNotEmpty;
-        final isPending = latestProject.status == TaskStatus.pending;
-        final hasSubmission =
-            hasText || hasFiles || hasSubmitter || isPending;
+        final leaderId = taskProvider.leaderIdForTask(latestProject);
+        final nonLeaderMembers = latestProject.members
+            .where((m) => m.id != leaderId)
+            .toList();
+        final membersToCheck = nonLeaderMembers.isNotEmpty
+            ? nonLeaderMembers
+            : latestProject.members;
+        final areAllCompleted = latestProject.members.isEmpty
+            ? (latestProject.status == TaskStatus.completed ||
+                  (latestProject.submissionText != null &&
+                      latestProject.submissionText!.trim().isNotEmpty) ||
+                  latestProject.attachments.isNotEmpty ||
+                  (latestProject.submittedBy != null &&
+                      latestProject.submittedBy!.isNotEmpty) ||
+                  latestProject.status == TaskStatus.pending)
+            : membersToCheck.every((m) => m.status == 'completed');
 
-        if (!hasSubmission) {
+        if (!areAllCompleted) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final incompleteCount = membersToCheck
+              .where((m) => m.status != 'completed')
+              .length;
+          final pendingReviewCount = membersToCheck
+              .where((m) => m.status == 'pending')
+              .length;
+
+          String message;
+          if (latestProject.members.isEmpty) {
+            message = 'ยังไม่มีการส่งงานของสมาชิกเข้ามาในภารกิจนี้';
+          } else if (pendingReviewCount > 0 &&
+              incompleteCount == pendingReviewCount) {
+            message =
+                'มีงานของสมาชิกที่รอการตรวจสอบและอนุมัติอยู่ $pendingReviewCount คน กรุณาตรวจอนุมัติงานให้ครบก่อนเสร็จสิ้นภารกิจ';
+          } else if (pendingReviewCount > 0) {
+            message =
+                'สมาชิกยังส่งงานไม่ครบถ้วน (และมีงานรอตรวจ $pendingReviewCount คน) กรุณาให้สมาชิกส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
+          } else {
+            message =
+                'สมาชิกในกลุ่มยังส่งงานไม่ครบถ้วน (เหลืออีก $incompleteCount คน) กรุณารอให้สมาชิกทุกคนส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
+          }
+
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('ไม่สามารถเสร็จงานได้'),
-              content: const Text('ยังไม่มีการส่งงานของสมาชิกใดๆเข้ามา'),
+              backgroundColor: isDark
+                  ? AppColors.stormyDarkSlate
+                  : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0),
+                borderRadius: BorderRadius.circular(20.0),
+              ),
+              title: Text(
+                'ไม่สามารถเสร็จสิ้นภารกิจได้',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              content: Text(
+                message,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.85)
+                      : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
+                ),
               ),
               actions: [
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.stormySkyBlue,
-                    foregroundColor:
-                        Theme.of(context).brightness == Brightness.dark
+                    backgroundColor: isDark
+                        ? AppColors.stormySkyBlue
+                        : AppColors.stormySkyBlue,
+                    foregroundColor: isDark
                         ? AppColors.stormyNightBackground
                         : Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(12.0),
                     ),
                   ),
-                  child: const Text('ตกลง'),
+                  child: const Text(
+                    'ตกลง',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),

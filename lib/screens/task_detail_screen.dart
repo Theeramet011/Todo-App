@@ -387,38 +387,107 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  bool _hasAnyMemberSubmission(Task task) {
-    final hasText =
-        task.submissionText != null && task.submissionText!.trim().isNotEmpty;
-    final hasFiles = task.attachments.isNotEmpty;
-    final hasSubmitter =
-        task.submittedBy != null && task.submittedBy!.isNotEmpty;
-    final isPending = task.status == TaskStatus.pending;
-    return hasText || hasFiles || hasSubmitter || isPending;
+  bool _areAllMembersCompleted(Task task, String leaderId) {
+    if (task.members.isEmpty) {
+      final hasText =
+          task.submissionText != null && task.submissionText!.trim().isNotEmpty;
+      final hasFiles = task.attachments.isNotEmpty;
+      final hasSubmitter =
+          task.submittedBy != null && task.submittedBy!.isNotEmpty;
+      final isPending = task.status == TaskStatus.pending;
+      final isDone = task.status == TaskStatus.completed;
+      return isDone || hasText || hasFiles || hasSubmitter || isPending;
+    }
+
+    final nonLeaderMembers = task.members
+        .where((m) => m.id != leaderId)
+        .toList();
+    final membersToCheck = nonLeaderMembers.isNotEmpty
+        ? nonLeaderMembers
+        : task.members;
+
+    return membersToCheck.every((m) => m.status == 'completed');
   }
 
-  void _showNoMemberSubmissionAlert(BuildContext context) {
+  void _showIncompleteMembersAlert(
+    BuildContext context,
+    Task task,
+    String leaderId,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final nonLeaderMembers = task.members
+        .where((m) => m.id != leaderId)
+        .toList();
+    final membersToCheck = nonLeaderMembers.isNotEmpty
+        ? nonLeaderMembers
+        : task.members;
+    final incompleteCount = membersToCheck
+        .where((m) => m.status != 'completed')
+        .length;
+    final pendingReviewCount = membersToCheck
+        .where((m) => m.status == 'pending')
+        .length;
+
+    String message;
+    if (task.members.isEmpty) {
+      message = 'ยังไม่มีการส่งงานของสมาชิกเข้ามาในภารกิจนี้';
+    } else if (pendingReviewCount > 0 &&
+        incompleteCount == pendingReviewCount) {
+      message =
+          'มีงานของสมาชิกที่รอการตรวจสอบและอนุมัติอยู่ $pendingReviewCount คน กรุณาตรวจอนุมัติงานให้ครบก่อนเสร็จสิ้นภารกิจ';
+    } else if (pendingReviewCount > 0) {
+      message =
+          'สมาชิกยังส่งงานไม่ครบถ้วน (และมีงานรอตรวจ $pendingReviewCount คน) กรุณาให้สมาชิกส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
+    } else {
+      message =
+          'สมาชิกในกลุ่มยังส่งงานไม่ครบถ้วน (เหลืออีก $incompleteCount คน) กรุณารอให้สมาชิกทุกคนส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('ไม่สามารถเสร็จงานได้'),
-        content: const Text('ยังไม่มีการส่งงานของสมาชิกใดๆเข้ามา'),
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        title: Text(
+          'ไม่สามารถเสร็จสิ้นภารกิจได้',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.85)
+                : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
+          ),
         ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.stormySkyBlue,
-              foregroundColor: Theme.of(context).brightness == Brightness.dark
+              foregroundColor: isDark
                   ? AppColors.stormyNightBackground
                   : Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(12.0),
               ),
             ),
-            child: const Text('ตกลง'),
+            child: const Text(
+              'ตกลง',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -502,10 +571,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     return;
                   }
 
-                  if (task.type == TaskType.group ||
-                      task.members.isNotEmpty) {
-                    if (!_hasAnyMemberSubmission(task)) {
-                      _showNoMemberSubmissionAlert(context);
+                  if (task.type == TaskType.group || task.members.isNotEmpty) {
+                    final leaderId = taskProvider.leaderIdForTask(task);
+                    if (!_areAllMembersCompleted(task, leaderId)) {
+                      _showIncompleteMembersAlert(context, task, leaderId);
                       return;
                     }
                   }
@@ -522,11 +591,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     if (!context.mounted) return;
                   }
 
-                  final result = await taskProvider.toggleSubtask(task.id, index);
+                  final result = await taskProvider.toggleSubtask(
+                    task.id,
+                    index,
+                  );
 
                   if (isCheckingLast && !task.isCompleted && result != null) {
                     if (!context.mounted) return;
-                    
+
                     if (result.status != CompletionRewardStatus.noChange) {
                       final isSoundEnabled =
                           context
@@ -727,6 +799,101 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return const SizedBox.shrink();
     }
 
+    if (task.isGroup || task.members.isNotEmpty) {
+      final myMember = task.members.firstWhere(
+        (m) => m.id == currentUserId,
+        orElse: () => const Member(id: '', name: '', avatarUrl: ''),
+      );
+
+      if (myMember.id.isNotEmpty) {
+        if (myMember.status == 'pending') {
+          return Column(
+            children: [
+              _buildWaitingForApprovalCard(),
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: AppConstants.paddingMedium,
+                  right: AppConstants.paddingMedium,
+                  bottom: AppConstants.paddingMedium,
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppConstants.radiusLarge,
+                            ),
+                          ),
+                          title: const Text('ยกเลิกการส่งงาน?'),
+                          content: const Text(
+                            'คุณต้องการยกเลิกการส่งงานนี้ใช่หรือไม่? รายละเอียดการส่งจะถูกลบออก',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('ย้อนกลับ'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accentRed,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('ยกเลิกการส่ง'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        await taskProvider.cancelMemberTaskSubmission(
+                          task.id,
+                          myMember.id,
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('ยกเลิกการส่งงานเรียบร้อยแล้ว'),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(
+                      Icons.cancel_outlined,
+                      color: AppColors.accentRed,
+                    ),
+                    label: const Text(
+                      'ยกเลิกการส่งงาน',
+                      style: TextStyle(
+                        color: AppColors.accentRed,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.accentRed),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else if (myMember.status == 'completed') {
+          return _buildCompletedReviewCard(isLeader: false, isSubmitter: true);
+        } else {
+          return _buildMemberSubmitForm(task, taskProvider, myMember: myMember);
+        }
+      }
+    }
+
     switch (task.status) {
       case TaskStatus.pending:
         return Column(
@@ -816,11 +983,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
-  Widget _buildMemberSubmitForm(Task task, TaskProvider taskProvider) {
+  Widget _buildMemberSubmitForm(
+    Task task,
+    TaskProvider taskProvider, {
+    Member? myMember,
+  }) {
     final theme = Theme.of(context);
+    final attachments = myMember != null
+        ? myMember.attachments
+        : task.attachments;
     final canSubmit =
-        _submissionController.text.trim().isNotEmpty ||
-        task.attachments.isNotEmpty;
+        _submissionController.text.trim().isNotEmpty || attachments.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.all(AppConstants.paddingMedium),
@@ -885,7 +1058,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               hintText: 'วางลิงก์งานหรือสรุปงานที่นี่...',
               suffixIcon: _isUploading
                   ? Padding(
-                      padding: EdgeInsets.all(12.0),
+                      padding: const EdgeInsets.all(12.0),
                       child: SizedBox(
                         width: 20,
                         height: 20,
@@ -923,8 +1096,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           _isUploading = true;
                         });
                         try {
-                          final attachment = await taskProvider
-                              .uploadTaskAttachment(task.id);
+                          final attachment = myMember != null
+                              ? await taskProvider.uploadMemberAttachment(
+                                  task.id,
+                                  myMember.id,
+                                )
+                              : await taskProvider.uploadTaskAttachment(
+                                  task.id,
+                                );
                           if (attachment != null && mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -985,6 +1164,40 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             ),
           ),
+          if (attachments.isNotEmpty) ...[
+            const SizedBox(height: AppConstants.paddingMedium),
+            Text(
+              'ไฟล์แนบของคุณ (${attachments.length})',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...attachments.map(
+              (attachment) => _buildAttachmentTile(
+                attachment,
+                task,
+                taskProvider,
+                showDelete: true,
+                onDelete: () async {
+                  if (myMember != null) {
+                    await taskProvider.deleteMemberAttachment(
+                      task.id,
+                      myMember.id,
+                      attachment,
+                    );
+                  } else {
+                    await taskProvider.deleteTaskAttachment(
+                      task.id,
+                      attachment,
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
           const SizedBox(height: AppConstants.paddingMedium),
           SizedBox(
             width: double.infinity,
@@ -993,30 +1206,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ? () async {
                       bool hasIncompleteSubtasks = false;
 
-                      if (task.type == TaskType.group ||
-                          task.members.isNotEmpty) {
-                        final submitterId =
-                            firebase_auth
-                                .FirebaseAuth
-                                .instance
-                                .currentUser
-                                ?.uid ??
-                            context.read<AuthProvider>().currentUser?.id ??
-                            '';
-                        final myMember = task.members.firstWhere(
-                          (m) => m.id == submitterId,
-                          orElse: () => task.members.firstWhere(
-                            (m) => m.subTasks.isNotEmpty,
-                            orElse: () => task.members.isNotEmpty
-                                ? task.members.first
-                                : const Member(
-                                    id: '',
-                                    name: '',
-                                    avatarUrl: '',
-                                  ),
-                          ),
-                        );
-
+                      if (myMember != null) {
                         if (myMember.subTasks.isNotEmpty) {
                           hasIncompleteSubtasks = myMember.subTasks.any(
                             (st) => !myMember.completedSubTasks.any(
@@ -1054,9 +1244,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                   backgroundColor: AppColors.stormySkyBlue,
                                   foregroundColor:
                                       Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? AppColors.stormyNightBackground
-                                          : Colors.white,
+                                          Brightness.dark
+                                      ? AppColors.stormyNightBackground
+                                      : Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
@@ -1069,12 +1259,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         return;
                       }
 
-                      if (task.attachments.isEmpty) {
+                      if (attachments.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              'ไม่สามารถส่งงานได้ กรุณาแนบไฟล์งาน',
-                            ),
+                          const SnackBar(
+                            content: Text('ไม่สามารถส่งงานได้ กรุณาแนบไฟล์งาน'),
                             backgroundColor: AppColors.error,
                           ),
                         );
@@ -1091,10 +1279,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       if (!context.mounted) return;
 
                       final submission = _submissionController.text.trim();
-                      await taskProvider.submitTaskForReview(
-                        task.id,
-                        submission,
-                      );
+                      if (myMember != null) {
+                        await taskProvider.submitMemberTaskForReview(
+                          task.id,
+                          myMember.id,
+                          submission,
+                        );
+                      } else {
+                        await taskProvider.submitTaskForReview(
+                          task.id,
+                          submission,
+                        );
+                      }
                       if (!mounted) return;
                       _submissionController.clear();
                       setState(() {});
@@ -1108,10 +1304,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               icon: const Icon(Icons.send_rounded),
               label: const Text('ส่งงานให้หัวหน้าตรวจสอบ'),
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    (Theme.of(context).brightness == Brightness.light
-                    ? AppColors.stormySkyBlue
-                    : AppColors.primaryBlue),
+                backgroundColor: AppColors.stormySkyBlue,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: theme.disabledColor.withValues(
                   alpha: 0.12,
@@ -1711,7 +1904,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             color: theme.colorScheme.onSurface,
                           ),
                           const SizedBox(width: 10),
-                          const Text('ดูรายละเอียด'),
+                          const Text('ดูรายละเอียดงานมอบหมาย'),
                         ],
                       ),
                     ),
@@ -1841,7 +2034,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     color: theme.colorScheme.onSurface,
                   ),
                   const SizedBox(width: 10),
-                  const Text('ดูรายละเอียด'),
+                  const Text('ดูรายละเอียดงานมอบหมาย'),
                 ],
               ),
             ),
@@ -1857,10 +2050,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   /// คำนวณสถานะของสมาชิก (กำลังทำ / ส่งแล้ว-รอตรวจ / เสร็จสิ้น)
   _MemberStatusInfo _getMemberStatusInfo(Member member, Task task) {
-    final isSubmissionOwner = task.submittedBy == member.id;
-
-    // กรณี Task เสร็จสิ้นแล้ว และคนนี้เป็นคนส่ง
-    if (task.status == TaskStatus.completed && isSubmissionOwner) {
+    // กรณี Member เสร็จสิ้นแล้ว
+    if (member.status == 'completed' ||
+        (task.status == TaskStatus.completed &&
+            task.submittedBy == member.id)) {
       return _MemberStatusInfo(
         label: 'เสร็จสิ้น',
         textColor: AppColors.primaryGreen,
@@ -1868,8 +2061,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       );
     }
 
-    // กรณี Task อยู่ระหว่างรอตรวจ (pending) และคนนี้เป็นคนส่ง
-    if (task.status == TaskStatus.pending && isSubmissionOwner) {
+    // กรณี Member รอตรวจ (pending)
+    if (member.status == 'pending' ||
+        (task.status == TaskStatus.pending && task.submittedBy == member.id)) {
       return _MemberStatusInfo(
         label: 'ส่งแล้ว/รอตรวจ',
         textColor: const Color(0xFFE59A00),
@@ -1916,8 +2110,38 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildLeaderSummaryCard(User leader, Task task, Member? leaderMember) {
     final theme = Theme.of(context);
-    // Show count of pending subtasks
-    final pendingCount = task.subtasks.where((s) => !s.isDone).length;
+    final nonLeaderMembers =
+        task.members.where((m) => m.id != leader.id).toList();
+    final membersToCheck =
+        nonLeaderMembers.isNotEmpty ? nonLeaderMembers : task.members;
+    final pendingMembersCount =
+        membersToCheck.where((m) => m.status == 'pending').length;
+    final completedMembersCount =
+        membersToCheck.where((m) => m.status == 'completed').length;
+    final totalMembersCount = membersToCheck.length;
+
+    final bool allDone =
+        totalMembersCount > 0 && completedMembersCount == totalMembersCount;
+    final bool hasPending = pendingMembersCount > 0;
+
+    String bannerText;
+    Color bannerColor;
+    IconData bannerIcon;
+
+    if (hasPending) {
+      bannerText = 'อนุมัติงาน (มีสมาชิกที่รอการอนุมัติ $pendingMembersCount คน)';
+      bannerColor = const Color(0xFFE59A00);
+      bannerIcon = Icons.pending_actions_rounded;
+    } else if (allDone) {
+      bannerText = 'อนุมัติงานครบแล้ว (สมาชิกทำงานเสร็จสิ้นทั้งหมด)';
+      bannerColor = AppColors.primaryGreen;
+      bannerIcon = Icons.check_circle_outline;
+    } else {
+      bannerText =
+          'รอสมาชิกส่งงาน ($completedMembersCount/$totalMembersCount คนเสร็จสิ้น)';
+      bannerColor = AppColors.stormySkyBlue;
+      bannerIcon = Icons.hourglass_top_rounded;
+    }
 
     return Container(
       margin: const EdgeInsets.all(AppConstants.paddingMedium),
@@ -1991,7 +2215,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             color: theme.colorScheme.onSurface,
                           ),
                           const SizedBox(width: 10),
-                          const Text('ดูรายละเอียด'),
+                          const Text('ดูรายละเอียดงานมอบหมาย'),
                         ],
                       ),
                     ),
@@ -2007,22 +2231,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.1),
+              color: bannerColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.check_circle_outline,
-                  color: AppColors.primaryGreen,
+                Icon(
+                  bannerIcon,
+                  color: bannerColor,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'อนุมัติงาน (มีงานที่รอการอนุมัติ $pendingCount งาน)',
-                    style: const TextStyle(
-                      color: AppColors.primaryGreen,
+                    bannerText,
+                    style: TextStyle(
+                      color: bannerColor,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -2046,15 +2270,27 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final leaderId = taskProvider.leaderIdForTask(task);
-    final isSubmissionOwner = task.submittedBy == member.id;
-    final hasSubmission =
+    final isMemberPending =
         !task.isDeleted &&
-        task.status == TaskStatus.pending &&
-        isSubmissionOwner;
-    final isApprovedSubmission =
-        task.status == TaskStatus.completed && isSubmissionOwner;
-    final submissionText = task.submissionText?.trim();
-    final attachments = task.attachments;
+        (member.status == 'pending' ||
+            (task.status == TaskStatus.pending &&
+                task.submittedBy == member.id));
+    final isMemberCompleted =
+        !task.isDeleted &&
+        (member.status == 'completed' ||
+            (task.status == TaskStatus.completed &&
+                task.submittedBy == member.id));
+    final submissionText = member.submissionText?.trim().isNotEmpty == true
+        ? member.submissionText!.trim()
+        : (task.submittedBy == member.id ? task.submissionText?.trim() : null);
+    final attachments = member.attachments.isNotEmpty
+        ? member.attachments
+        : (task.submittedBy == member.id
+              ? task.attachments
+              : <TaskAttachment>[]);
+    final submittedAt =
+        member.submittedAt ??
+        (task.submittedBy == member.id ? task.submittedAt : null);
 
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -2124,7 +2360,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           color: theme.colorScheme.onSurface,
                         ),
                         const SizedBox(width: 10),
-                        const Text('ดูรายละเอียด'),
+                        const Text('ดูรายละเอียดงานมอบหมาย'),
                       ],
                     ),
                   ),
@@ -2168,9 +2404,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                     ],
                     const SizedBox(height: 4),
-                    if (hasSubmission && task.submittedAt != null)
+                    if (isMemberPending && submittedAt != null)
                       Text(
-                        'ส่งเมื่อ ${_formatDateTime(task.submittedAt!)}',
+                        'ส่งเมื่อ ${_formatDateTime(submittedAt)}',
                         style: TextStyle(
                           fontSize: 12,
                           color: theme.colorScheme.onSurface.withValues(
@@ -2178,7 +2414,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ),
                         ),
                       )
-                    else if (isApprovedSubmission)
+                    else if (isMemberCompleted)
                       Row(
                         children: [
                           Container(
@@ -2247,9 +2483,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
           const SizedBox(height: 16),
 
-          if (isSubmissionOwner &&
-              submissionText != null &&
-              submissionText.isNotEmpty) ...[
+          if (submissionText != null && submissionText.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -2289,19 +2523,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
           if (attachments.isNotEmpty) ...[
             ...attachments.map(
-              (attachment) =>
-                  _buildAttachmentTile(attachment, task, taskProvider),
+              (attachment) => _buildAttachmentTile(
+                attachment,
+                task,
+                taskProvider,
+                showDelete: false,
+              ),
             ),
             const SizedBox(height: 12),
           ],
 
-          if (hasSubmission)
+          if (isMemberPending)
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      await taskProvider.rejectTaskSubmission(task.id);
+                      await taskProvider.rejectMemberTaskSubmission(
+                        task.id,
+                        member.id,
+                      );
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('ปฏิเสธงานแล้ว')),
@@ -2330,7 +2571,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         _showOfflineDialog(context);
                         return;
                       }
-                      await taskProvider.approveTaskSubmission(task.id);
+                      await taskProvider.approveMemberTaskSubmission(
+                        task.id,
+                        member.id,
+                      );
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('อนุมัติงานแล้ว')),
@@ -3362,9 +3606,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     if (isLeader &&
                         (task.type == TaskType.group ||
                             task.members.isNotEmpty)) {
-                      if (!_hasAnyMemberSubmission(task)) {
+                      final leaderId = taskProvider.leaderIdForTask(task);
+                      if (!_areAllMembersCompleted(task, leaderId)) {
                         Navigator.pop(sheetContext);
-                        _showNoMemberSubmissionAlert(context);
+                        _showIncompleteMembersAlert(context, task, leaderId);
                         return;
                       }
                     }
@@ -3392,9 +3637,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                 backgroundColor: AppColors.stormySkyBlue,
                                 foregroundColor:
                                     Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? AppColors.stormyNightBackground
-                                        : Colors.white,
+                                        Brightness.dark
+                                    ? AppColors.stormyNightBackground
+                                    : Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8.0),
                                 ),
@@ -3751,8 +3996,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget _buildAttachmentTile(
     TaskAttachment attachment,
     Task task,
-    TaskProvider taskProvider,
-  ) {
+    TaskProvider taskProvider, {
+    VoidCallback? onDelete,
+    bool? showDelete,
+  }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final type = attachment.fileType.toLowerCase();
@@ -3761,10 +4008,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final currentUserId = authProvider.currentUser?.id;
     final isLeader = taskProvider.isLeaderForTask(task, currentUserId);
     final showDeleteButton =
-        !task.isDeleted &&
-        !isLeader &&
-        (task.status == TaskStatus.todo ||
-            task.status == TaskStatus.inProgress);
+        showDelete ??
+        (!task.isDeleted &&
+            !isLeader &&
+            (task.status == TaskStatus.todo ||
+                task.status == TaskStatus.inProgress));
 
     if (isImage) {
       return GestureDetector(
@@ -3856,8 +4104,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               if (showDeleteButton) ...[
                 const SizedBox(width: 12),
                 GestureDetector(
-                  onTap: () =>
-                      _deleteAttachment(task, attachment, taskProvider),
+                  onTap: () {
+                    if (onDelete != null) {
+                      _confirmAndDeleteCustom(attachment, onDelete);
+                    } else {
+                      _deleteAttachment(task, attachment, taskProvider);
+                    }
+                  },
                   child: const Icon(
                     Icons.close_rounded,
                     size: 20,
@@ -3960,8 +4213,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               if (showDeleteButton) ...[
                 const SizedBox(width: 12),
                 GestureDetector(
-                  onTap: () =>
-                      _deleteAttachment(task, attachment, taskProvider),
+                  onTap: () {
+                    if (onDelete != null) {
+                      _confirmAndDeleteCustom(attachment, onDelete);
+                    } else {
+                      _deleteAttachment(task, attachment, taskProvider);
+                    }
+                  },
                   child: const Icon(
                     Icons.close_rounded,
                     size: 20,
@@ -3975,6 +4233,55 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _confirmAndDeleteCustom(
+    TaskAttachment attachment,
+    VoidCallback onDelete,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        ),
+        title: const Text('ลบไฟล์แนบ?'),
+        content: Text(
+          'คุณต้องการลบไฟล์ "${attachment.fileName}" ใช่หรือไม่? ไฟล์นี้จะถูกลบออกจากภารกิจนี้ถาวร',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ย้อนกลับ'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentRed,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('ลบไฟล์'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+    if (!mounted) return;
+
+    // ignore: use_build_context_synchronously
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้'),
+        ),
+      );
+      return;
+    }
+
+    onDelete();
   }
 
   Future<void> _deleteAttachment(

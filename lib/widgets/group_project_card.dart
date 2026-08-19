@@ -130,47 +130,110 @@ class GroupProjectCard extends StatelessWidget {
                             return;
                           }
                           if (!project.isCompleted) {
-                            final hasText =
-                                project.submissionText != null &&
-                                project.submissionText!.trim().isNotEmpty;
-                            final hasFiles = project.attachments.isNotEmpty;
-                            final hasSubmitter =
-                                project.submittedBy != null &&
-                                project.submittedBy!.isNotEmpty;
-                            final isPending =
-                                project.status == TaskStatus.pending;
-                            final hasSubmission =
-                                hasText ||
-                                hasFiles ||
-                                hasSubmitter ||
-                                isPending;
+                            final leaderId =
+                                taskProvider.leaderIdForTask(project);
+                            final nonLeaderMembers = project.members
+                                .where((m) => m.id != leaderId)
+                                .toList();
+                            final membersToCheck = nonLeaderMembers.isNotEmpty
+                                ? nonLeaderMembers
+                                : project.members;
+                            final areAllCompleted = project.members.isEmpty
+                                ? (project.status == TaskStatus.completed ||
+                                    (project.submissionText != null &&
+                                        project.submissionText!
+                                            .trim()
+                                            .isNotEmpty) ||
+                                    project.attachments.isNotEmpty ||
+                                    (project.submittedBy != null &&
+                                        project.submittedBy!.isNotEmpty) ||
+                                    project.status == TaskStatus.pending)
+                                : membersToCheck
+                                    .every((m) => m.status == 'completed');
 
-                            if (!hasSubmission) {
+                            if (!areAllCompleted) {
+                              final isDark =
+                                  Theme.of(context).brightness ==
+                                  Brightness.dark;
+                              final incompleteCount = membersToCheck
+                                  .where((m) => m.status != 'completed')
+                                  .length;
+                              final pendingReviewCount = membersToCheck
+                                  .where((m) => m.status == 'pending')
+                                  .length;
+
+                              String message;
+                              if (project.members.isEmpty) {
+                                message =
+                                    'ยังไม่มีการส่งงานของสมาชิกเข้ามาในภารกิจนี้';
+                              } else if (pendingReviewCount > 0 &&
+                                  incompleteCount == pendingReviewCount) {
+                                message =
+                                    'มีงานของสมาชิกที่รอการตรวจสอบและอนุมัติอยู่ $pendingReviewCount คน กรุณาตรวจอนุมัติงานให้ครบก่อนเสร็จสิ้นภารกิจ';
+                              } else if (pendingReviewCount > 0) {
+                                message =
+                                    'สมาชิกยังส่งงานไม่ครบถ้วน (และมีงานรอตรวจ $pendingReviewCount คน) กรุณาให้สมาชิกส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
+                              } else {
+                                message =
+                                    'สมาชิกในกลุ่มยังส่งงานไม่ครบถ้วน (เหลืออีก $incompleteCount คน) กรุณารอให้สมาชิกทุกคนส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
+                              }
+
                               showDialog(
                                 context: context,
                                 builder: (context) => AlertDialog(
-                                  title: const Text('ไม่สามารถเสร็จงานได้'),
-                                  content: const Text(
-                                    'ยังไม่มีการส่งงานของสมาชิกใดๆเข้ามา',
-                                  ),
+                                  backgroundColor: isDark
+                                      ? AppColors.stormyDarkSlate
+                                      : Colors.white,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16.0),
+                                    borderRadius: BorderRadius.circular(20.0),
+                                  ),
+                                  title: Text(
+                                    'ไม่สามารถเสร็จสิ้นภารกิจได้',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                    ),
+                                  ),
+                                  content: Text(
+                                    message,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      height: 1.5,
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.85)
+                                          : AppColors.stormyDarkSlate.withValues(
+                                              alpha: 0.85,
+                                            ),
+                                    ),
                                   ),
                                   actions: [
                                     ElevatedButton(
                                       onPressed: () => Navigator.pop(context),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.stormySkyBlue,
-                                        foregroundColor:
-                                            Theme.of(context).brightness ==
-                                                    Brightness.dark
-                                                ? AppColors.stormyNightBackground
-                                                : Colors.white,
+                                        backgroundColor:
+                                            AppColors.stormySkyBlue,
+                                        foregroundColor: isDark
+                                            ? AppColors.stormyNightBackground
+                                            : Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                          vertical: 10,
+                                        ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8.0),
+                                          borderRadius:
+                                              BorderRadius.circular(12.0),
                                         ),
                                       ),
-                                      child: const Text('ตกลง'),
+                                      child: const Text(
+                                        'ตกลง',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
