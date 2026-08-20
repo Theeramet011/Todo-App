@@ -709,7 +709,7 @@ class Task {
     return reminders;
   }
 
-  // คำนวณ XP ที่จะได้รับจาก Task โดยพิจารณาจาก difficulty, workload และ risk
+  // สูตรคำนวณ XP ที่จะได้รับจาก Task โดยพิจารณาจาก difficulty, workload และ risk
   int get calculateXP => (difficulty * 15) + (workload * 10) + (risk * 5);
 
   Color get priorityColor {
