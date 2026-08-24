@@ -1170,7 +1170,7 @@ class TaskProvider with ChangeNotifier {
         'taskId': task.id,
         'taskType': 'group',
         'notificationStage': 'commentAdded',
-        'notificationKey': '${task.id}-${comment.id}',
+        'notificationKey': 'task-comment-${task.id}',
         'actorId': comment.userId,
         'actorName': comment.userName,
         'actorAvatarUrl': comment.userAvatarUrl,

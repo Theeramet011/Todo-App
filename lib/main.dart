@@ -200,6 +200,13 @@ Future<void> _showTaskReminderNotification(RemoteMessage message) async {
 }
 
 String _notificationKeyFromMessage(RemoteMessage message) {
+  if (_isCommentNotification(message)) {
+    final taskId = message.data['taskId']?.toString().trim();
+    if (taskId != null && taskId.isNotEmpty) {
+      return 'task-comment-$taskId';
+    }
+    return 'task-comment-latest';
+  }
   return message.data['notificationKey'] ??
       message.messageId ??
       DateTime.now().microsecondsSinceEpoch.toString();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../config/colors.dart';
@@ -68,6 +69,8 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
 
   late bool _hasTask;
   bool _hasTitleError = false;
+  bool _hasScoreError = false;
+  String? _scoreErrorMessage;
   final ScrollController _scrollController = ScrollController();
 
   void _scrollToTopError() {
@@ -88,7 +91,17 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
     // Initialize controllers with existing data from the memberTask object
     titleController = TextEditingController(text: widget.memberTask.taskTitle);
     descController = TextEditingController(text: widget.memberTask.description);
-    _scoreController = TextEditingController(text: widget.memberTask.score);
+    final initialScore = widget.memberTask.score ?? '';
+    final parsedInt = int.tryParse(initialScore);
+    if (parsedInt != null) {
+      _scoreController = TextEditingController(text: parsedInt.toString());
+    } else if (double.tryParse(initialScore) != null) {
+      _scoreController = TextEditingController(
+        text: double.parse(initialScore).round().toString(),
+      );
+    } else {
+      _scoreController = TextEditingController(text: initialScore);
+    }
 
     // Initialize other state variables
     _subTasks = List.from(widget.memberTask.subTasks);
@@ -519,15 +532,64 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
     });
   }
 
+  bool _validateScore() {
+    if (widget.isMe) return true;
+    final scoreText = _scoreController.text.trim();
+    if (scoreText.isEmpty) {
+      setState(() {
+        _hasScoreError = false;
+        _scoreErrorMessage = null;
+      });
+      return true;
+    }
+
+    final parsed = int.tryParse(scoreText);
+    if (parsed == null || scoreText.contains('.')) {
+      setState(() {
+        _hasScoreError = true;
+        _scoreErrorMessage = 'กรุณากรอกคะแนนเป็นจำนวนเต็ม';
+      });
+      return false;
+    }
+
+    if (parsed < 1) {
+      setState(() {
+        _hasScoreError = true;
+        _scoreErrorMessage = 'คะแนนต้องไม่ต่ำกว่า 1';
+      });
+      return false;
+    }
+
+    if (parsed > 100) {
+      setState(() {
+        _hasScoreError = true;
+        _scoreErrorMessage = 'คะแนนสูงสุดไม่เกิน 100 คะแนน';
+      });
+      return false;
+    }
+
+    setState(() {
+      _hasScoreError = false;
+      _scoreErrorMessage = null;
+    });
+    return true;
+  }
+
   // ดึงค่าคะแนนที่ผู้ใช้กรอก หรือระบบคำนวณให้ เพื่อเตรียมบันทึกลงฐานข้อมูล
   String get _taskScoreForSave {
     // หากเป็นตัวของหัวหน้างานเอง ให้คำนวณคะแนนอัตโนมัติตามสเกลความยากง่ายเสมอ (เนื่องจากไม่มีช่องป้อนคะแนนแสดงใน UI)
     if (widget.isMe) {
-      return _suggestedTaskScore.toString();
+      return _suggestedTaskScore.clamp(1, 100).toString();
     }
     final score = _scoreController.text.trim();
-    // หากช่องป้อนคะแนนว่างเปล่า ให้ดึงค่าแนะนำของระบบ ณ สเกลปัจจุบันไปใช้งานโดยอัตโนมัติ
-    return score.isEmpty ? _suggestedTaskScore.toString() : score;
+    if (score.isEmpty) {
+      return _suggestedTaskScore.clamp(1, 100).toString();
+    }
+    final parsed = int.tryParse(score);
+    if (parsed != null) {
+      return parsed.clamp(1, 100).toString();
+    }
+    return _suggestedTaskScore.clamp(1, 100).toString();
   }
 
   void _showDeleteMemberConfirmation() {
@@ -699,8 +761,15 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
       _scrollToTopError();
       return;
     }
+
+    if (!_validateScore()) {
+      return;
+    }
+
     setState(() {
       _hasTitleError = false;
+      _hasScoreError = false;
+      _scoreErrorMessage = null;
     });
 
     final updatedMember = _currentAssignee.copyWith(
@@ -929,6 +998,13 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                         label: 'ชื่อภารกิจ',
                         hint: 'เช่น ออกแบบ UI หน้า Login',
                         errorText: _hasTitleError ? 'กรุณาใส่ชื่อภารกิจ' : null,
+                        onChanged: (value) {
+                          if (_hasTitleError && value.trim().isNotEmpty) {
+                            setState(() {
+                              _hasTitleError = false;
+                            });
+                          }
+                        },
                       ),
 
                       const SizedBox(height: 16),
@@ -986,6 +1062,50 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                           label: 'คะแนนภารกิจ',
                           hint: 'แนะนำ $_suggestedTaskScore คะแนน',
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          errorText: _hasScoreError
+                              ? (_scoreErrorMessage ??
+                                  'กรุณากรอกคะแนนเป็นจำนวนเต็ม')
+                              : null,
+                          onChanged: (value) {
+                            final trimmed = value.trim();
+                            if (trimmed.isEmpty) {
+                              if (_hasScoreError) {
+                                setState(() {
+                                  _hasScoreError = false;
+                                  _scoreErrorMessage = null;
+                                });
+                              }
+                              return;
+                            }
+                            final parsed = int.tryParse(trimmed);
+                            if (parsed == null) {
+                              setState(() {
+                                _hasScoreError = true;
+                                _scoreErrorMessage = 'กรุณากรอกคะแนนเป็นจำนวนเต็ม';
+                              });
+                            } else if (parsed < 1) {
+                              setState(() {
+                                _hasScoreError = true;
+                                _scoreErrorMessage = 'คะแนนต้องไม่ต่ำกว่า 1';
+                              });
+                            } else if (parsed > 100) {
+                              setState(() {
+                                _hasScoreError = true;
+                                _scoreErrorMessage =
+                                    'คะแนนสูงสุดไม่เกิน 100 คะแนน';
+                              });
+                            } else {
+                              if (_hasScoreError) {
+                                setState(() {
+                                  _hasScoreError = false;
+                                  _scoreErrorMessage = null;
+                                });
+                              }
+                            }
+                          },
                           bottomHint:
                               'กรณีไม่ใส่คะแนนระบบจะแนะนำคะแนนตามภารกิจอัตโนมัติ',
                         )
@@ -1126,8 +1246,15 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                         });
                                         return;
                                       }
+
+                                      if (!_validateScore()) {
+                                        return;
+                                      }
+
                                       setState(() {
                                         _hasTitleError = false;
+                                        _hasScoreError = false;
+                                        _scoreErrorMessage = null;
                                       });
 
                                       final updatedMember = _currentAssignee
@@ -1757,8 +1884,10 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
     int? minLines,
     int? maxLines = 1,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     String? bottomHint,
     String? errorText,
+    ValueChanged<String>? onChanged,
   }) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
@@ -1781,18 +1910,41 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
           minLines: minLines,
           maxLines: maxLines,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          onChanged: onChanged,
           style: TextStyle(color: onSurface),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: onSurface.withValues(alpha: 0.4)),
             filled: true,
             fillColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
-            border: OutlineInputBorder(
+            enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
                 color: isDark
                     ? Colors.grey[800]!
                     : AppColors.backgroundDarkGrey,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.stormySkyBlue,
+                width: 1.5,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.error,
+                width: 1.5,
+              ),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.error,
+                width: 1.5,
               ),
             ),
             errorText: errorText,

@@ -73,6 +73,14 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     }
   }
 
+  void _unfocusAll() {
+    _titleFocusNode.unfocus();
+    _descriptionFocusNode.unfocus();
+    _subtaskFocusNode.unfocus();
+    _inlineSubtaskFocusNode.unfocus();
+    FocusScope.of(context).unfocus();
+  }
+
   late String _selectedCategory;
   late String _selectedLocation;
   late DateTime _selectedDate;
@@ -237,7 +245,10 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     final onSurface = theme.colorScheme.onSurface;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Container(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _unfocusAll,
+      child: Container(
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
               ? AppColors.stormyNightBackground
@@ -489,17 +500,11 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                   ),
                 ),
               ),
-            if (_descriptionFocusNode.hasFocus && bottomInset > 0)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: bottomInset,
-                child: _buildKeyboardToolbar(),
-              ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
   Widget _buildCombinedRatingsRow() {
     final theme = Theme.of(context);
@@ -634,6 +639,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   }
 
   void _showEditLocationDialog() {
+    _unfocusAll();
     final controller = TextEditingController(text: _selectedLocation);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -1039,6 +1045,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   }
 
   Future<void> _showAddCustomReminderSheet() async {
+    _unfocusAll();
     final taskDateTime = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -1857,6 +1864,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                     ),
                     IconButton(
                       onPressed: () async {
+                        _unfocusAll();
                         final MemberConfigResult?
                         result = await showModalBottomSheet<MemberConfigResult>(
                           context: context,
@@ -1899,6 +1907,22 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                       constraints: const BoxConstraints(),
                       padding: EdgeInsets.zero,
                     ),
+                    if (!isLeader) ...[
+                      const SizedBox(width: 12),
+                      IconButton(
+                        onPressed: () {
+                          _unfocusAll();
+                          _showDeleteMemberConfirmation(user);
+                        },
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 20,
+                          color: AppColors.accentRed,
+                        ),
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
                   ],
                 ),
               );
@@ -1909,7 +1933,88 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     );
   }
 
+  void _showDeleteMemberConfirmation(Member user) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.accentRed.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.accentRed,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'ยืนยันการลบสมาชิก',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.accentRed,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'ต้องการลบสมาชิก "${user.name}" ออกจากภารกิจนี้หรือไม่?',
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              setState(() {
+                _selectedMembers.removeWhere((Member m) => m.id == user.id);
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: const Text(
+              'ยืนยันลบ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showMemberSelectionDialog() {
+    _unfocusAll();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final leaderId = widget.task?.creatorId ?? authProvider.currentUser?.id;
@@ -2350,6 +2455,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       controller: _titleController,
       focusNode: _titleFocusNode,
       textInputAction: TextInputAction.next,
+      onFieldSubmitted: (_) {
+        FocusScope.of(context).requestFocus(_descriptionFocusNode);
+      },
       style: TextStyle(
         color: theme.brightness == Brightness.dark
             ? Colors.white
@@ -2406,8 +2514,10 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     return TextFormField(
       controller: _descriptionController,
       focusNode: _descriptionFocusNode,
+      keyboardType: TextInputType.multiline,
       minLines: 1,
       maxLines: 3,
+      textInputAction: TextInputAction.newline,
       style: TextStyle(
         fontSize: 14,
         color: theme.brightness == Brightness.dark
@@ -2513,9 +2623,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             ],
           ),
           InkWell(
-            onTap: () {
-              FocusScope.of(context).unfocus();
-            },
+            onTap: _unfocusAll,
             borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -2575,6 +2683,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       child: InkWell(
         enableFeedback: false,
         onTap: () async {
+          _unfocusAll();
           final picked = await showDatePicker(
             context: context,
             initialDate: _selectedDate,
@@ -2714,6 +2823,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       child: InkWell(
         enableFeedback: false,
         onTap: () async {
+          _unfocusAll();
           TimeOfDay currentTime = _selectedTime;
           while (mounted) {
             final picked = await showTimePicker(
@@ -2837,6 +2947,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   }
 
   void _showRecurringBottomSheet() {
+    _unfocusAll();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 

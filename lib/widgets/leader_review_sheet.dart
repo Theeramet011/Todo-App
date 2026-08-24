@@ -314,11 +314,18 @@ class _LeaderReviewSheetState extends State<LeaderReviewSheet> {
     VoidCallback onTap,
     bool isActive,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(
-        backgroundColor: isActive ? color : AppColors.backgroundLightGrey,
-        foregroundColor: isActive ? Colors.white : AppColors.textSecondary,
+        backgroundColor: isActive
+            ? color
+            : (isDark
+                ? AppColors.stormyDarkSlate
+                : AppColors.backgroundLightGrey),
+        foregroundColor: isActive
+            ? Colors.white
+            : (isDark ? Colors.white70 : AppColors.textSecondary),
         elevation: isActive ? 2 : 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

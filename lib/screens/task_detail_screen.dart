@@ -1354,6 +1354,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   // ignore: unused_element
   Widget _buildLeaderApprovalPanel(Task task, TaskProvider taskProvider) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final submitter = _submittedMemberForTask(task);
     final submitterName = submitter?.name ?? 'ผู้ส่งงาน';
     final submissionText = task.submissionText?.trim().isNotEmpty == true
@@ -1460,16 +1461,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () async {
-                    await taskProvider.rejectTaskSubmission(task.id);
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('ปฏิเสธงานแล้ว')),
-                    );
-                  },
+                  onPressed: () => _showRejectTaskSubmissionDialog(task),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.accentRed,
-                    side: const BorderSide(color: AppColors.accentRed),
+                    foregroundColor: isDark
+                        ? const Color(0xFFFF6B6B)
+                        : AppColors.accentRed,
+                    side: BorderSide(
+                      color: isDark
+                          ? const Color(0xFFFF6B6B)
+                          : AppColors.accentRed,
+                      width: 1.5,
+                    ),
+                    backgroundColor:
+                        (isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed)
+                            .withValues(alpha: isDark ? 0.12 : 0.06),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -1493,7 +1498,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     await taskProvider.approveTaskSubmission(task.id);
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('อนุมัติงานแล้ว')),
+                      const SnackBar(
+                        content: Text('อนุมัติงานแล้ว'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -2270,6 +2278,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final leaderId = taskProvider.leaderIdForTask(task);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.id;
+    final isLeader = currentUserId != null && currentUserId == leaderId;
     final isMemberPending =
         !task.isDeleted &&
         (member.status == 'pending' ||
@@ -2533,24 +2544,27 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             const SizedBox(height: 12),
           ],
 
-          if (isMemberPending)
+          if (isLeader && isMemberPending)
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () async {
-                      await taskProvider.rejectMemberTaskSubmission(
-                        task.id,
-                        member.id,
-                      );
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('ปฏิเสธงานแล้ว')),
-                      );
-                    },
+                    onPressed: () =>
+                        _showRejectMemberSubmissionDialog(task, member),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.accentRed,
-                      side: const BorderSide(color: AppColors.accentRed),
+                      foregroundColor: isDark
+                          ? const Color(0xFFFF6B6B)
+                          : AppColors.accentRed,
+                      side: BorderSide(
+                        color: isDark
+                            ? const Color(0xFFFF6B6B)
+                            : AppColors.accentRed,
+                        width: 1.5,
+                      ),
+                      backgroundColor: (isDark
+                              ? const Color(0xFFFF6B6B)
+                              : AppColors.accentRed)
+                          .withValues(alpha: isDark ? 0.12 : 0.06),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
@@ -2577,7 +2591,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       );
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('อนุมัติงานแล้ว')),
+                        const SnackBar(
+                          content: Text('อนุมัติงานแล้ว'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -2596,7 +2613,43 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                 ),
               ],
+            )
+          else if (isLeader &&
+              isMemberCompleted &&
+              !task.isCompleted &&
+              member.id != leaderId) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showRevertApprovalDialog(task, member),
+                icon: const Icon(Icons.replay_rounded, size: 18),
+                label: const Text(
+                  'ส่งกลับไปแก้ไข',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark
+                      ? const Color(0xFFFFB74D)
+                      : const Color(0xFFD97706),
+                  side: BorderSide(
+                    color: (isDark
+                            ? const Color(0xFFFFB74D)
+                            : const Color(0xFFD97706))
+                        .withValues(alpha: 0.8),
+                    width: 1.5,
+                  ),
+                  backgroundColor: (isDark
+                          ? const Color(0xFFFFB74D)
+                          : const Color(0xFFD97706))
+                      .withValues(alpha: isDark ? 0.12 : 0.06),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+              ),
             ),
+          ],
 
           const SizedBox(height: 16),
         ],
@@ -4519,6 +4572,296 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _showRejectTaskSubmissionDialog(Task task) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed)
+                    .withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.cancel_outlined,
+                color: isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'ปฏิเสธงานที่ส่งมา',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'คุณต้องการปฏิเสธงานที่ส่งมาและส่งกลับไปให้แก้ไขใช่หรือไม่?',
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final connectivity = context.read<ConnectivityProvider>();
+              if (connectivity.isOffline) {
+                _showOfflineDialog(context);
+                return;
+              }
+              final taskProvider =
+                  Provider.of<TaskProvider>(context, listen: false);
+              await taskProvider.rejectTaskSubmission(task.id);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('ปฏิเสธงานแล้ว'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: const Text(
+              'ยืนยันปฏิเสธ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRejectMemberSubmissionDialog(Task task, Member member) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed)
+                    .withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.cancel_outlined,
+                color: isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'ปฏิเสธงานที่ส่งมา',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'ต้องการปฏิเสธงานของ "${member.name}" และส่งกลับไปให้แก้ไขใช่หรือไม่?',
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final connectivity = context.read<ConnectivityProvider>();
+              if (connectivity.isOffline) {
+                _showOfflineDialog(context);
+                return;
+              }
+              final taskProvider =
+                  Provider.of<TaskProvider>(context, listen: false);
+              await taskProvider.rejectMemberTaskSubmission(
+                task.id,
+                member.id,
+              );
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('ปฏิเสธงานของ "${member.name}" แล้ว'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: const Text(
+              'ยืนยันปฏิเสธ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRevertApprovalDialog(Task task, Member member) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color:
+                    (isDark ? const Color(0xFFFFB74D) : const Color(0xFFD97706))
+                        .withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.replay_rounded,
+                color:
+                    isDark ? const Color(0xFFFFB74D) : const Color(0xFFD97706),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'ส่งงานกลับไปแก้ไข',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'คุณต้องการยกเลิกการอนุมัติและส่งงานของ "${member.name}" กลับไปแก้ไขใช่หรือไม่?\n\n(ระบบจะเปลี่ยนสถานะเป็นกำลังทำภารกิจ และเรียกคืนคะแนนที่สมาชิกได้รับ)',
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final connectivity = context.read<ConnectivityProvider>();
+              if (connectivity.isOffline) {
+                _showOfflineDialog(context);
+                return;
+              }
+              final taskProvider =
+                  Provider.of<TaskProvider>(context, listen: false);
+              await taskProvider.rejectMemberTaskSubmission(
+                task.id,
+                member.id,
+              );
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('ส่งงานของ "${member.name}" กลับไปแก้ไขแล้ว'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isDark ? const Color(0xFFFFB74D) : const Color(0xFFD97706),
+              foregroundColor: isDark ? Colors.black : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: const Text(
+              'ยืนยันส่งกลับ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
