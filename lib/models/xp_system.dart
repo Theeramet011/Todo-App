@@ -35,7 +35,7 @@ class PersonalTaskCounter {
 const fastCompletionRewardBlockThreshold = Duration(minutes: 5);
 
 //เวลาคูลดาวน์ป้องกันการกดเสร็จงานติดต่อกันเร็วเกินไป
-const rapidCompletionRewardBlockThreshold = Duration(seconds: 45);
+const rapidCompletionRewardBlockThreshold = Duration(seconds: 20);
 
 const milestoneRewards = <int, String>{
   5: 'bronze_frame',
