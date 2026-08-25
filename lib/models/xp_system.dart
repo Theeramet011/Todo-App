@@ -34,6 +34,9 @@ class PersonalTaskCounter {
 //แก้ไขเวลาที่ใช้ในการบล็อกกันกดเสร็จเร็ว
 const fastCompletionRewardBlockThreshold = Duration(minutes: 5);
 
+//เวลาคูลดาวน์ป้องกันการกดเสร็จงานติดต่อกันเร็วเกินไป
+const rapidCompletionRewardBlockThreshold = Duration(seconds: 45);
+
 const milestoneRewards = <int, String>{
   5: 'bronze_frame',
   10: 'master_frame',
@@ -127,6 +130,15 @@ bool isCompletionRewardBlockedByAge({
   Duration threshold = fastCompletionRewardBlockThreshold,
 }) {
   return completedAt.difference(createdAt) < threshold;
+}
+
+bool isCompletionRewardBlockedByCooldown({
+  required DateTime? lastCompletedAt,
+  required DateTime completedAt,
+  Duration threshold = rapidCompletionRewardBlockThreshold,
+}) {
+  if (lastCompletedAt == null) return false;
+  return completedAt.difference(lastCompletedAt) < threshold;
 }
 
 PersonalTaskCounter normalizePersonalTaskCounter({

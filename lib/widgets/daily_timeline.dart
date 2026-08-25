@@ -59,7 +59,7 @@ class DailyTimeline extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      '${tasks.length} tasks',
+                      '${tasks.length} ภารกิจ',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,

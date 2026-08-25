@@ -495,228 +495,414 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildSubtasksSection(Task task, TaskProvider taskProvider) {
-    if (task.subtasks.isEmpty) return const SizedBox.shrink();
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.id;
+    final leaderId = taskProvider.leaderIdForTask(task);
+    final isLeader = currentUserId != null && currentUserId == leaderId;
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
-        vertical: AppConstants.paddingSmall,
-      ),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
-      decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark
-            ? AppColors.stormyDarkSlate
-            : theme.cardColor,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
-        boxShadow: [
-          BoxShadow(
-            color: theme.brightness == Brightness.light
-                ? AppColors.shadowLight
-                : Colors.black.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'ความคืบหน้าภารกิจย่อย',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.stormySkyBlue.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${task.subtasks.where((s) => s.isDone).length}/${task.subtasks.length}',
+    // Check if current user is an assigned group member with specific subtasks
+    Member? myMember;
+    if (task.isGroup && currentUserId != null) {
+      myMember = task.members.where((m) => m.id == currentUserId).firstOrNull;
+    }
+
+    final bool hasMemberSubtasks =
+        myMember != null && myMember.subTasks.isNotEmpty;
+    final bool hasGeneralSubtasks = task.subtasks.isNotEmpty;
+
+    if (!hasMemberSubtasks && !hasGeneralSubtasks) {
+      return const SizedBox.shrink();
+    }
+
+    Widget? generalSubtasksWidget;
+    if (hasGeneralSubtasks) {
+      generalSubtasksWidget = Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppConstants.paddingMedium,
+          vertical: AppConstants.paddingSmall,
+        ),
+        padding: const EdgeInsets.all(AppConstants.paddingLarge),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.stormyDarkSlate : theme.cardColor,
+          borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : AppColors.shadowLight,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  task.isGroup
+                      ? 'ความคืบหน้าภารกิจย่อยงานหลัก'
+                      : 'ความคืบหน้าภารกิจย่อย',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.stormySkyBlue,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.paddingMedium),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: task.subtasks.length,
-            itemBuilder: (context, index) {
-              final subtask = task.subtasks[index];
-              return GestureDetector(
-                onTap: () async {
-                  final connectivity = context.read<ConnectivityProvider>();
-                  if (connectivity.isOffline) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-
-                  if (task.type == TaskType.group || task.members.isNotEmpty) {
-                    final leaderId = taskProvider.leaderIdForTask(task);
-                    if (!_areAllMembersCompleted(task, leaderId)) {
-                      _showIncompleteMembersAlert(context, task, leaderId);
-                      return;
-                    }
-                  }
-                  final isCheckingLast =
-                      !subtask.isDone &&
-                      task.subtasks.where((s) => !s.isDone).length == 1;
-
-                  if (isCheckingLast && !task.isCompleted) {
-                    final shouldProceed = await LatePenaltyDialog.checkAndShow(
-                      context,
-                      task,
-                    );
-                    if (!shouldProceed) return;
-                    if (!context.mounted) return;
-                  }
-
-                  final result = await taskProvider.toggleSubtask(
-                    task.id,
-                    index,
-                  );
-
-                  if (isCheckingLast && !task.isCompleted && result != null) {
-                    if (!context.mounted) return;
-
-                    if (result.status != CompletionRewardStatus.noChange) {
-                      final isSoundEnabled =
-                          context
-                              .read<AuthProvider>()
-                              .currentUser
-                              ?.isSoundEnabled ??
-                          true;
-                      unawaited(
-                        SoundService.instance.playTaskCompleteSound(
-                          isSoundEnabled: isSoundEnabled,
-                        ),
-                      );
-                      await FastCompletionWarningDialog.showCompletionFeedback(
-                        context,
-                        result,
-                      );
-                      if (!context.mounted) return;
-                      SnackBarUtils.showUndoSnackBar(
-                        context,
-                        message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
-                        onUndo: () async {
-                          await taskProvider.toggleTaskCompletion(
-                            task.id,
-                            updateSubtasks: true,
-                          );
-                        },
-                      );
-                    }
-                  }
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: subtask.isDone
-                        ? (theme.brightness == Brightness.light
-                              ? (Theme.of(context).brightness ==
-                                            Brightness.light
-                                        ? AppColors.stormyOffWhite
-                                        : AppColors.backgroundLightGrey)
-                                    .withValues(alpha: 0.5)
-                              : Colors.white.withValues(alpha: 0.05))
-                        : AppColors.stormySkyBlue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: subtask.isDone
-                          ? (theme.brightness == Brightness.light
-                                ? (Theme.of(context).brightness ==
-                                          Brightness.light
-                                      ? AppColors.stormyMutedBlueGrey
-                                      : AppColors.backgroundDarkGrey)
-                                : Colors.white.withValues(alpha: 0.1))
-                          : AppColors.stormySkyBlue.withValues(alpha: 0.5),
-                      width: 1,
+                    color: AppColors.stormySkyBlue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${task.subtasks.where((s) => s.isDone).length}/${task.subtasks.length}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.stormySkyBlue,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        subtask.isDone
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        size: 20,
-                        color: subtask.isDone
-                            ? AppColors.success
-                            : AppColors.stormySkyBlue,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          subtask.title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: subtask.isDone
-                                ? FontWeight.normal
-                                : FontWeight.w500,
-                            decoration: subtask.isDone
-                                ? TextDecoration.lineThrough
-                                : null,
-                            color: subtask.isDone
-                                ? theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.5,
-                                  )
-                                : theme.colorScheme.onSurface,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppConstants.paddingMedium),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: task.subtasks.length,
+              itemBuilder: (context, index) {
+                final subtask = task.subtasks[index];
+                return GestureDetector(
+                  onTap: () async {
+                    if (task.isDeleted) return;
+                    final connectivity = context.read<ConnectivityProvider>();
+                    if (connectivity.isOffline) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
                           ),
                         ),
+                      );
+                      return;
+                    }
+
+                    if (task.isGroup && !isLeader) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'เฉพาะหัวหน้าภารกิจเท่านั้นที่สามารถอัปเดตภารกิจย่อยหลักได้',
+                          ),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final isCheckingLast =
+                        !task.isGroup &&
+                        !subtask.isDone &&
+                        task.subtasks.where((s) => !s.isDone).length == 1;
+
+                    if (isCheckingLast && !task.isCompleted) {
+                      final shouldProceed =
+                          await LatePenaltyDialog.checkAndShow(
+                            context,
+                            task,
+                          );
+                      if (!shouldProceed) return;
+                      if (!context.mounted) return;
+                    }
+
+                    final result = await taskProvider.toggleSubtask(
+                      task.id,
+                      index,
+                    );
+
+                    if (isCheckingLast && !task.isCompleted && result != null) {
+                      if (!context.mounted) return;
+
+                      if (result.status != CompletionRewardStatus.noChange) {
+                        final isSoundEnabled =
+                            context
+                                .read<AuthProvider>()
+                                .currentUser
+                                ?.isSoundEnabled ??
+                            true;
+                        unawaited(
+                          SoundService.instance.playTaskCompleteSound(
+                            isSoundEnabled: isSoundEnabled,
+                          ),
+                        );
+                        await FastCompletionWarningDialog
+                            .showCompletionFeedback(context, result);
+                        if (!context.mounted) return;
+                        SnackBarUtils.showUndoSnackBar(
+                          context,
+                          message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
+                          onUndo: () async {
+                            await taskProvider.toggleTaskCompletion(
+                              task.id,
+                              updateSubtasks: true,
+                            );
+                          },
+                        );
+                      }
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: subtask.isDone
+                          ? (isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : AppColors.stormyOffWhite.withValues(
+                                  alpha: 0.5,
+                                ))
+                          : AppColors.stormySkyBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: subtask.isDone
+                            ? (isDark
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : AppColors.stormyMutedBlueGrey)
+                            : AppColors.stormySkyBlue.withValues(alpha: 0.5),
+                        width: 1,
                       ),
-                      if (subtask.isDone)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'เสร็จ',
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          subtask.isDone
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          size: 20,
+                          color: subtask.isDone
+                              ? AppColors.success
+                              : AppColors.stormySkyBlue,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            subtask.title,
                             style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.success,
+                              fontSize: 14,
+                              fontWeight: subtask.isDone
+                                  ? FontWeight.normal
+                                  : FontWeight.w500,
+                              color: subtask.isDone
+                                  ? theme.colorScheme.onSurface.withValues(
+                                      alpha: 0.5,
+                                    )
+                                  : theme.colorScheme.onSurface,
+                              decoration: subtask.isDone
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
                             ),
                           ),
                         ),
-                    ],
+                        if (task.isGroup && !isLeader)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: Icon(
+                              Icons.lock_outline_rounded,
+                              size: 16,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.35,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget? memberSubtasksWidget;
+    if (hasMemberSubtasks) {
+      final memberSubtasks = myMember.subTasks;
+      final completedCount = myMember.completedSubTasks
+          .where((c) => memberSubtasks.any((st) => st.trim() == c.trim()))
+          .length;
+      final totalCount = memberSubtasks.length;
+
+      memberSubtasksWidget = Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppConstants.paddingMedium,
+          vertical: AppConstants.paddingSmall,
+        ),
+        padding: const EdgeInsets.all(AppConstants.paddingLarge),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.stormyDarkSlate : theme.cardColor,
+          borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : AppColors.shadowLight,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'ภารกิจย่อยจากงานของคุณ',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
-              );
-            },
-          ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.stormySkyBlue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$completedCount/$totalCount',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.stormySkyBlue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppConstants.paddingMedium),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: memberSubtasks.length,
+              itemBuilder: (context, index) {
+                final subtaskTitle = memberSubtasks[index];
+                final isDone = myMember!.completedSubTasks.any(
+                  (c) => c.trim() == subtaskTitle.trim(),
+                );
+
+                return GestureDetector(
+                  onTap: () async {
+                    if (task.isDeleted) return;
+                    final connectivity = context.read<ConnectivityProvider>();
+                    if (connectivity.isOffline) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    await taskProvider.toggleMemberSubtask(
+                      task.id,
+                      myMember!.id,
+                      subtaskTitle,
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDone
+                          ? (isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : AppColors.stormyOffWhite.withValues(
+                                  alpha: 0.5,
+                                ))
+                          : AppColors.stormySkyBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: isDone
+                            ? (isDark
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : AppColors.stormyMutedBlueGrey)
+                            : AppColors.stormySkyBlue.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isDone
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          size: 20,
+                          color: isDone
+                              ? AppColors.success
+                              : AppColors.stormySkyBlue,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            subtaskTitle,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isDone
+                                  ? FontWeight.normal
+                                  : FontWeight.w500,
+                              color: isDone
+                                  ? theme.colorScheme.onSurface.withValues(
+                                      alpha: 0.5,
+                                    )
+                                  : theme.colorScheme.onSurface,
+                              decoration: isDone
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (generalSubtasksWidget != null && memberSubtasksWidget != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          generalSubtasksWidget,
+          memberSubtasksWidget,
         ],
-      ),
-    );
+      );
+    }
+
+    return generalSubtasksWidget ??
+        memberSubtasksWidget ??
+        const SizedBox.shrink();
   }
 
   Widget _buildTaskInfoSection(Task task) {

@@ -65,6 +65,8 @@ class TaskProvider with ChangeNotifier {
   StreamSubscription<firebase_auth.User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _taskSubscription;
   String? _currentUserId;
+  DateTime? _lastTaskCompletedAt;
+  DateTime? get lastTaskCompletedAt => _lastTaskCompletedAt;
 
   bool _showXPCapAlert = false;
   bool get showXPCapAlert => _showXPCapAlert;
@@ -2594,12 +2596,23 @@ class TaskProvider with ChangeNotifier {
       clearCompletionAgeSeconds: newStatus != TaskStatus.completed,
     );
     var result = CompletionRewardResult.awarded;
-    final blocksReward =
+    final isBlockedByAge =
         isNowCompleted &&
         isCompletionRewardBlockedByAge(
           createdAt: task.createdAt,
           completedAt: completedAt,
         );
+    final isBlockedByCooldown =
+        isNowCompleted &&
+        isCompletionRewardBlockedByCooldown(
+          lastCompletedAt: _lastTaskCompletedAt,
+          completedAt: completedAt,
+        );
+    final blocksReward = isBlockedByAge || isBlockedByCooldown;
+
+    if (isNowCompleted) {
+      _lastTaskCompletedAt = completedAt;
+    }
 
     if (task.isPersonal) {
       final userId = currentUserId;

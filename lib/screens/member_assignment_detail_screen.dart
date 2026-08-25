@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../config/colors.dart';
 import '../config/constants.dart';
 import '../models/task.dart';
+import '../providers/auth_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/connectivity_provider.dart';
 
@@ -445,7 +446,7 @@ class _MemberAssignmentDetailScreenState
               ),
               const SizedBox(width: 8),
               Text(
-                'ภารกิจย่อย (Sub-tasks)',
+                'ภารกิจย่อยของสมาชิก',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -487,6 +488,11 @@ class _MemberAssignmentDetailScreenState
               final isDone = member.completedSubTasks.any(
                 (c) => c.trim() == subTaskTitle.trim(),
               );
+              final authProvider = context.read<AuthProvider>();
+              final currentUserId = authProvider.currentUser?.id;
+              final isOwner =
+                  currentUserId != null && currentUserId == member.id;
+
               return InkWell(
                 onTap: () async {
                   if (currentTask == null) return;
@@ -501,6 +507,19 @@ class _MemberAssignmentDetailScreenState
                     );
                     return;
                   }
+
+                  if (!isOwner) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'เฉพาะสมาชิกเจ้าของงานเท่านั้นที่สามารถอัปเดตภารกิจย่อยนี้ได้',
+                        ),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                    return;
+                  }
+
                   await taskProvider.toggleMemberSubtask(
                     currentTask.id,
                     member.id,
@@ -543,6 +562,17 @@ class _MemberAssignmentDetailScreenState
                           ),
                         ),
                       ),
+                      if (!isOwner)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Icon(
+                            Icons.lock_outline_rounded,
+                            size: 16,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

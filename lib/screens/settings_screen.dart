@@ -698,11 +698,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             TextButton(
               style: TextButton.styleFrom(
                 backgroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFFEF9A9A).withValues(alpha: 0.15)
+                    ? const Color(0xFFD32F2F)
                     : Colors.redAccent,
-                foregroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFFEF9A9A)
-                    : Colors.white,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

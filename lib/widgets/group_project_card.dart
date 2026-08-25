@@ -356,56 +356,89 @@ class GroupProjectCard extends StatelessWidget {
             ),
 
             // Description
-            const SizedBox(height: 8),
-            Text(
-              project.description,
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            if (project.description.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                project.description,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            ],
 
-            const SizedBox(height: 20),
+            if (project.subtasks.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 32),
+                child: _GroupInlineSubtasks(
+                  project: project,
+                  isLeader: isLeader,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
 
             // Members and Progress Info
             Row(
               children: [
                 _buildMemberAvatars(context, taskProvider),
                 const Spacer(),
-                Text(
-                  '${project.completedCount}/${project.subtasks.length} ภารกิจ',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                if (project.members.isNotEmpty)
+                  Text(
+                    'สมาชิกเสร็จสิ้น ${project.members.where((m) => m.status == 'completed').length}/${project.members.length} คน',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  )
+                else
+                  Text(
+                    'ยังไม่มีสมาชิก',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
                   ),
-                ),
               ],
             ),
 
-            const SizedBox(height: 12),
-
-            // Progress Bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: project.progress,
-                backgroundColor: theme.colorScheme.onSurface.withValues(
-                  alpha: 0.08,
+            if (project.members.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              // Member Progress Bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: project.members.isNotEmpty
+                      ? (project.members
+                                .where((m) => m.status == 'completed')
+                                .length /
+                            project.members.length)
+                      : 0.0,
+                  backgroundColor: theme.colorScheme.onSurface.withValues(
+                    alpha: 0.08,
+                  ),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    project.members.every((m) => m.status == 'completed')
+                        ? AppColors.success
+                        : AppColors.stormySkyBlue,
+                  ),
+                  minHeight: 8,
                 ),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppColors.stormySkyBlue,
-                ),
-                minHeight: 8,
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
+
+
 
   Future<void> _openEditTaskModal(BuildContext context) async {
     await showModalBottomSheet<Task>(
@@ -637,3 +670,166 @@ class GroupProjectCard extends StatelessWidget {
     );
   }
 }
+
+class _GroupInlineSubtasks extends StatefulWidget {
+  final Task project;
+  final bool isLeader;
+
+  const _GroupInlineSubtasks({
+    required this.project,
+    required this.isLeader,
+  });
+
+  @override
+  State<_GroupInlineSubtasks> createState() => _GroupInlineSubtasksState();
+}
+
+class _GroupInlineSubtasksState extends State<_GroupInlineSubtasks> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final taskProvider = context.read<TaskProvider>();
+    const maxInitial = 3;
+    final subtasks = widget.project.subtasks;
+    final hasMore = subtasks.length > maxInitial;
+    final displayedEntries = _isExpanded
+        ? subtasks.asMap().entries.toList()
+        : subtasks.take(maxInitial).toList().asMap().entries.toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in displayedEntries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: InkWell(
+              enableFeedback: false,
+              borderRadius: BorderRadius.circular(8),
+              onTap: () async {
+                final connectivity = context.read<ConnectivityProvider>();
+                if (connectivity.isOffline) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ไม่สามารถดำเนินการได้',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                if (!widget.isLeader) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'เฉพาะหัวหน้าภารกิจเท่านั้นที่สามารถอัปเดตภารกิจย่อยหลักได้',
+                      ),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                  return;
+                }
+
+                await taskProvider.toggleSubtask(widget.project.id, entry.key);
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: entry.value.isDone
+                          ? (theme.brightness == Brightness.dark
+                              ? AppColors.stormySkyBlue
+                              : theme.colorScheme.primary)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: entry.value.isDone
+                            ? (theme.brightness == Brightness.dark
+                                ? AppColors.stormySkyBlue
+                                : theme.colorScheme.primary)
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.25,
+                              ),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: entry.value.isDone
+                        ? Icon(
+                            Icons.check,
+                            size: 13,
+                            color: theme.brightness == Brightness.dark
+                                ? AppColors.stormyNightBackground
+                                : Colors.white,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      entry.value.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: entry.value.isDone
+                            ? theme.colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              )
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.75,
+                              ),
+                        decoration: entry.value.isDone
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                    ),
+                  ),
+                  if (!widget.isLeader)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 13,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        if (hasMore)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 2),
+              child: Text(
+                _isExpanded
+                    ? 'ย่อภารกิจย่อย'
+                    : '+ อีก ${subtasks.length - maxInitial} ภารกิจย่อย',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: (theme.brightness == Brightness.dark
+                      ? AppColors.stormySkyBlue
+                      : theme.colorScheme.primary),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+

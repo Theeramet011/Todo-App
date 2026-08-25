@@ -2648,7 +2648,7 @@ class _TodayTaskCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                            '${task.completedCount}/${task.subtasks.length} tasks',
+                            '${task.completedCount}/${task.subtasks.length} ภารกิจ',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -2816,7 +2816,7 @@ class _TodayCompletionCheckbox extends StatelessWidget {
   }
 }
 
-class _TodaySubtasks extends StatelessWidget {
+class _TodaySubtasks extends StatefulWidget {
   final Task task;
   final void Function(Task, {Future<CompletionRewardResult?>? pendingResult})
   onToggleComplete;
@@ -2824,14 +2824,27 @@ class _TodaySubtasks extends StatelessWidget {
   const _TodaySubtasks({required this.task, required this.onToggleComplete});
 
   @override
+  State<_TodaySubtasks> createState() => _TodaySubtasksState();
+}
+
+class _TodaySubtasksState extends State<_TodaySubtasks> {
+  bool _isExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final taskProvider = context.read<TaskProvider>();
+    const maxInitial = 3;
+    final subtasks = widget.task.subtasks;
+    final hasMore = subtasks.length > maxInitial;
+    final displayedEntries = _isExpanded
+        ? subtasks.asMap().entries.toList()
+        : subtasks.take(maxInitial).toList().asMap().entries.toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final entry in task.subtasks.asMap().entries)
+        for (final entry in displayedEntries)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: InkWell(
@@ -2851,16 +2864,19 @@ class _TodaySubtasks extends StatelessWidget {
                 }
                 final isCheckingLast =
                     !entry.value.isDone &&
-                    task.subtasks.where((s) => !s.isDone).length == 1;
+                    widget.task.subtasks.where((s) => !s.isDone).length == 1;
 
-                if (isCheckingLast && !task.isCompleted) {
+                if (isCheckingLast && !widget.task.isCompleted) {
                   final futureResult = taskProvider.toggleSubtask(
-                    task.id,
+                    widget.task.id,
                     entry.key,
                   );
-                  onToggleComplete(task, pendingResult: futureResult);
+                  widget.onToggleComplete(
+                    widget.task,
+                    pendingResult: futureResult,
+                  );
                 } else {
-                  await taskProvider.toggleSubtask(task.id, entry.key);
+                  await taskProvider.toggleSubtask(widget.task.id, entry.key);
                 }
               },
               child: Row(
@@ -2886,6 +2902,30 @@ class _TodaySubtasks extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        if (hasMore)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 2),
+              child: Text(
+                _isExpanded
+                    ? 'ย่อภารกิจย่อย'
+                    : '+ อีก ${subtasks.length - maxInitial} ภารกิจย่อย',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: (theme.brightness == Brightness.dark
+                      ? AppColors.stormySkyBlue
+                      : theme.colorScheme.primary),
+                ),
               ),
             ),
           ),

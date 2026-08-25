@@ -43,25 +43,14 @@ void main() {
       );
     });
 
-    test('tasks 4 through 6 receive half XP', () {
+    test('tasks receive full XP without diminishing returns', () {
       expect(
         calculateDiminishedPersonalTaskXp(baseXp: 100, completedTaskNumber: 4),
-        50,
+        100,
       );
-      expect(
-        calculateDiminishedPersonalTaskXp(baseXp: 100, completedTaskNumber: 6),
-        50,
-      );
-    });
-
-    test('tasks 7 and later receive 10 percent with a 5 XP minimum', () {
       expect(
         calculateDiminishedPersonalTaskXp(baseXp: 100, completedTaskNumber: 7),
-        10,
-      );
-      expect(
-        calculateDiminishedPersonalTaskXp(baseXp: 30, completedTaskNumber: 8),
-        5,
+        100,
       );
     });
 
@@ -139,6 +128,50 @@ void main() {
           completedAt: createdAt.subtract(const Duration(seconds: 1)),
         ),
         true,
+      );
+    });
+  });
+
+  group('rapid completion cooldown reward blocking', () {
+    final firstCompletedAt = DateTime(2026, 6, 10, 12, 0, 0);
+
+    test('allows first task when lastCompletedAt is null', () {
+      expect(
+        isCompletionRewardBlockedByCooldown(
+          lastCompletedAt: null,
+          completedAt: firstCompletedAt,
+        ),
+        false,
+      );
+    });
+
+    test('blocks second task completed within 44 seconds', () {
+      expect(
+        isCompletionRewardBlockedByCooldown(
+          lastCompletedAt: firstCompletedAt,
+          completedAt: firstCompletedAt.add(const Duration(seconds: 44)),
+        ),
+        true,
+      );
+    });
+
+    test('allows second task completed at 45 seconds', () {
+      expect(
+        isCompletionRewardBlockedByCooldown(
+          lastCompletedAt: firstCompletedAt,
+          completedAt: firstCompletedAt.add(const Duration(seconds: 45)),
+        ),
+        false,
+      );
+    });
+
+    test('allows second task completed after 45 seconds', () {
+      expect(
+        isCompletionRewardBlockedByCooldown(
+          lastCompletedAt: firstCompletedAt,
+          completedAt: firstCompletedAt.add(const Duration(minutes: 2)),
+        ),
+        false,
       );
     });
   });
