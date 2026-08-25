@@ -132,44 +132,80 @@ void main() {
     });
   });
 
-  group('rapid completion cooldown reward blocking', () {
-    final firstCompletedAt = DateTime(2026, 6, 10, 12, 0, 0);
+  group('burst completion allowance reward blocking', () {
+    final now = DateTime(2026, 6, 10, 12, 0, 0);
 
-    test('allows first task when lastCompletedAt is null', () {
+    test('allows up to 4 tasks in rapid succession', () {
+      final recent = <DateTime>[];
+
+      // 1st task
       expect(
-        isCompletionRewardBlockedByCooldown(
-          lastCompletedAt: null,
-          completedAt: firstCompletedAt,
+        isCompletionRewardBlockedByBurst(
+          recentCompletionTimestamps: recent,
+          completedAt: now,
         ),
         false,
       );
-    });
+      recent.add(now);
 
-    test('blocks second task completed within 44 seconds', () {
+      // 2nd task (5 seconds later)
+      final t2 = now.add(const Duration(seconds: 5));
       expect(
-        isCompletionRewardBlockedByCooldown(
-          lastCompletedAt: firstCompletedAt,
-          completedAt: firstCompletedAt.add(const Duration(seconds: 44)),
+        isCompletionRewardBlockedByBurst(
+          recentCompletionTimestamps: recent,
+          completedAt: t2,
+        ),
+        false,
+      );
+      recent.add(t2);
+
+      // 3rd task (10 seconds later)
+      final t3 = now.add(const Duration(seconds: 10));
+      expect(
+        isCompletionRewardBlockedByBurst(
+          recentCompletionTimestamps: recent,
+          completedAt: t3,
+        ),
+        false,
+      );
+      recent.add(t3);
+
+      // 4th task (15 seconds later)
+      final t4 = now.add(const Duration(seconds: 15));
+      expect(
+        isCompletionRewardBlockedByBurst(
+          recentCompletionTimestamps: recent,
+          completedAt: t4,
+        ),
+        false,
+      );
+      recent.add(t4);
+
+      // 5th task (20 seconds later - exceeds 4 tasks quota)
+      final t5 = now.add(const Duration(seconds: 20));
+      expect(
+        isCompletionRewardBlockedByBurst(
+          recentCompletionTimestamps: recent,
+          completedAt: t5,
         ),
         true,
       );
     });
 
-    test('allows second task completed at 45 seconds', () {
-      expect(
-        isCompletionRewardBlockedByCooldown(
-          lastCompletedAt: firstCompletedAt,
-          completedAt: firstCompletedAt.add(const Duration(seconds: 45)),
-        ),
-        false,
-      );
-    });
+    test('allows more tasks after the 1-minute window expires', () {
+      final recent = <DateTime>[
+        now,
+        now.add(const Duration(seconds: 2)),
+        now.add(const Duration(seconds: 4)),
+        now.add(const Duration(seconds: 6)),
+      ];
 
-    test('allows second task completed after 45 seconds', () {
+      // 5th task after 61 seconds
+      final tAfterWindow = now.add(const Duration(seconds: 61));
       expect(
-        isCompletionRewardBlockedByCooldown(
-          lastCompletedAt: firstCompletedAt,
-          completedAt: firstCompletedAt.add(const Duration(minutes: 2)),
+        isCompletionRewardBlockedByBurst(
+          recentCompletionTimestamps: recent,
+          completedAt: tAfterWindow,
         ),
         false,
       );

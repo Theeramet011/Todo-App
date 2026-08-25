@@ -34,8 +34,11 @@ class PersonalTaskCounter {
 //แก้ไขเวลาที่ใช้ในการบล็อกกันกดเสร็จเร็ว
 const fastCompletionRewardBlockThreshold = Duration(minutes: 5);
 
-//เวลาคูลดาวน์ป้องกันการกดเสร็จงานติดต่อกันเร็วเกินไป
-const rapidCompletionRewardBlockThreshold = Duration(seconds: 20);
+//โควต้าจำนวนงานที่อนุญาตให้กดเสร็จติดต่อกันได้รวดเร็ว (Burst Allowance)
+const maxBurstCompletionCount = 4;
+
+//ช่วงเวลาในการนับโควต้าการกดงานรวดเร็ว
+const burstCooldownWindow = Duration(minutes: 1);
 
 const milestoneRewards = <int, String>{
   5: 'bronze_frame',
@@ -132,13 +135,18 @@ bool isCompletionRewardBlockedByAge({
   return completedAt.difference(createdAt) < threshold;
 }
 
-bool isCompletionRewardBlockedByCooldown({
-  required DateTime? lastCompletedAt,
+bool isCompletionRewardBlockedByBurst({
+  required List<DateTime> recentCompletionTimestamps,
   required DateTime completedAt,
-  Duration threshold = rapidCompletionRewardBlockThreshold,
+  int maxBurst = maxBurstCompletionCount,
+  Duration window = burstCooldownWindow,
 }) {
-  if (lastCompletedAt == null) return false;
-  return completedAt.difference(lastCompletedAt) < threshold;
+  final countInWindow = recentCompletionTimestamps.where((t) {
+    final diff = completedAt.difference(t);
+    return diff >= Duration.zero && diff < window;
+  }).length;
+
+  return countInWindow >= maxBurst;
 }
 
 PersonalTaskCounter normalizePersonalTaskCounter({

@@ -65,8 +65,9 @@ class TaskProvider with ChangeNotifier {
   StreamSubscription<firebase_auth.User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _taskSubscription;
   String? _currentUserId;
-  DateTime? _lastTaskCompletedAt;
-  DateTime? get lastTaskCompletedAt => _lastTaskCompletedAt;
+  final List<DateTime> _recentCompletionTimestamps = [];
+  List<DateTime> get recentCompletionTimestamps =>
+      List.unmodifiable(_recentCompletionTimestamps);
 
   bool _showXPCapAlert = false;
   bool get showXPCapAlert => _showXPCapAlert;
@@ -2602,16 +2603,19 @@ class TaskProvider with ChangeNotifier {
           createdAt: task.createdAt,
           completedAt: completedAt,
         );
-    final isBlockedByCooldown =
+    final isBlockedByBurst =
         isNowCompleted &&
-        isCompletionRewardBlockedByCooldown(
-          lastCompletedAt: _lastTaskCompletedAt,
+        isCompletionRewardBlockedByBurst(
+          recentCompletionTimestamps: _recentCompletionTimestamps,
           completedAt: completedAt,
         );
-    final blocksReward = isBlockedByAge || isBlockedByCooldown;
+    final blocksReward = isBlockedByAge || isBlockedByBurst;
 
     if (isNowCompleted) {
-      _lastTaskCompletedAt = completedAt;
+      _recentCompletionTimestamps.removeWhere(
+        (t) => completedAt.difference(t) > burstCooldownWindow,
+      );
+      _recentCompletionTimestamps.add(completedAt);
     }
 
     if (task.isPersonal) {
