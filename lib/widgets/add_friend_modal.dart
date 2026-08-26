@@ -56,6 +56,7 @@ class _AddFriendModalState extends State<AddFriendModal> {
       var snapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: query)
+          .limit(10)
           .get();
 
       // ถ้าไม่เจอ ค้นหาจาก name
@@ -63,6 +64,7 @@ class _AddFriendModalState extends State<AddFriendModal> {
         snapshot = await FirebaseFirestore.instance
             .collection('users')
             .where('name', isEqualTo: query)
+            .limit(10)
             .get();
       }
 
@@ -271,6 +273,7 @@ class _AddFriendModalState extends State<AddFriendModal> {
           .collection('friend_requests')
           .where('toId', isEqualTo: currentUser.id)
           .where('status', isEqualTo: 'pending')
+          .limit(20)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {

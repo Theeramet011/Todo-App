@@ -67,7 +67,7 @@ service cloud.firestore {
         allow update: if request.auth != null
                       && request.auth.uid == userId
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                      'isRead', 'readAt', 'deletedAt'
+                      'isRead', 'readAt', 'deletedAt', 'expireAt'
                       ]);
 
         // คอมเมนต์/สร้างกลุ่มเกิดจากแอปโดยตรง จึงให้ client สร้างได้แบบจำกัด field
@@ -82,7 +82,7 @@ service cloud.firestore {
                       'title', 'body', 'type', 'isRead', 'createdAt',
                       'taskId', 'taskType', 'notificationStage', 'notificationKey',
                       'actorId', 'actorName', 'actorAvatarUrl', 'commentId',
-                      'friendRequestId'
+                      'friendRequestId', 'expireAt'
                       ]);
         allow delete: if false;
       }

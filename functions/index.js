@@ -443,12 +443,19 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
   try {
-    const tasksSnapshot = await db.collection("tasks").get();
-    console.log(`🔍 รันรอบ 1 นาที! พบภารกิจในระบบทั้งหมด: ${tasksSnapshot.size} ชิ้น`);
+    const tasksSnapshot = await db
+      .collection("tasks")
+      .where("status", "in", ["todo", "inProgress", "pending"])
+      .get();
+    console.log(`🔍 รันรอบ 1 นาที! พบภารกิจที่กำลังดำเนินการ: ${tasksSnapshot.size} ชิ้น`);
 
     for (const doc of tasksSnapshot.docs) {
       const taskData = doc.data();
       const taskId = doc.id;
+
+      if (taskData.isDeleted === true) {
+        continue;
+      }
 
       const isTaskFinished =
         taskData.status === "completed" || taskData.isCompleted === true;
@@ -603,6 +610,7 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
           const notificationType = notifType;
 
           try {
+            const expireDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
             await db
               .collection("users")
               .doc(userId)
@@ -613,6 +621,7 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
                 type: notificationType,
                 isRead: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                expireAt: admin.firestore.Timestamp.fromDate(expireDate),
                 taskId: taskId,
                 taskType: isGroup ? "group" : "personal",
                 recipientRole: recipient.role,

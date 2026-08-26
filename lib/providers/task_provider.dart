@@ -56,7 +56,6 @@ class TaskProvider with ChangeNotifier {
   final FirebaseFunctions _functions;
   final firebase_auth.FirebaseAuth _auth;
   final List<Task> _tasks = [];
-  final List<Project> _allProjects = [];
   final List<Project> _projects = [];
   final List<User> _friends = [];
   final Map<String, User> _userCache = {};
@@ -64,6 +63,7 @@ class TaskProvider with ChangeNotifier {
   final List<StreamSubscription> _subscriptions = [];
   StreamSubscription<firebase_auth.User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _taskSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _projectSubscription;
   String? _currentUserId;
   final List<DateTime> _recentCompletionTimestamps = [];
   List<DateTime> get recentCompletionTimestamps =>
@@ -435,6 +435,7 @@ class TaskProvider with ChangeNotifier {
   void dispose() {
     _authSubscription?.cancel();
     _taskSubscription?.cancel();
+    _projectSubscription?.cancel();
     for (final subscription in _subscriptions) {
       subscription.cancel();
     }
@@ -446,49 +447,53 @@ class TaskProvider with ChangeNotifier {
       _handleAuthUserChanged(user?.uid);
     });
     _listenToCurrentUserTasks(_currentUserId);
-
-    _subscriptions.add(
-      _firestore.collection('projects').snapshots().listen((snapshot) {
-        _allProjects
-          ..clear()
-          ..addAll(
-            snapshot.docs.map((doc) => Project.fromMap(doc.data(), doc.id)),
-          );
-        _applyProjectFilter();
-        notifyListeners();
-      }, onError: (error) => debugPrint('Project stream error: $error')),
-    );
+    _listenToCurrentUserProjects(_currentUserId);
   }
 
   void _handleAuthUserChanged(String? userId) {
     if (_currentUserId == userId) return;
     _currentUserId = userId;
     _tasks.clear();
+    _projects.clear();
     _friends.clear();
     _userCache.clear();
-    _applyProjectFilter();
     _selectedTask = null;
     _selectedProject = null;
     _totalXP = 0;
     _listenToCurrentUserTasks(userId);
+    _listenToCurrentUserProjects(userId);
     if (userId != null) {
       loadFriends();
     }
     notifyListeners();
   }
 
-  void _applyProjectFilter() {
-    final currentUserId = _currentUserId;
-    _projects
-      ..clear()
-      ..addAll(
-        _allProjects.where(
-          (project) =>
-              currentUserId != null &&
-              (project.leaderId == currentUserId ||
-                  project.memberIds.contains(currentUserId)),
-        ),
-      );
+  void _listenToCurrentUserProjects(String? userId) {
+    _projectSubscription?.cancel();
+    _projects.clear();
+
+    if (userId == null) {
+      notifyListeners();
+      return;
+    }
+
+    _projectSubscription = _firestore
+        .collection('projects')
+        .where(
+          Filter.or(
+            Filter('leaderId', isEqualTo: userId),
+            Filter('memberIds', arrayContains: userId),
+          ),
+        )
+        .snapshots()
+        .listen((snapshot) {
+          _projects
+            ..clear()
+            ..addAll(
+              snapshot.docs.map((doc) => Project.fromMap(doc.data(), doc.id)),
+            );
+          notifyListeners();
+        }, onError: (error) => debugPrint('Project stream error: $error'));
   }
 
   void _listenToCurrentUserTasks(String? userId) {
@@ -934,6 +939,8 @@ class TaskProvider with ChangeNotifier {
 
     final batch = _firestore.batch();
     final pushTargets = <Map<String, String>>[];
+    final now = DateTime.now();
+    final expireAt = now.add(const Duration(days: 30));
     for (final userId in normalizedIds.take(450)) {
       final ref = _firestore
           .collection('users')
@@ -945,6 +952,7 @@ class TaskProvider with ChangeNotifier {
         ...data,
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
+        'expireAt': Timestamp.fromDate(expireAt),
       });
     }
 
@@ -1380,14 +1388,22 @@ class TaskProvider with ChangeNotifier {
         if (targetWeekdays.isEmpty) {
           nextDate = baseDate.add(Duration(days: num * 7));
         } else {
-          DateTime candidate = baseDate.add(const Duration(days: 1));
-          int daysSearched = 0;
-          while (!targetWeekdays.contains(candidate.weekday) &&
-              daysSearched < 365) {
-            candidate = candidate.add(const Duration(days: 1));
-            daysSearched++;
+          // หากมีวันถัดไปที่มากกว่าวันปัจจุบันในสัปดาห์เดียวกัน (เช่น จันทร์ -> อังคาร, จันทร์ -> ศุกร์)
+          final remainingThisWeek =
+              targetWeekdays.where((w) => w > baseDate.weekday).toList();
+          if (remainingThisWeek.isNotEmpty) {
+            final nextWeekday = remainingThisWeek.first;
+            final daysUntilNext = nextWeekday - baseDate.weekday;
+            nextDate = baseDate.add(Duration(days: daysUntilNext));
+          } else {
+            // จบสัปดาห์นี้แล้ว ข้ามไปยังสัปดาห์รอบถัดไป (เว้นระยะตาม num สัปดาห์)
+            final firstWeekday = targetWeekdays.first;
+            final daysToEndOfWeek = 7 - baseDate.weekday;
+            final daysInNextInterval = (num - 1) * 7;
+            final totalDaysToAdd =
+                daysToEndOfWeek + daysInNextInterval + firstWeekday;
+            nextDate = baseDate.add(Duration(days: totalDaysToAdd));
           }
-          nextDate = candidate;
         }
       } else {
         nextDate = baseDate.add(Duration(days: num * 7));
@@ -2243,6 +2259,7 @@ class TaskProvider with ChangeNotifier {
         final updatedTask = task.copyWith(
           isDeleted: false,
           clearDeletedAt: true,
+          clearExpireAt: true,
         );
         _tasks[index] = updatedTask;
         restoredTasks.add(updatedTask);
@@ -2268,6 +2285,7 @@ class TaskProvider with ChangeNotifier {
         batch.set(_firestore.collection('tasks').doc(task.id), {
           'isDeleted': false,
           'deletedAt': FieldValue.delete(),
+          'expireAt': FieldValue.delete(),
         }, SetOptions(merge: true));
       }
     }
@@ -2487,6 +2505,7 @@ class TaskProvider with ChangeNotifier {
     }
 
     final now = DateTime.now();
+    final expireAt = now.add(const Duration(days: 30));
     for (final id in expandedTaskIds) {
       final index = _tasks.indexWhere((t) => t.id == id);
       if (index != -1) {
@@ -2510,6 +2529,7 @@ class TaskProvider with ChangeNotifier {
           _tasks[index] = task.copyWith(
             isDeleted: true,
             deletedAt: now,
+            expireAt: expireAt,
           );
         }
       }
@@ -2529,6 +2549,7 @@ class TaskProvider with ChangeNotifier {
       batch.set(_firestore.collection('tasks').doc(id), {
         'isDeleted': true,
         'deletedAt': Timestamp.fromDate(now),
+        'expireAt': Timestamp.fromDate(expireAt),
         if (globalGroupTaskIds.contains(id)) 'deletedForUserIds': [],
       }, SetOptions(merge: true));
     }

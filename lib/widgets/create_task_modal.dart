@@ -713,7 +713,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                   ? AppColors.stormyNightBackground
                   : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),

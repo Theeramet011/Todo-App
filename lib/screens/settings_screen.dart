@@ -656,11 +656,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     BuildContext context,
     AuthProvider authProvider,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          backgroundColor: Theme.of(context).brightness == Brightness.dark
+          backgroundColor: isDark
               ? AppColors.stormyDarkSlate
               : Theme.of(context).colorScheme.surface,
           shape: RoundedRectangleBorder(
@@ -669,16 +671,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: Text(
             'ออกจากระบบ?',
             style: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.textWhite
-                  : AppColors.stormyDarkSlate,
+              color: isDark ? AppColors.textWhite : AppColors.stormyDarkSlate,
               fontWeight: FontWeight.bold,
             ),
           ),
           content: Text(
             'คุณแน่ใจหรือไม่ว่าต้องการออกจากบัญชีของคุณ?',
             style: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark
+              color: isDark
                   ? AppColors.stormyIceBlue
                   : AppColors.textSecondary,
             ),
@@ -689,20 +689,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(dialogContext);
               },
               style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? AppColors.stormySkyBlue
+                foregroundColor: isDark
+                    ? AppColors.stormyMutedBlueGrey
                     : AppColors.textSecondary,
               ),
               child: const Text('ยกเลิก'),
             ),
-            TextButton(
-              style: TextButton.styleFrom(
-                backgroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFFD32F2F)
-                    : Colors.redAccent,
-                foregroundColor: Colors.white,
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.stormySkyBlue,
+                foregroundColor: isDark
+                    ? AppColors.stormyNightBackground
+                    : Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
                 ),
               ),
               onPressed: () async {
@@ -728,30 +732,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildLogoutButton(AuthProvider authProvider) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final primaryColor = isDark
+        ? AppColors.stormySkyBlue
+        : AppColors.stormyDarkSlate;
+    final borderColor = isDark
+        ? AppColors.stormySkyBlue.withValues(alpha: 0.3)
+        : AppColors.stormyMutedBlueGrey.withValues(alpha: 0.3);
+    final backgroundColor = isDark
+        ? AppColors.stormyNightBackground.withValues(alpha: 0.6)
+        : theme.cardColor;
+
     return SizedBox(
       width: double.infinity,
-      child: OutlinedButton(
+      child: OutlinedButton.icon(
         onPressed: () {
           _showLogoutConfirmationDialog(context, authProvider);
         },
+        icon: Icon(Icons.logout_rounded, size: 20, color: primaryColor),
+        label: Text(
+          'ออกจากระบบ',
+          style: TextStyle(
+            color: primaryColor,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFFE57373),
-          backgroundColor: Colors.transparent,
-          side: const BorderSide(color: Color(0xFFE57373), width: 1.5),
+          backgroundColor: backgroundColor,
+          side: BorderSide(color: borderColor, width: 1.2),
+          overlayColor: primaryColor.withValues(alpha: 0.15),
           padding: const EdgeInsets.symmetric(
             vertical: AppConstants.paddingMedium,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
           ),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.logout),
-            SizedBox(width: 8),
-            Text('ออกจากระบบ'),
-          ],
         ),
       ),
     );

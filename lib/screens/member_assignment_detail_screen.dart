@@ -1042,8 +1042,14 @@ class _MemberAssignmentDetailScreenState
               icon: const Icon(Icons.open_in_new),
               label: const Text('เปิดในบราวเซอร์'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.stormySkyBlue,
+                foregroundColor:
+                    Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],

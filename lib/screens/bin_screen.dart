@@ -250,7 +250,10 @@ class BinScreen extends StatelessWidget {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.stormySkyBlue,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppConstants.radiusMedium),

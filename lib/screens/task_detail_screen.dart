@@ -5062,11 +5062,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.stormySkyBlue,
-              foregroundColor: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.stormyNightBackground
-                  : Colors.white,
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(12.0),
               ),
             ),
             child: const Text('ตกลง'),

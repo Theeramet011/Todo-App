@@ -163,10 +163,13 @@ class FriendRequestService {
         .collection('notifications')
         .doc();
 
+    final now = DateTime.now();
+    final expireAt = now.add(const Duration(days: 30));
     await ref.set({
       ...data,
       'isRead': false,
       'createdAt': FieldValue.serverTimestamp(),
+      'expireAt': Timestamp.fromDate(expireAt),
     });
 
     // Run push notification asynchronously without blocking

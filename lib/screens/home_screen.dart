@@ -632,6 +632,7 @@ class _NotificationBellButton extends StatelessWidget {
               .doc(userId)
               .collection('notifications')
               .where('isRead', isEqualTo: false)
+              .limit(1)
               .snapshots();
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -844,9 +845,14 @@ class _NotificationPanelState extends State<NotificationPanel> {
 
       final batch = FirebaseFirestore.instance.batch();
       final deletedAt = FieldValue.serverTimestamp();
+      final expireAt = Timestamp.fromDate(
+        DateTime.now().add(const Duration(days: 7)),
+      );
       for (final id in _removingNotificationIds) {
         batch.set(ref.doc(id), {
+          'isRead': true,
           'deletedAt': deletedAt,
+          'expireAt': expireAt,
         }, SetOptions(merge: true));
       }
       // Fire and forget
@@ -992,9 +998,14 @@ class _NotificationPanelState extends State<NotificationPanel> {
 
     final batch = FirebaseFirestore.instance.batch();
     final deletedAt = FieldValue.serverTimestamp();
+    final expireAt = Timestamp.fromDate(
+      DateTime.now().add(const Duration(days: 7)),
+    );
     for (final item in items.take(500)) {
       batch.set(ref.doc(item.id), {
+        'isRead': true,
         'deletedAt': deletedAt,
+        'expireAt': expireAt,
       }, SetOptions(merge: true));
     }
 
@@ -1111,6 +1122,9 @@ class _NotificationPanelState extends State<NotificationPanel> {
         try {
           await ref.doc(item.id).set({
             'deletedAt': FieldValue.serverTimestamp(),
+            'expireAt': Timestamp.fromDate(
+              DateTime.now().add(const Duration(days: 7)),
+            ),
           }, SetOptions(merge: true));
         } catch (error) {
           debugPrint('Failed to remove notification ${item.id}: $error');
@@ -1144,6 +1158,9 @@ class _NotificationPanelState extends State<NotificationPanel> {
           'isRead': true,
           'readAt': FieldValue.serverTimestamp(),
           'deletedAt': FieldValue.serverTimestamp(),
+          'expireAt': Timestamp.fromDate(
+            DateTime.now().add(const Duration(days: 7)),
+          ),
         });
   }
 
@@ -1376,6 +1393,22 @@ class _NotificationPanelState extends State<NotificationPanel> {
                                 ),
                               ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Center(
+                          child: Text(
+                            'ข้อความแจ้งเตือนจะถูกลบถาวรโดยอัตโนมัติหลังจาก 30 วัน',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: theme.brightness == Brightness.dark
+                                  ? AppColors.stormyMutedBlueGrey
+                                  : AppColors.textSecondary.withValues(alpha: 0.75),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 10),

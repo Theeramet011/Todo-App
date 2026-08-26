@@ -301,12 +301,12 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: const ColorScheme.dark(
-        primary: AppColors.primaryPink,
-        secondary: AppColors.primaryPurple,
-        tertiary: AppColors.primaryBlue,
+        primary: AppColors.stormySkyBlue,
+        secondary: AppColors.stormyMutedBlueGrey,
+        tertiary: AppColors.stormyIceBlue,
         surface: AppColors.stormyDarkSlate,
         error: AppColors.error,
-        onPrimary: AppColors.textWhite,
+        onPrimary: AppColors.stormyNightBackground,
         onSecondary: AppColors.textWhite,
         onSurface: AppColors.textWhite,
       ),
@@ -317,8 +317,8 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: AppColors.stormyNightBackground,
       cardColor: AppColors.stormyDarkSlate,
-      splashColor: AppColors.stormySkyBlue.withValues(alpha: 0.1),
-      highlightColor: AppColors.stormySkyBlue.withValues(alpha: 0.05),
+      splashColor: AppColors.stormySkyBlue.withValues(alpha: 0.12),
+      highlightColor: AppColors.stormySkyBlue.withValues(alpha: 0.08),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.stormyDarkSlate, // #384959
@@ -375,15 +375,15 @@ class AppTheme {
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         enableFeedback: false,
-        backgroundColor: AppColors.primaryPink,
-        foregroundColor: AppColors.textWhite,
+        backgroundColor: AppColors.stormySkyBlue,
+        foregroundColor: AppColors.stormyNightBackground,
         elevation: 4,
         shape: CircleBorder(),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         enableFeedback: false,
         backgroundColor: Color(0xFF121212),
-        selectedItemColor: AppColors.primaryPink,
+        selectedItemColor: AppColors.stormySkyBlue,
         unselectedItemColor: AppColors.textLight,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
@@ -420,8 +420,8 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           enableFeedback: false,
-          backgroundColor: AppColors.primaryPink,
-          foregroundColor: AppColors.textWhite,
+          backgroundColor: AppColors.stormySkyBlue,
+          foregroundColor: AppColors.stormyNightBackground,
           elevation: 2,
           padding: const EdgeInsets.symmetric(
             horizontal: AppConstants.paddingLarge,
@@ -439,11 +439,18 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           enableFeedback: false,
-          foregroundColor: AppColors.primaryPink,
+          foregroundColor: AppColors.stormySkyBlue,
           textStyle: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          enableFeedback: false,
+          foregroundColor: AppColors.stormySkyBlue,
+          overlayColor: AppColors.stormySkyBlue.withValues(alpha: 0.15),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(

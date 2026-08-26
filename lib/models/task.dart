@@ -222,6 +222,7 @@ class Task {
   final DateTime? completedAt;
   final bool isDeleted;
   final DateTime? deletedAt;
+  final DateTime? expireAt;
   final List<String> deletedForUserIds;
   final List<String> hiddenForUserIds;
   final String notificationFormat;
@@ -274,6 +275,7 @@ class Task {
     this.completedAt,
     this.isDeleted = false,
     this.deletedAt,
+    this.expireAt,
     this.deletedForUserIds = const [],
     this.hiddenForUserIds = const [],
     this.notificationFormat = 'No Notification',
@@ -360,6 +362,7 @@ class Task {
       completedAt: _dateFromFirestore(data['completedAt']),
       isDeleted: data['isDeleted'] ?? false,
       deletedAt: _dateFromFirestore(data['deletedAt']),
+      expireAt: _dateFromFirestore(data['expireAt']),
       deletedForUserIds: List<String>.from(data['deletedForUserIds'] ?? []),
       hiddenForUserIds: List<String>.from(data['hiddenForUserIds'] ?? []),
       notificationFormat: data['notificationFormat'] ?? 'No Notification',
@@ -444,6 +447,7 @@ class Task {
         : Timestamp.fromDate(completedAt!),
     'isDeleted': isDeleted,
     'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
+    'expireAt': expireAt == null ? null : Timestamp.fromDate(expireAt!),
     'deletedForUserIds': deletedForUserIds,
     'hiddenForUserIds': hiddenForUserIds,
     'notificationFormat': notificationFormat,
@@ -510,6 +514,8 @@ class Task {
     bool? isDeleted,
     DateTime? deletedAt,
     bool clearDeletedAt = false,
+    DateTime? expireAt,
+    bool clearExpireAt = false,
     List<String>? deletedForUserIds,
     List<String>? hiddenForUserIds,
     String? notificationFormat,
@@ -571,6 +577,7 @@ class Task {
       completedAt: clearCompletedAt ? null : completedAt ?? this.completedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      expireAt: clearExpireAt ? null : expireAt ?? this.expireAt,
       deletedForUserIds: deletedForUserIds ?? this.deletedForUserIds,
       hiddenForUserIds: hiddenForUserIds ?? this.hiddenForUserIds,
       notificationFormat: notificationFormat ?? this.notificationFormat,

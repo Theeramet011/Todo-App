@@ -383,55 +383,68 @@ class GroupProjectCard extends StatelessWidget {
             const SizedBox(height: 12),
 
             // Members and Progress Info
-            Row(
-              children: [
-                _buildMemberAvatars(context, taskProvider),
-                const Spacer(),
-                if (project.members.isNotEmpty)
-                  Text(
-                    'สมาชิกเสร็จสิ้น ${project.members.where((m) => m.status == 'completed').length}/${project.members.length} คน',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  )
-                else
-                  Text(
-                    'ยังไม่มีสมาชิก',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                  ),
-              ],
-            ),
+            () {
+              final leaderId = taskProvider.leaderIdForTask(project);
+              final nonLeaderMembers = project.members
+                  .where((m) =>
+                      m.id.isNotEmpty &&
+                      m.id != leaderId &&
+                      m.id != project.creatorId)
+                  .toList();
+              final completedNonLeaderCount = nonLeaderMembers
+                  .where((m) => m.status == 'completed')
+                  .length;
+              final totalNonLeaderCount = nonLeaderMembers.length;
 
-            if (project.members.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              // Member Progress Bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LinearProgressIndicator(
-                  value: project.members.isNotEmpty
-                      ? (project.members
-                                .where((m) => m.status == 'completed')
-                                .length /
-                            project.members.length)
-                      : 0.0,
-                  backgroundColor: theme.colorScheme.onSurface.withValues(
-                    alpha: 0.08,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _buildMemberAvatars(context, taskProvider),
+                      const Spacer(),
+                      if (totalNonLeaderCount > 0)
+                        Text(
+                          'สมาชิกเสร็จสิ้น $completedNonLeaderCount/$totalNonLeaderCount คน',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        )
+                      else
+                        Text(
+                          'ยังไม่มีสมาชิก',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                          ),
+                        ),
+                    ],
                   ),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    project.members.every((m) => m.status == 'completed')
-                        ? AppColors.success
-                        : AppColors.stormySkyBlue,
-                  ),
-                  minHeight: 8,
-                ),
-              ),
-            ],
+                  if (totalNonLeaderCount > 0) ...[
+                    const SizedBox(height: 10),
+                    // Member Progress Bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: LinearProgressIndicator(
+                        value: completedNonLeaderCount / totalNonLeaderCount,
+                        backgroundColor: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.08,
+                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          nonLeaderMembers.every((m) => m.status == 'completed')
+                              ? AppColors.success
+                              : AppColors.stormySkyBlue,
+                        ),
+                        minHeight: 8,
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            }(),
           ],
         ),
       ),
