@@ -632,7 +632,7 @@ class _NotificationBellButton extends StatelessWidget {
               .doc(userId)
               .collection('notifications')
               .where('isRead', isEqualTo: false)
-              .limit(1)
+              .limit(20)
               .snapshots();
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -640,7 +640,10 @@ class _NotificationBellButton extends StatelessWidget {
       builder: (context, snapshot) {
         final hasUnread =
             snapshot.hasData &&
-            snapshot.data!.docs.any((doc) => doc.data()['deletedAt'] == null);
+            snapshot.data!.docs.any((doc) {
+              final data = doc.data();
+              return data['deletedAt'] == null && data['isRead'] == false;
+            });
 
         return IconButton(
           padding: padding,
@@ -812,11 +815,47 @@ class _NotificationPanelState extends State<NotificationPanel> {
   String? _cachedUserId;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _markAllUnreadAsRead();
+    });
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final userId = context.read<AuthProvider>().currentUser?.id;
     if (userId != null && userId.isNotEmpty) {
       _cachedUserId = userId;
+      _markAllUnreadAsRead();
+    }
+  }
+
+  Future<void> _markAllUnreadAsRead() async {
+    final userId = _cachedUserId ?? context.read<AuthProvider>().currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+
+    try {
+      final unreadSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      if (unreadSnap.docs.isNotEmpty) {
+        final batch = FirebaseFirestore.instance.batch();
+        for (final doc in unreadSnap.docs) {
+          batch.set(doc.reference, {
+            'isRead': true,
+            'readAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      debugPrint('Error marking all notifications read: $e');
     }
   }
 
@@ -1011,24 +1050,25 @@ class _NotificationPanelState extends State<NotificationPanel> {
 
     try {
       await batch.commit();
+      await _markAllUnreadAsRead();
     } catch (error) {
       debugPrint('Failed to clear notifications: $error');
     }
   }
 
   Future<void> _markVisibleNotificationsRead(
-    List<NotificationItem> notifications,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) async {
-    final unreadItems = notifications
-        .where((item) => item.isUnread && !item.isRemoving)
-        .take(50)
-        .toList();
+    final unreadDocs = docs.where((doc) {
+      final data = doc.data();
+      return data['isRead'] != true && !_removingNotificationIds.contains(doc.id);
+    }).take(50).toList();
     final ref = _notificationsRef();
-    if (ref == null || unreadItems.isEmpty) return;
+    if (ref == null || unreadDocs.isEmpty) return;
 
     final batch = FirebaseFirestore.instance.batch();
-    for (final item in unreadItems) {
-      batch.set(ref.doc(item.id), {
+    for (final doc in unreadDocs) {
+      batch.set(doc.reference, {
         'isRead': true,
         'readAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -1041,11 +1081,11 @@ class _NotificationPanelState extends State<NotificationPanel> {
     }
   }
 
-  void _scheduleMarkRead(List<NotificationItem> notifications) {
-    if (notifications.any((item) => item.isUnread && !item.isRemoving)) {
+  void _scheduleMarkRead(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    if (docs.any((doc) => doc.data()['isRead'] != true && !_removingNotificationIds.contains(doc.id))) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _markVisibleNotificationsRead(notifications);
+          _markVisibleNotificationsRead(docs);
         }
       });
     }
@@ -1121,6 +1161,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
       if (ref != null) {
         try {
           await ref.doc(item.id).set({
+            'isRead': true,
             'deletedAt': FieldValue.serverTimestamp(),
             'expireAt': Timestamp.fromDate(
               DateTime.now().add(const Duration(days: 7)),
@@ -1249,6 +1290,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
   }
 
   Future<void> _openNotificationTask(NotificationItem item) async {
+    _markNotificationRead(item);
     final taskId = item.taskId;
     if (taskId == null || taskId.isEmpty) return;
 
@@ -1336,7 +1378,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
               ? _itemsFromSnapshot(snapshot.data!)
               : <NotificationItem>[];
           if (snapshot.hasData) {
-            _scheduleMarkRead(notifications);
+            _scheduleMarkRead(snapshot.data!.docs);
           }
 
           return Column(

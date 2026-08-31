@@ -235,47 +235,51 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Section
-            _buildHeaderSection(currentTask),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Section
+              _buildHeaderSection(currentTask),
 
-            // Sub-tasks Progress Section
-            _buildSubtasksSection(currentTask, taskProvider),
+              // Sub-tasks Progress Section
+              _buildSubtasksSection(currentTask, taskProvider),
 
-            // Task Info Section
-            _buildTaskInfoSection(currentTask),
+              // Task Info Section
+              _buildTaskInfoSection(currentTask),
 
-            if (currentTask.isDeleted) _buildDeletedTaskCard(),
+              if (currentTask.isDeleted) _buildDeletedTaskCard(),
 
-            // Task Leader Card (Member View) — แสดงก่อนส่วนส่งงาน
-            if (currentTask.isGroup && !isLeader)
-              _buildTaskLeaderCard(
-                currentTask,
-                taskProvider,
-                taskProvider.leaderIdForTask(currentTask),
-              ),
+              // Task Leader Card (Member View) — แสดงก่อนส่วนส่งงาน
+              if (currentTask.isGroup && !isLeader)
+                _buildTaskLeaderCard(
+                  currentTask,
+                  taskProvider,
+                  taskProvider.leaderIdForTask(currentTask),
+                ),
 
-            if (currentTask.isGroup)
-              _buildSubmissionReviewSection(
-                currentTask,
-                taskProvider,
-                currentUserId,
-                isLeader,
-              ),
+              if (currentTask.isGroup)
+                _buildSubmissionReviewSection(
+                  currentTask,
+                  taskProvider,
+                  currentUserId,
+                  isLeader,
+                ),
 
-            // Assignees / Leader Review Section / Team Members
-            _buildLeaderReviewSection(currentTask, taskProvider, authProvider),
+              // Assignees / Leader Review Section / Team Members
+              _buildLeaderReviewSection(currentTask, taskProvider, authProvider),
 
-            // Attachments Section
-            if (!isLeader) _buildAttachmentsSection(currentTask, taskProvider),
+              // Attachments Section
+              if (!isLeader) _buildAttachmentsSection(currentTask, taskProvider),
 
-            // Comments Section
-            if (!currentTask.isPersonal)
-              _buildCommentsSection(currentTask, taskProvider),
-          ],
+              // Comments Section
+              if (!currentTask.isPersonal)
+                _buildCommentsSection(currentTask, taskProvider),
+            ],
+          ),
         ),
       ),
     );
@@ -3044,7 +3048,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       padding: EdgeInsets.only(
                         bottom: MediaQuery.of(context).viewInsets.bottom,
                       ),
-                      child: Container(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                        child: Container(
                         decoration: BoxDecoration(
                           color: theme.brightness == Brightness.dark
                               ? AppColors.stormyDarkSlate
@@ -3154,7 +3161,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ),
                         ),
                       ),
-                    );
+                    ),
+                  );
                   },
                 );
               },
@@ -3595,12 +3603,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ),
         const SizedBox(width: AppConstants.paddingSmall),
         Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onLongPress: comment.content.isNotEmpty
-                ? () => _copyCommentText(comment.content)
-                : null,
-            child: Container(
+          child: Container(
             padding: const EdgeInsets.all(AppConstants.paddingMedium),
             decoration: BoxDecoration(
               color: isDark
@@ -3818,9 +3821,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
   }
 
   void _addComment(
@@ -3914,7 +3916,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     final matches = urlRegex.allMatches(text);
     if (matches.isEmpty) {
-      return Text(text, style: baseStyle, textAlign: textAlign);
+      return SelectableText(
+        text,
+        style: baseStyle,
+        textAlign: textAlign,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      );
     }
 
     final List<InlineSpan> spans = [];
@@ -3961,9 +3968,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       spans.add(TextSpan(text: text.substring(lastIndex), style: baseStyle));
     }
 
-    return RichText(
+    return SelectableText.rich(
+      TextSpan(children: spans),
       textAlign: textAlign,
-      text: TextSpan(children: spans),
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
     );
   }
 
