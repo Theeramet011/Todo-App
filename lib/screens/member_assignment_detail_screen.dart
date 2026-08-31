@@ -2,8 +2,13 @@
 //
 // แสดงรายละเอียดการมอบหมายงาน รายชื่อสมาชิกที่รับผิดชอบ สถานะการทำงาน
 // และการจัดการสิทธิ์ของหัวหน้าทีม (Leader) หรือสมาชิกกลุ่ม
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../config/colors.dart';
@@ -892,93 +897,246 @@ class _MemberAssignmentDetailScreenState
     }
   }
 
+  Future<void> _saveImageToGallery(String imageUrl, String fileName) async {
+    void showToast(String message) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(message)),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
+
+    try {
+      final uri = Uri.tryParse(imageUrl);
+      if (uri == null) {
+        showToast('ลิงก์รูปภาพไม่ถูกต้อง');
+        return;
+      }
+
+      final response = await http.get(uri).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('ดาวน์โหลดรูปภาพนานเกินไป'),
+      );
+
+      if (response.statusCode != 200) {
+        showToast('เซิร์ฟเวอร์ตอบกลับรหัส (${response.statusCode})');
+        return;
+      }
+
+      final bytes = response.bodyBytes;
+      if (bytes.isEmpty) {
+        showToast('ไม่พบข้อมูลไฟล์รูปภาพ');
+        return;
+      }
+
+      String cleanName = fileName.isNotEmpty
+          ? fileName.replaceAll(RegExp(r'[^\w\.-]'), '_')
+          : 'image_${DateTime.now().millisecondsSinceEpoch}';
+      if (!cleanName.toLowerCase().endsWith('.jpg') &&
+          !cleanName.toLowerCase().endsWith('.jpeg') &&
+          !cleanName.toLowerCase().endsWith('.png') &&
+          !cleanName.toLowerCase().endsWith('.webp') &&
+          !cleanName.toLowerCase().endsWith('.gif')) {
+        cleanName = '$cleanName.jpg';
+      }
+
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (launched) {
+          showToast('เปิดดาวน์โหลดรูปภาพผ่านเบราว์เซอร์แล้ว');
+        } else {
+          showToast('ไม่สามารถเปิดเบราว์เซอร์เพื่อดาวน์โหลดได้');
+        }
+        return;
+      }
+
+      final hasAccess = await Gal.hasAccess();
+      if (!hasAccess) {
+        final granted = await Gal.requestAccess();
+        if (!granted) {
+          showToast('ไม่ได้รับอนุญาตให้เข้าถึงคลังรูปภาพ กรุณาเปิดสิทธิ์ในตั้งค่า');
+          return;
+        }
+      }
+
+      await Gal.putImageBytes(
+        bytes,
+        name: cleanName,
+      );
+      showToast('บันทึกรูปภาพลงคลังภาพเรียบร้อยแล้ว');
+    } on GalException catch (e) {
+      debugPrint('GalException: ${e.type.message}');
+      switch (e.type) {
+        case GalExceptionType.accessDenied:
+          showToast('ไม่ได้รับอนุญาตให้เข้าถึงคลังรูปภาพ');
+          break;
+        case GalExceptionType.notEnoughSpace:
+          showToast('พื้นที่จัดเก็บข้อมูลในเครื่องไม่เพียงพอ');
+          break;
+        case GalExceptionType.notSupportedFormat:
+          showToast('รูปแบบไฟล์ภาพไม่รองรับ');
+          break;
+        default:
+          showToast('ไม่สามารถบันทึกลงคลังภาพได้: ${e.type.message}');
+      }
+    } on SocketException catch (_) {
+      showToast('ไม่มีการเชื่อมต่ออินเทอร์เน็ต กรุณาตรวจสอบสัญญาณเน็ต');
+    } on TimeoutException catch (_) {
+      showToast('หมดเวลาดาวน์โหลด กรุณาลองใหม่อีกครั้ง');
+    } on MissingPluginException catch (_) {
+      final uri = Uri.tryParse(imageUrl);
+      if (uri != null) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        showToast('เปิดดาวน์โหลดรูปภาพผ่านเบราว์เซอร์แล้ว');
+      } else {
+        showToast('แพลตฟอร์มนี้ยังไม่รองรับการบันทึกลงคลังภาพ');
+      }
+    } catch (e) {
+      debugPrint('Error saving image: $e');
+      final errorMsg = e.toString().replaceAll('Exception:', '').trim();
+      showToast('เกิดข้อผิดพลาด: ${errorMsg.length > 50 ? "${errorMsg.substring(0, 47)}..." : errorMsg}');
+    }
+  }
+
   void _showImagePreviewDialog(
     BuildContext context,
     String imageUrl,
     String fileName,
   ) {
+    bool isSaving = false;
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 24,
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: InteractiveViewer(
-                  panEnabled: true,
-                  minScale: 0.5,
-                  maxScale: 4.0,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.7,
-                        maxWidth: MediaQuery.of(context).size.width * 0.9,
-                      ),
-                      color: Colors.black,
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            padding: const EdgeInsets.all(24),
-                            color: Colors.white,
-                            child: const Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.error_outline,
-                                  color: AppColors.accentRed,
-                                  size: 48,
-                                ),
-                                SizedBox(height: 12),
-                                Text(
-                                  'ไม่สามารถโหลดรูปภาพได้',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(dialogContext),
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.of(dialogContext).size.height * 0.7,
+                            maxWidth: MediaQuery.of(dialogContext).size.width * 0.9,
+                          ),
+                          color: Colors.black,
+                          child: Image.network(
+                            imageUrl,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        },
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                padding: const EdgeInsets.all(24),
+                                color: Colors.white,
+                                child: const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.error_outline,
+                                      color: AppColors.accentRed,
+                                      size: 48,
+                                    ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'ไม่สามารถโหลดรูปภาพได้',
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: CircleAvatar(
-                  backgroundColor: Colors.black.withValues(alpha: 0.6),
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.black.withValues(alpha: 0.6),
+                          child: isSaving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : IconButton(
+                                  tooltip: 'บันทึกรูปภาพ',
+                                  icon: const Icon(Icons.download_rounded, color: Colors.white),
+                                  onPressed: () async {
+                                    setDialogState(() {
+                                      isSaving = true;
+                                    });
+                                    await _saveImageToGallery(imageUrl, fileName);
+                                    if (dialogContext.mounted) {
+                                      setDialogState(() {
+                                        isSaving = false;
+                                      });
+                                    }
+                                  },
+                                ),
+                        ),
+                        const SizedBox(width: 8),
+                        CircleAvatar(
+                          backgroundColor: Colors.black.withValues(alpha: 0.6),
+                          child: IconButton(
+                            tooltip: 'ปิด',
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.pop(dialogContext),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

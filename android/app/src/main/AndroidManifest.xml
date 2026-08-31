@@ -6,6 +6,9 @@
     <!-- สิทธิ์อ่านพื้นที่จัดเก็บข้อมูลภายนอก (สำหรับระบบปฏิบัติการ Android รุ่น 12 ลงไป) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     
+    <!-- สิทธิ์เขียนพื้นที่จัดเก็บข้อมูลภายนอก (สำหรับระบบปฏิบัติการ Android รุ่น 9 ลงไป) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    
     <!-- สิทธิ์เข้าถึงและอ่านไฟล์รูปภาพในเครื่องสำหรับใช้แนบงาน (สำหรับ Android 13 ขึ้นไป) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     

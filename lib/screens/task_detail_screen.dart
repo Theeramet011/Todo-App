@@ -3,11 +3,14 @@
 // หน้าจัดการข้อมูลงานแบบเจาะลึก เช่น การแก้ไขชื่อ รายละเอียด กำหนดเวลา งานย่อย (Subtasks)
 // ไฟล์แนบ หมวดหมู่ ความสำคัญ และการมอบหมายงานให้เพื่อน
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../providers/connectivity_provider.dart';
 import 'package:todo_app/screens/member_assignment_detail_screen.dart';
@@ -3460,7 +3463,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     });
   }
 
-  void _showCopyToast(String message) {
+  void _showCopyToast(
+    String message, {
+    bool isError = false,
+    IconData? icon,
+    Color? iconColor,
+  }) {
     _toastEntry?.remove();
     _toastEntry = null;
 
@@ -3468,13 +3476,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (overlay == null) return;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveIcon = icon ??
+        (isError ? Icons.error_outline_rounded : Icons.check_circle_rounded);
+    final effectiveColor = iconColor ??
+        (isError ? const Color(0xFFF87171) : const Color(0xFF4ADE80));
 
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (context) => Positioned(
         bottom: 80 + MediaQuery.of(context).viewInsets.bottom,
-        left: 32,
-        right: 32,
+        left: 20,
+        right: 20,
         child: Material(
           color: Colors.transparent,
           child: Center(
@@ -3492,6 +3504,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 );
               },
               child: Container(
+                constraints: const BoxConstraints(maxWidth: 420),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 10,
@@ -3511,19 +3524,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.check_circle_rounded,
-                      color: Color(0xFF4ADE80),
+                    Icon(
+                      effectiveIcon,
+                      color: effectiveColor,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      message,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        message,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -4790,122 +4809,260 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     await taskProvider.deleteTaskAttachment(task.id, attachment);
   }
 
+  Future<void> _saveImageToGallery(String imageUrl, String fileName) async {
+    try {
+      final uri = Uri.tryParse(imageUrl);
+      if (uri == null) {
+        _showCopyToast('ลิงก์รูปภาพไม่ถูกต้อง', isError: true);
+        return;
+      }
+
+      final response = await http.get(uri).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('ดาวน์โหลดรูปภาพนานเกินไป'),
+      );
+
+      if (response.statusCode != 200) {
+        _showCopyToast(
+          'เซิร์ฟเวอร์ตอบกลับรหัส (${response.statusCode})',
+          isError: true,
+        );
+        return;
+      }
+
+      final bytes = response.bodyBytes;
+      if (bytes.isEmpty) {
+        _showCopyToast('ไม่พบข้อมูลไฟล์รูปภาพ', isError: true);
+        return;
+      }
+
+      String cleanName = fileName.isNotEmpty
+          ? fileName.replaceAll(RegExp(r'[^\w\.-]'), '_')
+          : 'image_${DateTime.now().millisecondsSinceEpoch}';
+      if (!cleanName.toLowerCase().endsWith('.jpg') &&
+          !cleanName.toLowerCase().endsWith('.jpeg') &&
+          !cleanName.toLowerCase().endsWith('.png') &&
+          !cleanName.toLowerCase().endsWith('.webp') &&
+          !cleanName.toLowerCase().endsWith('.gif')) {
+        cleanName = '$cleanName.jpg';
+      }
+
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (launched) {
+          _showCopyToast('เปิดดาวน์โหลดรูปภาพผ่านเบราว์เซอร์แล้ว');
+        } else {
+          _showCopyToast('ไม่สามารถเปิดเบราว์เซอร์เพื่อดาวน์โหลดได้', isError: true);
+        }
+        return;
+      }
+
+      final hasAccess = await Gal.hasAccess();
+      if (!hasAccess) {
+        final granted = await Gal.requestAccess();
+        if (!granted) {
+          _showCopyToast('ไม่ได้รับอนุญาตให้เข้าถึงคลังรูปภาพ กรุณาเปิดสิทธิ์ในตั้งค่า', isError: true);
+          return;
+        }
+      }
+
+      await Gal.putImageBytes(
+        bytes,
+        name: cleanName,
+      );
+      _showCopyToast('บันทึกรูปภาพลงคลังภาพเรียบร้อยแล้ว');
+    } on GalException catch (e) {
+      debugPrint('GalException: ${e.type.message}');
+      switch (e.type) {
+        case GalExceptionType.accessDenied:
+          _showCopyToast('ไม่ได้รับอนุญาตให้เข้าถึงคลังรูปภาพ', isError: true);
+          break;
+        case GalExceptionType.notEnoughSpace:
+          _showCopyToast('พื้นที่จัดเก็บข้อมูลในเครื่องไม่เพียงพอ', isError: true);
+          break;
+        case GalExceptionType.notSupportedFormat:
+          _showCopyToast('รูปแบบไฟล์ภาพไม่รองรับ', isError: true);
+          break;
+        default:
+          _showCopyToast('ไม่สามารถบันทึกลงคลังภาพได้: ${e.type.message}', isError: true);
+      }
+    } on SocketException catch (_) {
+      _showCopyToast('ไม่มีการเชื่อมต่ออินเทอร์เน็ต กรุณาตรวจสอบสัญญาณเน็ต', isError: true);
+    } on TimeoutException catch (_) {
+      _showCopyToast('หมดเวลาดาวน์โหลด กรุณาลองใหม่อีกครั้ง', isError: true);
+    } on MissingPluginException catch (_) {
+      final uri = Uri.tryParse(imageUrl);
+      if (uri != null) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        _showCopyToast('เปิดดาวน์โหลดรูปภาพผ่านเบราว์เซอร์แล้ว');
+      } else {
+        _showCopyToast('แพลตฟอร์มนี้ยังไม่รองรับการบันทึกลงคลังภาพ', isError: true);
+      }
+    } catch (e) {
+      debugPrint('Error saving image: $e');
+      final errorMsg = e.toString().replaceAll('Exception:', '').trim();
+      _showCopyToast(
+        'เกิดข้อผิดพลาด: ${errorMsg.length > 50 ? "${errorMsg.substring(0, 47)}..." : errorMsg}',
+        isError: true,
+      );
+    }
+  }
+
   void _showImagePreviewDialog(
     BuildContext context,
     String imageUrl,
     String fileName,
   ) {
+    bool isSaving = false;
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) {
-        final media = MediaQuery.of(context);
-        return Dialog.fullscreen(
-          backgroundColor: Colors.black,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: InteractiveViewer(
-                  panEnabled: true,
-                  minScale: 0.8,
-                  maxScale: 5.0,
-                  child: Center(
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.contain,
-                      width: media.size.width,
-                      height: media.size.height,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          margin: const EdgeInsets.all(24),
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: AppColors.accentRed,
-                                size: 48,
-                              ),
-                              SizedBox(height: 12),
-                              Text(
-                                'ไม่สามารถโหลดรูปภาพได้',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
+      builder: (dialogContext) {
+        final media = MediaQuery.of(dialogContext);
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return Dialog.fullscreen(
+              backgroundColor: Colors.black,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 0.8,
+                      maxScale: 5.0,
+                      child: Center(
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          width: media.size.width,
+                          height: media.size.height,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
                                 ),
                               ),
-                            ],
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              margin: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: AppColors.accentRed,
+                                    size: 48,
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'ไม่สามารถโหลดรูปภาพได้',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: media.padding.top + 12,
+                    left: 16,
+                    right: 16,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            fileName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(width: 8),
+                        CircleAvatar(
+                          backgroundColor: Colors.white.withValues(alpha: 0.16),
+                          child: isSaving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : IconButton(
+                                  tooltip: 'บันทึกรูปภาพลงเครื่อง',
+                                  icon: const Icon(
+                                    Icons.download_rounded,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () async {
+                                    setDialogState(() {
+                                      isSaving = true;
+                                    });
+                                    await _saveImageToGallery(imageUrl, fileName);
+                                    if (dialogContext.mounted) {
+                                      setDialogState(() {
+                                        isSaving = false;
+                                      });
+                                    }
+                                  },
+                                ),
+                        ),
+                        const SizedBox(width: 8),
+                        CircleAvatar(
+                          backgroundColor: Colors.white.withValues(alpha: 0.16),
+                          child: IconButton(
+                            tooltip: 'ปิด',
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                            ),
+                            onPressed: () => Navigator.pop(dialogContext),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                top: media.padding.top + 12,
-                left: 16,
-                right: 16,
-                child: Row(
-                  children: [
-                    Expanded(
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: media.padding.bottom + 16,
+                    child: IgnorePointer(
                       child: Text(
-                        fileName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                        'บีบเพื่อซูม • ลากเพื่อเลื่อนภาพ',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          fontSize: 12,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    CircleAvatar(
-                      backgroundColor: Colors.white.withValues(alpha: 0.16),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: Colors.white,
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: media.padding.bottom + 16,
-                child: IgnorePointer(
-                  child: Text(
-                    'บีบเพื่อซูม • ลากเพื่อเลื่อนภาพ',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      fontSize: 12,
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
