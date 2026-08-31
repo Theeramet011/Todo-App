@@ -640,7 +640,8 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
 
   void _showEditLocationDialog() {
     _unfocusAll();
-    final controller = TextEditingController(text: _selectedLocation);
+    final controller = TextEditingController(text: _selectedLocation)
+      ..selection = TextSelection.collapsed(offset: _selectedLocation.length);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -1217,7 +1218,16 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                   child: TextField(
                                     controller: _inlineSubtaskController,
                                     focusNode: _inlineSubtaskFocusNode,
-                                    autofocus: true,
+                                    autofocus: false,
+                                    onTap: () {
+                                      if (_inlineSubtaskController.selection.baseOffset !=
+                                          _inlineSubtaskController.selection.extentOffset) {
+                                        _inlineSubtaskController.selection =
+                                            TextSelection.collapsed(
+                                          offset: _inlineSubtaskController.text.length,
+                                        );
+                                      }
+                                    },
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: theme.colorScheme.onSurface,
@@ -1347,6 +1357,10 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                       .addPostFrameCallback((_) {
                                     if (mounted) {
                                       _inlineSubtaskFocusNode.requestFocus();
+                                      _inlineSubtaskController.selection =
+                                          TextSelection.collapsed(
+                                        offset: targetTitle.length,
+                                      );
                                     }
                                   });
                                 },

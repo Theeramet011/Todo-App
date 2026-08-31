@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/connectivity_provider.dart';
 import 'package:todo_app/screens/member_assignment_detail_screen.dart';
@@ -38,16 +39,27 @@ class TaskDetailScreen extends StatefulWidget {
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   final _commentController = TextEditingController();
+  final _mainCommentFocusNode = FocusNode();
+  final _sheetCommentFocusNode = FocusNode();
+  final _mainCommentsScrollController = ScrollController();
   final _submissionController = TextEditingController();
   Task? _task;
   bool _isUploading = false;
   final List<TaskAttachment> _commentAttachments = [];
   bool _isUploadingCommentAttachment = false;
+  int _lastMainCommentsCount = 0;
+  bool _didInitialMainScroll = false;
+  OverlayEntry? _toastEntry;
 
   @override
   void initState() {
     super.initState();
     _task = widget.task;
+    _mainCommentFocusNode.addListener(() {
+      if (_mainCommentFocusNode.hasFocus) {
+        _scrollMainCommentsToLatest(animated: true);
+      }
+    });
   }
 
   @override
@@ -60,6 +72,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   @override
   void dispose() {
+    _toastEntry?.remove();
+    _toastEntry = null;
+    _mainCommentsScrollController.dispose();
+    _mainCommentFocusNode.dispose();
+    _sheetCommentFocusNode.dispose();
     _commentController.dispose();
     _submissionController.dispose();
     super.dispose();
@@ -2843,13 +2860,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
+  void _scrollMainCommentsToLatest({bool animated = true}) {
+    void doScroll() {
+      if (!_mainCommentsScrollController.hasClients) return;
+      final maxScroll = _mainCommentsScrollController.position.maxScrollExtent;
+      if (maxScroll <= 0) return;
+      if (animated) {
+        _mainCommentsScrollController.animateTo(
+          maxScroll,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+      } else {
+        _mainCommentsScrollController.jumpTo(maxScroll);
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 100), doScroll);
+      Future.delayed(const Duration(milliseconds: 250), doScroll);
+    });
+  }
+
   Widget _buildCommentsSection(Task task, TaskProvider taskProvider) {
     final theme = Theme.of(context);
     final canAddComments =
         !task.isDeleted && !(task.isGroup && task.isCompleted);
-    final previewComments = task.comments.length <= 2
-        ? task.comments
-        : task.comments.sublist(task.comments.length - 2);
+
+    if (!_didInitialMainScroll || _lastMainCommentsCount != task.comments.length) {
+      _didInitialMainScroll = true;
+      _lastMainCommentsCount = task.comments.length;
+      _scrollMainCommentsToLatest(animated: true);
+    }
+
     return Container(
       margin: const EdgeInsets.all(AppConstants.paddingMedium),
       padding: const EdgeInsets.all(AppConstants.paddingLarge),
@@ -2921,24 +2964,35 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             )
           else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: previewComments.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: AppConstants.paddingMedium),
-              itemBuilder: (context, index) {
-                return _buildCommentItem(
-                  previewComments[index],
-                  task,
-                  taskProvider,
-                );
-              },
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 280),
+              child: ListView.separated(
+                controller: _mainCommentsScrollController,
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: task.comments.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: AppConstants.paddingMedium),
+                itemBuilder: (context, index) {
+                  return _buildCommentItem(
+                    task.comments[index],
+                    task,
+                    taskProvider,
+                  );
+                },
+              ),
             ),
 
           if (canAddComments) const SizedBox(height: AppConstants.paddingLarge),
 
-          if (canAddComments) _buildCommentComposer(task, taskProvider),
+          if (canAddComments)
+            _buildCommentComposer(
+              task,
+              taskProvider,
+              focusNode: _mainCommentFocusNode,
+              onCommentSent: () =>
+                  _scrollMainCommentsToLatest(animated: true),
+            ),
         ],
       ),
     );
@@ -2951,6 +3005,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
+        bool didInitialScroll = false;
+        double lastBottomInset = 0;
         return StatefulBuilder(
           builder: (context, refreshSheet) {
             void refreshCommentComposer() => refreshSheet(() {});
@@ -2961,6 +3017,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               maxChildSize: 0.94,
               expand: false,
               builder: (context, scrollController) {
+                final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+                if (bottomInset > 0 && (bottomInset - lastBottomInset).abs() > 10) {
+                  lastBottomInset = bottomInset;
+                  _scrollFullCommentsToLatest(scrollController, animated: true);
+                } else if (bottomInset == 0) {
+                  lastBottomInset = 0;
+                }
+
+                if (!didInitialScroll) {
+                  didInitialScroll = true;
+                  _scrollFullCommentsToLatest(scrollController, animated: false);
+                }
                 return Consumer<TaskProvider>(
                   builder: (context, taskProvider, _) {
                     final currentTask =
@@ -3071,6 +3139,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                   child: _buildCommentComposer(
                                     currentTask,
                                     taskProvider,
+                                    focusNode: _sheetCommentFocusNode,
                                     onCommentSent: () =>
                                         _scrollFullCommentsToLatest(
                                           scrollController,
@@ -3096,10 +3165,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget _buildCommentComposer(
     Task task,
     TaskProvider taskProvider, {
+    FocusNode? focusNode,
     VoidCallback? onCommentSent,
     VoidCallback? onComposerChanged,
   }) {
     final theme = Theme.of(context);
+    final targetFocusNode = focusNode ?? _mainCommentFocusNode;
     return Column(
       children: [
         if (_commentAttachments.isNotEmpty) ...[
@@ -3235,6 +3306,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             Expanded(
               child: TextField(
                 controller: _commentController,
+                focusNode: targetFocusNode,
+                onTap: () {
+                  if (!targetFocusNode.hasFocus) {
+                    targetFocusNode.requestFocus();
+                  }
+                },
                 style: TextStyle(color: theme.colorScheme.onSurface),
                 decoration: InputDecoration(
                   hintText: 'เขียนความคิดเห็น...',
@@ -3246,7 +3323,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           width: 24,
                           height: 24,
                           child: Padding(
-                            padding: EdgeInsets.all(12.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: AppColors.stormySkyBlue,
@@ -3254,7 +3331,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ),
                         )
                       : IconButton(
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.attach_file_rounded,
                             color: AppColors.stormySkyBlue,
                           ),
@@ -3357,15 +3434,122 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         a.fileType == b.fileType;
   }
 
-  void _scrollFullCommentsToLatest(ScrollController scrollController) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  void _scrollFullCommentsToLatest(
+    ScrollController scrollController, {
+    bool animated = true,
+  }) {
+    void doScroll() {
       if (!scrollController.hasClients) return;
-      scrollController.animateTo(
-        scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutCubic,
-      );
+      final maxScroll = scrollController.position.maxScrollExtent;
+      if (maxScroll <= 0) return;
+      if (animated) {
+        scrollController.animateTo(
+          maxScroll,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        );
+      } else {
+        scrollController.jumpTo(maxScroll);
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      doScroll();
+      Future.delayed(const Duration(milliseconds: 150), doScroll);
+      Future.delayed(const Duration(milliseconds: 300), doScroll);
     });
+  }
+
+  void _showCopyToast(String message) {
+    _toastEntry?.remove();
+    _toastEntry = null;
+
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: 80 + MediaQuery.of(context).viewInsets.bottom,
+        left: 32,
+        right: 32,
+        child: Material(
+          color: Colors.transparent,
+          child: Center(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              builder: (context, val, child) {
+                return Opacity(
+                  opacity: val,
+                  child: Transform.scale(
+                    scale: 0.85 + (0.15 * val),
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Color(0xFF4ADE80),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    _toastEntry = entry;
+    overlay.insert(entry);
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (_toastEntry == entry) {
+        entry.remove();
+        _toastEntry = null;
+      }
+    });
+  }
+
+  void _copyCommentText(String text) {
+    if (text.trim().isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text.trim()));
+    _showCopyToast('คัดลอกข้อความแล้ว');
   }
 
   Widget _buildCommentItem(
@@ -3392,7 +3576,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ),
         const SizedBox(width: AppConstants.paddingSmall),
         Expanded(
-          child: Container(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onLongPress: comment.content.isNotEmpty
+                ? () => _copyCommentText(comment.content)
+                : null,
+            child: Container(
             padding: const EdgeInsets.all(AppConstants.paddingMedium),
             decoration: BoxDecoration(
               color: isDark
@@ -3456,16 +3645,44 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      _formatCommentTime(comment.createdAt),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark
-                            ? Colors.white54
-                            : (Theme.of(context).brightness == Brightness.light
-                                  ? AppColors.stormyMutedBlueGrey
-                                  : AppColors.textLight),
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          _formatCommentTime(comment.createdAt),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? Colors.white54
+                                : (Theme.of(context).brightness == Brightness.light
+                                      ? AppColors.stormyMutedBlueGrey
+                                      : AppColors.textLight),
+                          ),
+                        ),
+                        if (comment.content.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _copyCommentText(comment.content),
+                            child: Tooltip(
+                              message: 'คัดลอกข้อความ',
+                              child: Padding(
+                                padding: const EdgeInsets.all(2.0),
+                                child: Icon(
+                                  Icons.copy_rounded,
+                                  size: 13,
+                                  color: isDark
+                                      ? Colors.white38
+                                      : (Theme.of(context).brightness == Brightness.light
+                                            ? AppColors.stormyMutedBlueGrey.withValues(alpha: 0.8)
+                                            : AppColors.textLight),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -3582,8 +3799,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
           ),
         ),
-      ],
-    );
+      ),
+    ],
+  );
   }
 
   void _addComment(

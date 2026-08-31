@@ -1581,7 +1581,16 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                   child: TextField(
                                     controller: _inlineSubTaskController,
                                     focusNode: _inlineSubTaskFocusNode,
-                                    autofocus: true,
+                                    autofocus: false,
+                                    onTap: () {
+                                      if (_inlineSubTaskController.selection.baseOffset !=
+                                          _inlineSubTaskController.selection.extentOffset) {
+                                        _inlineSubTaskController.selection =
+                                            TextSelection.collapsed(
+                                          offset: _inlineSubTaskController.text.length,
+                                        );
+                                      }
+                                    },
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: theme.colorScheme.onSurface,
@@ -1705,16 +1714,16 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                    setState(() {
                                      _editingSubTaskIndex = index;
                                      _inlineSubTaskController.text = targetTitle;
-                                     _inlineSubTaskController.selection =
-                                         TextSelection.collapsed(
-                                       offset: targetTitle.length,
-                                     );
                                    });
                                    WidgetsBinding.instance
                                        .addPostFrameCallback((_) {
-                                     if (mounted) {
-                                       _inlineSubTaskFocusNode.requestFocus();
-                                     }
+                                      if (mounted) {
+                                        _inlineSubTaskFocusNode.requestFocus();
+                                        _inlineSubTaskController.selection =
+                                            TextSelection.collapsed(
+                                          offset: targetTitle.length,
+                                        );
+                                      }
                                    });
                                  },
                                 constraints: const BoxConstraints(),
