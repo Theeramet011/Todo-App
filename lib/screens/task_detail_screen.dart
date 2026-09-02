@@ -3005,9 +3005,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  void _showFullCommentsSheet(Task task) {
+  Future<void> _showFullCommentsSheet(Task task) async {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+
+    // Unfocus everything before opening the sheet to prevent focus restoration jumps
+    _mainCommentFocusNode.unfocus();
+    _sheetCommentFocusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -3018,159 +3024,206 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           builder: (context, refreshSheet) {
             void refreshCommentComposer() => refreshSheet(() {});
 
-            return DraggableScrollableSheet(
-              initialChildSize: 0.86,
-              minChildSize: 0.5,
-              maxChildSize: 0.94,
-              expand: false,
-              builder: (context, scrollController) {
-                final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-                if (bottomInset > 0 && (bottomInset - lastBottomInset).abs() > 10) {
-                  lastBottomInset = bottomInset;
-                  _scrollFullCommentsToLatest(scrollController, animated: true);
-                } else if (bottomInset == 0) {
-                  lastBottomInset = 0;
+            return NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is UserScrollNotification ||
+                    (notification is ScrollStartNotification &&
+                        notification.dragDetails != null)) {
+                  if (_sheetCommentFocusNode.hasFocus) {
+                    _sheetCommentFocusNode.unfocus();
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  }
                 }
+                return false;
+              },
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.86,
+                minChildSize: 0.5,
+                maxChildSize: 0.94,
+                expand: false,
+                builder: (context, scrollController) {
+                  final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+                  if (bottomInset > 0 &&
+                      (bottomInset - lastBottomInset).abs() > 10) {
+                    lastBottomInset = bottomInset;
+                    _scrollFullCommentsToLatest(
+                      scrollController,
+                      animated: true,
+                    );
+                  } else if (bottomInset == 0) {
+                    lastBottomInset = 0;
+                  }
 
-                if (!didInitialScroll) {
-                  didInitialScroll = true;
-                  _scrollFullCommentsToLatest(scrollController, animated: false);
-                }
-                return Consumer<TaskProvider>(
-                  builder: (context, taskProvider, _) {
-                    final currentTask =
-                        _latestTaskFromProvider(taskProvider, task.id) ?? task;
-                    final canAddComments =
-                        !currentTask.isDeleted &&
-                        !(currentTask.isGroup && currentTask.isCompleted);
+                  if (!didInitialScroll) {
+                    didInitialScroll = true;
+                    _scrollFullCommentsToLatest(
+                      scrollController,
+                      animated: false,
+                    );
+                  }
+                  return Consumer<TaskProvider>(
+                    builder: (context, taskProvider, _) {
+                      final currentTask =
+                          _latestTaskFromProvider(taskProvider, task.id) ??
+                          task;
+                      final canAddComments =
+                          !currentTask.isDeleted &&
+                          !(currentTask.isGroup && currentTask.isCompleted);
 
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).viewInsets.bottom,
-                      ),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-                        child: Container(
-                        decoration: BoxDecoration(
-                          color: theme.brightness == Brightness.dark
-                              ? AppColors.stormyDarkSlate
-                              : theme.cardColor,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(AppConstants.radiusXLarge),
-                            topRight: Radius.circular(
-                              AppConstants.radiusXLarge,
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: MediaQuery.of(context).viewInsets.bottom,
+                        ),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onTap: () {
+                            _sheetCommentFocusNode.unfocus();
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: theme.brightness == Brightness.dark
+                                  ? AppColors.stormyDarkSlate
+                                  : theme.cardColor,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(
+                                  AppConstants.radiusXLarge,
+                                ),
+                                topRight: Radius.circular(
+                                  AppConstants.radiusXLarge,
+                                ),
+                              ),
+                            ),
+                            child: SafeArea(
+                              top: false,
+                              child: Column(
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(
+                                      top: 12,
+                                      bottom: 8,
+                                    ),
+                                    width: 40,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppConstants.paddingLarge,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'ความคิดเห็น',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color:
+                                                  theme.colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          tooltip: 'ปิด',
+                                          onPressed: () {
+                                            _sheetCommentFocusNode.unfocus();
+                                            _mainCommentFocusNode.unfocus();
+                                            FocusManager.instance.primaryFocus
+                                                ?.unfocus();
+                                            Navigator.pop(sheetContext);
+                                          },
+                                          icon: const Icon(Icons.close_rounded),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    height: AppConstants.paddingSmall,
+                                  ),
+                                  Expanded(
+                                    child: currentTask.comments.isEmpty
+                                        ? Center(
+                                            child: Text(
+                                              'ยังไม่มีความคิดเห็น',
+                                              style: TextStyle(
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                          )
+                                        : ListView.separated(
+                                            controller: scrollController,
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal:
+                                                      AppConstants.paddingLarge,
+                                                  vertical:
+                                                      AppConstants.paddingSmall,
+                                                ),
+                                            itemCount:
+                                                currentTask.comments.length,
+                                            separatorBuilder:
+                                                (context, index) =>
+                                                    const SizedBox(
+                                                      height:
+                                                          AppConstants
+                                                              .paddingMedium,
+                                                    ),
+                                            itemBuilder: (context, index) =>
+                                                _buildCommentItem(
+                                                  currentTask.comments[index],
+                                                  currentTask,
+                                                  taskProvider,
+                                                ),
+                                          ),
+                                  ),
+                                  if (canAddComments)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        AppConstants.paddingLarge,
+                                        AppConstants.paddingSmall,
+                                        AppConstants.paddingLarge,
+                                        AppConstants.paddingMedium,
+                                      ),
+                                      child: _buildCommentComposer(
+                                        currentTask,
+                                        taskProvider,
+                                        focusNode: _sheetCommentFocusNode,
+                                        onCommentSent: () =>
+                                            _scrollFullCommentsToLatest(
+                                              scrollController,
+                                            ),
+                                        onComposerChanged:
+                                            refreshCommentComposer,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                        child: SafeArea(
-                          top: false,
-                          child: Column(
-                            children: [
-                              Container(
-                                margin: const EdgeInsets.only(
-                                  top: 12,
-                                  bottom: 8,
-                                ),
-                                width: 40,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.18,
-                                  ),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppConstants.paddingLarge,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'ความคิดเห็น',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.colorScheme.onSurface,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      tooltip: 'ปิด',
-                                      onPressed: () =>
-                                          Navigator.pop(sheetContext),
-                                      icon: const Icon(Icons.close_rounded),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: AppConstants.paddingSmall),
-                              Expanded(
-                                child: currentTask.comments.isEmpty
-                                    ? Center(
-                                        child: Text(
-                                          'ยังไม่มีความคิดเห็น',
-                                          style: TextStyle(
-                                            color: theme.colorScheme.onSurface
-                                                .withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                      )
-                                    : ListView.separated(
-                                        controller: scrollController,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: AppConstants.paddingLarge,
-                                          vertical: AppConstants.paddingSmall,
-                                        ),
-                                        itemCount: currentTask.comments.length,
-                                        separatorBuilder: (context, index) =>
-                                            const SizedBox(
-                                              height:
-                                                  AppConstants.paddingMedium,
-                                            ),
-                                        itemBuilder: (context, index) =>
-                                            _buildCommentItem(
-                                              currentTask.comments[index],
-                                              currentTask,
-                                              taskProvider,
-                                            ),
-                                      ),
-                              ),
-                              if (canAddComments)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    AppConstants.paddingLarge,
-                                    AppConstants.paddingSmall,
-                                    AppConstants.paddingLarge,
-                                    AppConstants.paddingMedium,
-                                  ),
-                                  child: _buildCommentComposer(
-                                    currentTask,
-                                    taskProvider,
-                                    focusNode: _sheetCommentFocusNode,
-                                    onCommentSent: () =>
-                                        _scrollFullCommentsToLatest(
-                                          scrollController,
-                                        ),
-                                    onComposerChanged: refreshCommentComposer,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                      );
+                    },
                   );
-                  },
-                );
-              },
+                },
+              ),
             );
           },
         );
       },
     );
+
+    // Unfocus again after bottom sheet dismissed to ensure main screen field does not auto-gain focus
+    _sheetCommentFocusNode.unfocus();
+    _mainCommentFocusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   Widget _buildCommentComposer(
@@ -3322,6 +3375,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   if (!targetFocusNode.hasFocus) {
                     targetFocusNode.requestFocus();
                   }
+                },
+                onTapOutside: (_) {
+                  targetFocusNode.unfocus();
+                  FocusManager.instance.primaryFocus?.unfocus();
                 },
                 style: TextStyle(color: theme.colorScheme.onSurface),
                 decoration: InputDecoration(
