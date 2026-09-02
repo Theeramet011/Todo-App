@@ -212,7 +212,9 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
         mode: 'byDueDate',
         frequencyNum: _frequencyNum,
         frequencyUnit: _frequencyUnit,
-        selectedDays: List<String>.from(_selectedDays),
+        selectedDays: _frequencyUnit == 'สัปดาห์'
+            ? List<String>.from(_selectedDays)
+            : const [],
         fixedDates: const [], // Ignore calendar date selections
       );
       Navigator.pop(context, config);
@@ -652,78 +654,160 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Section 3: Weekdays Multi-select Card
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: cardBgColor,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: boxBorderColor),
-                          boxShadow: isDark
-                              ? null
-                              : [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.04),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'สัปดาห์',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
+                      // Section 3: Weekdays Multi-select Card (Always visible with high-contrast info badge)
+                      Builder(
+                        builder: (context) {
+                          final isWeekUnit = _frequencyUnit == 'สัปดาห์';
+                          final badgeBgColor = isDark
+                              ? AppColors.stormySkyBlue.withValues(alpha: 0.16)
+                              : const Color(0xFFE1F5FE);
+                          final badgeTextColor = isDark
+                              ? const Color(0xFF64B5F6)
+                              : const Color(0xFF0277BD);
+                          final badgeBorderColor = isDark
+                              ? AppColors.stormySkyBlue.withValues(alpha: 0.3)
+                              : const Color(0xFF81D4FA);
+
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: cardBgColor,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: boxBorderColor),
+                              boxShadow: isDark
+                                  ? null
+                                  : [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.04,
+                                        ),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                             ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: _allWeekdays.sublist(0, 4).map((day) {
-                                return Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    child: _buildDayPill(
-                                      day: day,
-                                      isSelected: _selectedDays.contains(day),
-                                      activeBlue: activeBlue,
-                                      unselectedBg: unselectedPillBg,
-                                      textColor: textColor,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ..._allWeekdays.sublist(4, 7).map((day) {
-                                  return Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                      ),
-                                      child: _buildDayPill(
-                                        day: day,
-                                        isSelected: _selectedDays.contains(day),
-                                        activeBlue: activeBlue,
-                                        unselectedBg: unselectedPillBg,
-                                        textColor: textColor,
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'สัปดาห์',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: textColor,
                                       ),
                                     ),
-                                  );
-                                }),
-                                const Expanded(child: SizedBox.shrink()),
+                                    if (!isWeekUnit)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: badgeBgColor,
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: badgeBorderColor,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.info_outline_rounded,
+                                              size: 14,
+                                              color: badgeTextColor,
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              'เฉพาะความถี่สัปดาห์',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: badgeTextColor,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                IgnorePointer(
+                                  ignoring: !isWeekUnit,
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 200),
+                                    opacity: isWeekUnit ? 1.0 : 0.35,
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          children: _allWeekdays
+                                              .sublist(0, 4)
+                                              .map((day) {
+                                                return Expanded(
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 4,
+                                                        ),
+                                                    child: _buildDayPill(
+                                                      day: day,
+                                                      isSelected: _selectedDays
+                                                          .contains(day),
+                                                      activeBlue: activeBlue,
+                                                      unselectedBg:
+                                                          unselectedPillBg,
+                                                      textColor: textColor,
+                                                    ),
+                                                  ),
+                                                );
+                                              })
+                                              .toList(),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            ..._allWeekdays.sublist(4, 7).map((
+                                              day,
+                                            ) {
+                                              return Expanded(
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 4,
+                                                      ),
+                                                  child: _buildDayPill(
+                                                    day: day,
+                                                    isSelected: _selectedDays
+                                                        .contains(day),
+                                                    activeBlue: activeBlue,
+                                                    unselectedBg:
+                                                        unselectedPillBg,
+                                                    textColor: textColor,
+                                                  ),
+                                                ),
+                                              );
+                                            }),
+                                            const Expanded(
+                                              child: SizedBox.shrink(),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ] else ...[
                       // Section for "byFixedDate": Multi-select Calendar & Date/Time pickers

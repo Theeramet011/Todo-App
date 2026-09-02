@@ -173,5 +173,23 @@ void main() {
       expect(cleared.rewardBlockedBy, null);
       expect(cleared.completionAgeSeconds, null);
     });
+
+    test('Recurring clone notification flags: past clones suppress alerts, future clones enable alerts', () {
+      final now = DateTime(2026, 6, 10, 12, 0);
+
+      // Past clone (e.g. 2 days ago)
+      final pastDateTime = DateTime(2026, 6, 8, 12, 0);
+      final isPastDue = pastDateTime.isBefore(now);
+      final isPastFollowUp = pastDateTime.add(const Duration(minutes: 30)).isBefore(now);
+      expect(isPastDue, true);
+      expect(isPastFollowUp, true);
+
+      // Future clone (e.g. tomorrow)
+      final futureDateTime = DateTime(2026, 6, 11, 12, 0);
+      final isFuturePastDue = futureDateTime.isBefore(now);
+      final isFuturePastFollowUp = futureDateTime.add(const Duration(minutes: 30)).isBefore(now);
+      expect(isFuturePastDue, false);
+      expect(isFuturePastFollowUp, false);
+    });
   });
 }

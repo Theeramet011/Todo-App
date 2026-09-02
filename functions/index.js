@@ -469,6 +469,21 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
 
       const dueDateMs = targetDate.toMillis();
       const timeRemaining = dueDateMs - nowMs;
+
+      // 🛡️ Safeguard: หากงานถูกสร้างขึ้นหลังจากเลยกำหนดเวลาไปแล้ว (เช่น งานทำซ้ำที่รันย้อนหลังเมื่อกดเสร็จงานเก่า)
+      // ให้ข้ามการแจ้งเตือนและอัปเดต flag ทันที เพื่อป้องกันแจ้งเตือนซ้ำสำหรับงานอดีต
+      const createdAtMs = taskData.createdAt
+        ? (taskData.createdAt.toMillis ? taskData.createdAt.toMillis() : new Date(taskData.createdAt).getTime())
+        : 0;
+      if (createdAtMs > 0 && (createdAtMs - dueDateMs > 60 * 1000) && timeRemaining <= 0) {
+        if (!taskData.notifiedExact || !taskData.notifiedFollowUp) {
+          await doc.ref.update({
+            notifiedExact: true,
+            notifiedFollowUp: true,
+          });
+        }
+        continue;
+      }
       
       let shouldNotify = false;
       let notificationTitle = "";

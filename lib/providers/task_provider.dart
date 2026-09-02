@@ -1459,6 +1459,29 @@ class TaskProvider with ChangeNotifier {
     if (hasExistingClone) return;
 
     final cloneId = 'task_${DateTime.now().microsecondsSinceEpoch}';
+    final now = DateTime.now();
+    final isPastDue = recurringDateTime.isBefore(now);
+    final isPastFollowUp =
+        recurringDateTime.add(const Duration(minutes: 30)).isBefore(now);
+
+    final Map<String, bool> initialCustomReminders = {};
+    sourceTask.customReminders.forEach((minutesStr, _) {
+      final minutes = int.tryParse(minutesStr) ?? 0;
+      final reminderTime =
+          recurringDateTime.subtract(Duration(minutes: minutes));
+      initialCustomReminders[minutesStr] =
+          minutes > 0 ? reminderTime.isBefore(now) : isPastDue;
+    });
+
+    final notif1Week =
+        recurringDateTime.subtract(const Duration(days: 7)).isBefore(now);
+    final notif1Day =
+        recurringDateTime.subtract(const Duration(days: 1)).isBefore(now);
+    final notif1Hour =
+        recurringDateTime.subtract(const Duration(hours: 1)).isBefore(now);
+    final notifExact = isPastDue;
+    final notifFollowUp = isPastFollowUp;
+
     final clonedTask = sourceTask.copyWith(
       id: cloneId,
       dateTime: recurringDateTime,
@@ -1467,11 +1490,11 @@ class TaskProvider with ChangeNotifier {
       isDeleted: false,
       deletedForUserIds: const [],
       hiddenForUserIds: const [],
-      notified1Week: false,
-      notified1Day: false,
-      notified1Hour: false,
-      notifiedExact: false,
-      notifiedFollowUp: false,
+      notified1Week: notif1Week,
+      notified1Day: notif1Day,
+      notified1Hour: notif1Hour,
+      notifiedExact: notifExact,
+      notifiedFollowUp: notifFollowUp,
       clearSubmissionText: true,
       clearSubmittedBy: true,
       clearSubmittedAt: true,
@@ -1480,18 +1503,16 @@ class TaskProvider with ChangeNotifier {
           .map((subtask) => subtask.copyWith(isDone: false))
           .toList(),
       comments: const [],
-      customReminders: sourceTask.customReminders.map(
-        (minutes, _) => MapEntry(minutes, false),
-      ),
+      customReminders: initialCustomReminders,
     );
 
     final cloneData = clonedTask.toMap()
       ..addAll({
-        'notified1Week': false,
-        'notified1Day': false,
-        'notified1Hour': false,
-        'notifiedExact': false,
-        'notifiedFollowUp': false,
+        'notified1Week': notif1Week,
+        'notified1Day': notif1Day,
+        'notified1Hour': notif1Hour,
+        'notifiedExact': notifExact,
+        'notifiedFollowUp': notifFollowUp,
       });
 
     await _firestore.collection('tasks').doc(cloneId).set(cloneData);
