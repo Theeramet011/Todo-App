@@ -96,6 +96,18 @@ function notificationRecipients(taskData, isPersonalTask, projectData = null) {
   return [...recipientRoles].map(([userId, role]) => ({userId, role}));
 }
 
+function sanitizeForDisplay(text) {
+  if (!text || typeof text !== "string") return text;
+  let res = text;
+  if (/^[\u0300-\u036F\u0E31\u0E33-\u0E3A\u0E47-\u0E4E]/.test(res)) {
+    res = "\u200B" + res;
+  }
+  return res.replace(
+    /([\x20-\x2F\x3A-\x40\x5B-\x60\x7B-\x7E])([\u0300-\u036F\u0E31\u0E33-\u0E3A\u0E47-\u0E4E])/g,
+    "$1\u200B$2"
+  );
+}
+
 function groupNotificationCopy(flagToUpdate, role, taskTitle) {
   const isLeader = role === "leader";
 
@@ -425,6 +437,230 @@ exports.pushInAppNotification = onCall({
   return {sent, skipped, failed};
 });
 
+// -----------------------------------------------------------------
+// 🔁 ตัวช่วยคำนวณรอบถัดไปของงานทำซ้ำ (Recurring Tasks)
+// -----------------------------------------------------------------
+const THAI_WEEKDAYS_MAP = {
+  "อา.": 0,
+  "จ.": 1,
+  "อ.": 2,
+  "พ.": 3,
+  "พฤ.": 4,
+  "ศ.": 5,
+  "ส.": 6,
+};
+
+function calculateNextRecurringDate(taskData, fromDate) {
+  if (!taskData || !taskData.isRecurring) return null;
+
+  const base =
+    fromDate instanceof Date
+      ? new Date(fromDate.getTime())
+      : new Date(
+          taskData.dateTime && taskData.dateTime.toDate
+            ? taskData.dateTime.toDate()
+            : taskData.dueDate && taskData.dueDate.toDate
+              ? taskData.dueDate.toDate()
+              : Date.now()
+        );
+
+  const type = taskData.recurringType || "daily";
+  let nextDate = new Date(base.getTime());
+
+  if (type === "daily") {
+    nextDate.setDate(nextDate.getDate() + 1);
+  } else if (type === "weekly") {
+    nextDate.setDate(nextDate.getDate() + 7);
+  } else if (type === "monthly") {
+    nextDate.setMonth(nextDate.getMonth() + 1);
+  } else if (type === "yearly") {
+    nextDate.setFullYear(nextDate.getFullYear() + 1);
+  } else if (type === "weekdays") {
+    nextDate.setDate(nextDate.getDate() + 1);
+    while (nextDate.getDay() === 0 || nextDate.getDay() === 6) {
+      nextDate.setDate(nextDate.getDate() + 1);
+    }
+  } else if (type === "custom") {
+    const num = Number(taskData.customRecurringNum) || 1;
+    const unit = taskData.customRecurringUnit || "วัน";
+    const days = Array.isArray(taskData.customRecurringDays)
+      ? taskData.customRecurringDays
+      : [];
+    const mode = taskData.customRecurringMode || "byDueDate";
+
+    let customBase = new Date(base.getTime());
+    if (mode === "byFixedDate") {
+      const fixedDates = Array.isArray(taskData.customRecurringFixedDates)
+        ? taskData.customRecurringFixedDates
+        : [];
+      if (fixedDates.length > 0) {
+        const upcomingFixed = fixedDates
+          .map((d) => (d.toDate ? d.toDate() : new Date(d)))
+          .filter((d) => d.getTime() > base.getTime())
+          .sort((a, b) => a.getTime() - b.getTime());
+        if (upcomingFixed.length > 0) {
+          nextDate = upcomingFixed[0];
+          customBase = null;
+        }
+      } else if (taskData.recurringDate) {
+        customBase = taskData.recurringDate.toDate
+          ? taskData.recurringDate.toDate()
+          : new Date(taskData.recurringDate);
+      }
+    }
+
+    if (customBase) {
+      if (unit === "วัน") {
+        nextDate = new Date(customBase.getTime());
+        nextDate.setDate(nextDate.getDate() + num);
+      } else if (unit === "สัปดาห์") {
+        if (days.length > 0) {
+          const targetDays = days
+            .map((d) => THAI_WEEKDAYS_MAP[d])
+            .filter((d) => typeof d === "number")
+            .sort((a, b) => a - b);
+
+          if (targetDays.length === 0) {
+            nextDate = new Date(customBase.getTime());
+            nextDate.setDate(nextDate.getDate() + num * 7);
+          } else {
+            const currentDay = customBase.getDay();
+            const remainingThisWeek = targetDays.filter((d) => d > currentDay);
+            if (remainingThisWeek.length > 0) {
+              const nextDay = remainingThisWeek[0];
+              nextDate = new Date(customBase.getTime());
+              nextDate.setDate(nextDate.getDate() + (nextDay - currentDay));
+            } else {
+              const firstDay = targetDays[0];
+              const daysToEndOfWeek = 7 - currentDay;
+              const additionalDays = (num - 1) * 7 + firstDay;
+              nextDate = new Date(customBase.getTime());
+              nextDate.setDate(
+                nextDate.getDate() + daysToEndOfWeek + additionalDays
+              );
+            }
+          }
+        } else {
+          nextDate = new Date(customBase.getTime());
+          nextDate.setDate(nextDate.getDate() + num * 7);
+        }
+      } else if (unit === "เดือน") {
+        nextDate = new Date(customBase.getTime());
+        nextDate.setMonth(nextDate.getMonth() + num);
+      } else if (unit === "ปี") {
+        nextDate = new Date(customBase.getTime());
+        nextDate.setFullYear(nextDate.getFullYear() + num);
+      } else {
+        nextDate = new Date(customBase.getTime());
+        nextDate.setDate(nextDate.getDate() + num);
+      }
+    }
+  }
+
+  if (
+    typeof taskData.recurringTime === "string" &&
+    taskData.recurringTime.includes(":")
+  ) {
+    const parts = taskData.recurringTime.split(":");
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (!isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      nextDate.setHours(h, m, 0, 0);
+    }
+  }
+
+  return nextDate;
+}
+
+function getUpcomingRecurringDate(taskData, nowMs) {
+  let nextDate = calculateNextRecurringDate(taskData, null);
+  if (!nextDate) return null;
+
+  let iterations = 0;
+  while (nextDate.getTime() < nowMs && iterations < 50) {
+    const candidate = calculateNextRecurringDate(taskData, nextDate);
+    if (!candidate || candidate.getTime() <= nextDate.getTime()) break;
+    nextDate = candidate;
+    iterations++;
+  }
+
+  return nextDate;
+}
+
+async function ensureNextRecurringTaskInstance(db, taskData, taskId, nowMs) {
+  const nextDate = getUpcomingRecurringDate(taskData, nowMs);
+  if (!nextDate) return;
+
+  const nextTimestamp = admin.firestore.Timestamp.fromDate(nextDate);
+
+  const existingCloneSnap = await db
+    .collection("tasks")
+    .where("creatorId", "==", taskData.creatorId)
+    .where("title", "==", taskData.title)
+    .where("isRecurring", "==", true)
+    .where("dateTime", "==", nextTimestamp)
+    .limit(1)
+    .get();
+
+  if (!existingCloneSnap.empty) {
+    return;
+  }
+
+  const cloneId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+  const initialCustomReminders = {};
+  if (taskData.customReminders && typeof taskData.customReminders === "object") {
+    Object.keys(taskData.customReminders).forEach((minutesStr) => {
+      const minutes = parseInt(minutesStr, 10) || 0;
+      const reminderTimeMs = nextDate.getTime() - minutes * 60 * 1000;
+      initialCustomReminders[minutesStr] = reminderTimeMs < nowMs;
+    });
+  }
+
+  const isPastDue = nextDate.getTime() < nowMs;
+  const isPastFollowUp = nextDate.getTime() + 30 * 60 * 1000 < nowMs;
+
+  const subtasks = Array.isArray(taskData.subtasks)
+    ? taskData.subtasks.map((st) => ({
+        ...st,
+        isDone: false,
+      }))
+    : [];
+
+  const cloneData = {
+    ...taskData,
+    id: cloneId,
+    dateTime: nextTimestamp,
+    dueDate: nextTimestamp,
+    status: "inProgress",
+    isCompleted: false,
+    completedAt: null,
+    clearCompletedAt: true,
+    isDeleted: false,
+    deletedForUserIds: [],
+    hiddenForUserIds: [],
+    notified1Week: nextDate.getTime() - 7 * 24 * 60 * 60 * 1000 < nowMs,
+    notified1Day: nextDate.getTime() - 24 * 60 * 60 * 1000 < nowMs,
+    notified1Hour: nextDate.getTime() - 60 * 60 * 1000 < nowMs,
+    notifiedExact: isPastDue,
+    notifiedFollowUp: isPastFollowUp,
+    submissionText: null,
+    submittedBy: null,
+    submittedAt: null,
+    awardedXP: 0,
+    subtasks: subtasks,
+    comments: [],
+    customReminders: initialCustomReminders,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    clonedFromTaskId: taskId,
+  };
+
+  await db.collection("tasks").doc(cloneId).set(cloneData);
+  console.log(
+    `🔁 [Auto-Spawn] สร้างภารกิจรอบใหม่สำหรับ "${taskData.title}" สำเร็จ -> วันที่: ${nextDate.toISOString()} (ID: ${cloneId})`
+  );
+}
+
 // ฟังก์ชันนี้เหมือนนาฬิกาปลุกที่ตั้งเวลาให้ทำงานอัตโนมัติทุกๆ 1 นาที
 // หน้าที่หลักคือคอยเช็กว่ามีงานไหนใกล้ถึงกำหนดส่ง หรือเลยเวลาส่งไปแล้วบ้าง
 // เพื่อจะได้ส่งข้อความแจ้งเตือนเตือนความจำให้กับสมาชิกหรือหัวหน้างาน
@@ -496,7 +732,7 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
       // ภารกิจกลุ่มต้องชนะ category เสมอ เพราะ category อาจยังเป็น "Personal"
       const isGroup = isGroupTask(taskData);
       const isPersonalTask = !isGroup;
-      const taskTitle = taskData.title || 'ไม่มีชื่อ';
+      const taskTitle = sanitizeForDisplay(taskData.title || 'ไม่มีชื่อ');
 
       // -----------------------------------------------------------------
       // 🔥 เงื่อนไขใหม่: วนลูปเช็กแจ้งเตือนแบบ Custom Reminders
@@ -631,8 +867,8 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
               .doc(userId)
               .collection("notifications")
               .add({
-                title: copy.title,
-                body: copy.body,
+                title: sanitizeForDisplay(copy.title),
+                body: sanitizeForDisplay(copy.body),
                 type: notificationType,
                 isRead: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -702,6 +938,23 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
 
         // อัปเดตแฟลกที่แจ้งเตือนไปแล้วให้เป็น true
         await db.collection("tasks").doc(taskId).update(updatePayload);
+      }
+
+      // 🔁 Auto-spawn recurring task instance for the next cycle
+      if (
+        taskData.isRecurring === true &&
+        (taskData.notifiedFollowUp === true ||
+          updatePayload["notifiedFollowUp"] === true ||
+          timeRemaining <= -(30 * 60 * 1000))
+      ) {
+        try {
+          await ensureNextRecurringTaskInstance(db, taskData, taskId, nowMs);
+        } catch (recurringErr) {
+          console.error(
+            `🟥 Auto-spawn recurring task failed for ${taskId}:`,
+            recurringErr
+          );
+        }
       }
     }
   } catch (error) {

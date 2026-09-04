@@ -16,6 +16,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:todo_app/screens/friends_screen.dart';
 import 'firebase_options.dart';
 import 'config/theme.dart';
+import 'config/constants.dart';
 import 'providers/auth_provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/theme_provider.dart';
@@ -164,11 +165,15 @@ Future<void> _showTaskReminderNotification(RemoteMessage message) async {
 
   final notificationKey = _notificationKeyFromMessage(message);
   final localNotificationId = _notificationIdFromKey(notificationKey);
-  final title = _notificationTitleFromMessage(message);
-  final body = _notificationBodyFromMessage(message);
+  final title = AppConstants.sanitizeThaiDisplay(
+    _notificationTitleFromMessage(message),
+  );
+  final body = AppConstants.sanitizeThaiDisplay(
+    _notificationBodyFromMessage(message),
+  );
   final androidChannel = _androidChannelFromMessage(message);
 
-  if (title == null && body == null) return;
+  if (title.isEmpty && body.isEmpty) return;
 
   await flutterLocalNotificationsPlugin.show(
     id: localNotificationId,

@@ -55,6 +55,8 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
   late TextEditingController titleController;
   late TextEditingController descController;
   final _subTaskController = TextEditingController();
+  final FocusNode _subTaskFocusNode = FocusNode();
+  final GlobalKey _subtaskKey = GlobalKey();
   late TextEditingController _scoreController;
 
   late List<String> _subTasks;
@@ -72,6 +74,22 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
   bool _hasScoreError = false;
   String? _scoreErrorMessage;
   final ScrollController _scrollController = ScrollController();
+
+  void _scrollToSubtask({int delayMs = 100}) {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        if (mounted && _subtaskKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _subtaskKey.currentContext!,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            alignment: 0.95,
+          );
+        }
+      });
+    });
+  }
 
   void _scrollToTopError() {
     if (_scrollController.hasClients) {
@@ -138,6 +156,12 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
     _currentCoAssigneeMembers = widget.allSelectedMembers
         .where((m) => _currentCoAssignees.contains(m.id))
         .toList();
+
+    _subTaskFocusNode.addListener(() {
+      if (_subTaskFocusNode.hasFocus) {
+        _scrollToSubtask(delayMs: 150);
+      }
+    });
   }
 
   @override
@@ -146,6 +170,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
     titleController.dispose();
     descController.dispose();
     _subTaskController.dispose();
+    _subTaskFocusNode.dispose();
     _scoreController.dispose();
     _inlineSubTaskController.dispose();
     _inlineSubTaskFocusNode.dispose();
@@ -485,6 +510,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
         _subTasks.add(_subTaskController.text.trim());
         _subTaskController.clear();
       });
+      _scrollToSubtask(delayMs: 80);
     }
   }
 
@@ -1539,6 +1565,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                 children: [
                   if (_subTasks.isNotEmpty)
                     ListView.builder(
+                      padding: EdgeInsets.zero,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _subTasks.length,
@@ -1582,7 +1609,10 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                     controller: _inlineSubTaskController,
                                     focusNode: _inlineSubTaskFocusNode,
                                     autofocus: false,
+                                    scrollPadding:
+                                        const EdgeInsets.only(bottom: 24),
                                     onTap: () {
+                                      _scrollToSubtask(delayMs: 150);
                                       if (_inlineSubTaskController.selection.baseOffset !=
                                           _inlineSubTaskController.selection.extentOffset) {
                                         _inlineSubTaskController.selection =
@@ -1713,8 +1743,9 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                    final targetTitle = _subTasks[index];
                                    setState(() {
                                      _editingSubTaskIndex = index;
-                                     _inlineSubTaskController.text = targetTitle;
-                                   });
+                                      _inlineSubTaskController.text = targetTitle;
+                                    });
+                                    _scrollToSubtask(delayMs: 150);
                                    WidgetsBinding.instance
                                        .addPostFrameCallback((_) {
                                       if (mounted) {
@@ -1747,10 +1778,14 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                       },
                     ),
                   Row(
+                    key: _subtaskKey,
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _subTaskController,
+                          focusNode: _subTaskFocusNode,
+                          scrollPadding: const EdgeInsets.only(bottom: 24),
+                          onTap: () => _scrollToSubtask(delayMs: 150),
                           style: TextStyle(
                             fontSize: 13,
                             color: theme.colorScheme.onSurface,

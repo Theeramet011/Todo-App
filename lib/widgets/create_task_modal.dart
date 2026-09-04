@@ -66,6 +66,23 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   final _subtaskController = TextEditingController();
+  double _lastBottomInset = 0.0;
+
+  void _scrollToSubtask({int delayMs = 100}) {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        if (mounted && _subtaskKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _subtaskKey.currentContext!,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            alignment: 0.95,
+          );
+        }
+      });
+    });
+  }
 
   void _onFocusChange() {
     if (mounted) {
@@ -195,31 +212,13 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
 
     _subtaskFocusNode.addListener(() {
       if (_subtaskFocusNode.hasFocus) {
-        Future.delayed(const Duration(milliseconds: 250), () {
-          if (mounted && _subtaskKey.currentContext != null) {
-            Scrollable.ensureVisible(
-              _subtaskKey.currentContext!,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              alignment: 0.5,
-            );
-          }
-        });
+        _scrollToSubtask(delayMs: 150);
       }
     });
 
     _inlineSubtaskFocusNode.addListener(() {
       if (_inlineSubtaskFocusNode.hasFocus) {
-        Future.delayed(const Duration(milliseconds: 250), () {
-          if (mounted && _subtaskKey.currentContext != null) {
-            Scrollable.ensureVisible(
-              _subtaskKey.currentContext!,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              alignment: 0.5,
-            );
-          }
-        });
+        _scrollToSubtask(delayMs: 150);
       }
     });
   }
@@ -244,6 +243,14 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    if (bottomInset > 0 &&
+        (_subtaskFocusNode.hasFocus || _inlineSubtaskFocusNode.hasFocus)) {
+      if (bottomInset != _lastBottomInset) {
+        _scrollToSubtask(delayMs: 50);
+      }
+    }
+    _lastBottomInset = bottomInset;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -1176,6 +1183,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                 children: [
                   if (_subtasks.isNotEmpty)
                     ListView.builder(
+                      padding: EdgeInsets.zero,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _subtasks.length,
@@ -1219,12 +1227,18 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                     controller: _inlineSubtaskController,
                                     focusNode: _inlineSubtaskFocusNode,
                                     autofocus: false,
+                                    scrollPadding:
+                                        const EdgeInsets.only(bottom: 24),
                                     onTap: () {
-                                      if (_inlineSubtaskController.selection.baseOffset !=
-                                          _inlineSubtaskController.selection.extentOffset) {
+                                      _scrollToSubtask(delayMs: 150);
+                                      if (_inlineSubtaskController
+                                              .selection.baseOffset !=
+                                          _inlineSubtaskController
+                                              .selection.extentOffset) {
                                         _inlineSubtaskController.selection =
                                             TextSelection.collapsed(
-                                          offset: _inlineSubtaskController.text.length,
+                                          offset: _inlineSubtaskController
+                                              .text.length,
                                         );
                                       }
                                     },
@@ -1410,7 +1424,6 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                         );
                       },
                     ),
-                  if (_subtasks.isNotEmpty) const SizedBox(height: 4),
                   Row(
                     key: _subtaskKey,
                     children: [
@@ -1418,6 +1431,8 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                         child: TextField(
                           controller: _subtaskController,
                           focusNode: _subtaskFocusNode,
+                          scrollPadding: const EdgeInsets.only(bottom: 24),
+                          onTap: () => _scrollToSubtask(delayMs: 150),
                           style: TextStyle(
                             fontSize: 13,
                             color: theme.colorScheme.onSurface,
@@ -1485,6 +1500,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         _subtaskController.clear();
         _isSubtasksExpanded = true;
       });
+      _scrollToSubtask(delayMs: 80);
     }
   }
 

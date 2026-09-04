@@ -64,4 +64,18 @@ class AppConstants {
   static const int maxMembersPerProject = 50;
   static const int maxLevel = 25;
   static const int maxXp = 12000;
+
+  /// ป้องกันสระลอย/วรรณยุกต์ไทย (Orphan Combining Marks) ไม่ให้รวมกลุ่ม (Grapheme Cluster)
+  /// ผิดพลาดกับเครื่องหมาย ASCII (เช่น คำพูด " ) จนเกิดสี่เหลี่ยมกากบาท (Tofu / Missing Glyphs)
+  static String sanitizeThaiDisplay(String? text) {
+    if (text == null || text.isEmpty) return '';
+    var result = text;
+    if (RegExp(r'^[\u0300-\u036F\u0E31\u0E33-\u0E3A\u0E47-\u0E4E]').hasMatch(result)) {
+      result = '\u200B$result';
+    }
+    return result.replaceAllMapped(
+      RegExp(r'([\x20-\x2F\x3A-\x40\x5B-\x60\x7B-\x7E])([\u0300-\u036F\u0E31\u0E33-\u0E3A\u0E47-\u0E4E])'),
+      (m) => '${m[1]}\u200B${m[2]}',
+    );
+  }
 }

@@ -735,8 +735,12 @@ class NotificationItem {
 
     return NotificationItem(
       id: doc.id,
-      sender: (data['title'] ?? 'Task Reminder').toString(),
-      message: (data['body'] ?? '').toString(),
+      sender: AppConstants.sanitizeThaiDisplay(
+        (data['title'] ?? 'Task Reminder').toString(),
+      ),
+      message: AppConstants.sanitizeThaiDisplay(
+        (data['body'] ?? '').toString(),
+      ),
       tag: tag,
       tagColor: _notificationTagColor(tag),
       createdAt: createdAt,

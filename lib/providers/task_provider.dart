@@ -20,6 +20,7 @@ import '../models/user.dart';
 import '../models/xp_system.dart';
 import '../models/achievement.dart';
 import '../utils/mock_data.dart';
+import '../config/constants.dart';
 
 enum CompletionRewardStatus { awarded, blockedFastCompletion, noChange }
 
@@ -524,7 +525,12 @@ class TaskProvider with ChangeNotifier {
           _calculateInitialXP();
           _refreshSelectedTask();
           notifyListeners();
+          _ensureUpcomingRecurringTasks();
         }, onError: (error) => debugPrint('Task stream error: $error'));
+  }
+
+  void checkRecurringTasks() {
+    _ensureUpcomingRecurringTasks();
   }
 
   void _calculateInitialXP() {
@@ -937,6 +943,18 @@ class TaskProvider with ChangeNotifier {
         .toSet();
     if (normalizedIds.isEmpty) return;
 
+    final sanitizedData = Map<String, dynamic>.from(data);
+    if (sanitizedData['title'] != null) {
+      sanitizedData['title'] = AppConstants.sanitizeThaiDisplay(
+        sanitizedData['title'].toString(),
+      );
+    }
+    if (sanitizedData['body'] != null) {
+      sanitizedData['body'] = AppConstants.sanitizeThaiDisplay(
+        sanitizedData['body'].toString(),
+      );
+    }
+
     final batch = _firestore.batch();
     final pushTargets = <Map<String, String>>[];
     final now = DateTime.now();
@@ -949,7 +967,7 @@ class TaskProvider with ChangeNotifier {
           .doc();
       pushTargets.add({'userId': userId, 'notificationId': ref.id});
       batch.set(ref, {
-        ...data,
+        ...sanitizedData,
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
         'expireAt': Timestamp.fromDate(expireAt),
@@ -1308,53 +1326,73 @@ class TaskProvider with ChangeNotifier {
     await _notifyGroupTaskCreated(task);
   }
 
-  DateTime? _recurringDateTimeFor(Task task) {
+  DateTime? _recurringDateTimeFor(Task task, [DateTime? fromDate]) {
     if (!task.isRecurring) return null;
+
+    final baseDate = fromDate ?? task.dateTime;
 
     switch (task.recurringType) {
       case 'daily':
-        return task.dateTime.add(const Duration(days: 1));
+        return baseDate.add(const Duration(days: 1));
       case 'weekly':
-        return task.dateTime.add(const Duration(days: 7));
+        return baseDate.add(const Duration(days: 7));
       case 'monthly':
         return DateTime(
-          task.dateTime.year,
-          task.dateTime.month + 1,
-          task.dateTime.day,
-          task.dateTime.hour,
-          task.dateTime.minute,
+          baseDate.year,
+          baseDate.month + 1,
+          baseDate.day,
+          baseDate.hour,
+          baseDate.minute,
         );
       case 'yearly':
         return DateTime(
-          task.dateTime.year + 1,
-          task.dateTime.month,
-          task.dateTime.day,
-          task.dateTime.hour,
-          task.dateTime.minute,
+          baseDate.year + 1,
+          baseDate.month,
+          baseDate.day,
+          baseDate.hour,
+          baseDate.minute,
         );
       case 'weekdays':
-        DateTime next = task.dateTime.add(const Duration(days: 1));
+        DateTime next = baseDate.add(const Duration(days: 1));
         while (next.weekday == DateTime.saturday ||
             next.weekday == DateTime.sunday) {
           next = next.add(const Duration(days: 1));
         }
         return next;
       case 'custom':
-        return _customRecurringDateTimeFor(task);
+        return _customRecurringDateTimeFor(task, fromDate);
       default:
-        return _customRecurringDateTimeFor(task) ??
-            task.dateTime.add(const Duration(days: 1));
+        return _customRecurringDateTimeFor(task, fromDate) ??
+            baseDate.add(const Duration(days: 1));
     }
   }
 
-  DateTime? _customRecurringDateTimeFor(Task task) {
+  DateTime? _nextUpcomingRecurringDateTime(Task task) {
+    if (!task.isRecurring) return null;
+
+    final now = DateTime.now();
+    DateTime? next = _recurringDateTimeFor(task);
+    if (next == null) return null;
+
+    int iterations = 0;
+    while (next != null && next.isBefore(now) && iterations < 50) {
+      final candidate = _recurringDateTimeFor(task, next);
+      if (candidate == null || !candidate.isAfter(next)) break;
+      next = candidate;
+      iterations++;
+    }
+
+    return next;
+  }
+
+  DateTime? _customRecurringDateTimeFor(Task task, [DateTime? fromDate]) {
     final num = task.customRecurringNum ?? 1;
     final unit = task.customRecurringUnit ?? 'วัน';
     final days = task.customRecurringDays ?? [];
     final mode = task.customRecurringMode ?? 'byDueDate';
 
-    DateTime baseDate = task.dateTime;
-    if (mode == 'byFixedDate') {
+    DateTime baseDate = fromDate ?? task.dateTime;
+    if (mode == 'byFixedDate' && fromDate == null) {
       final fixed = task.customRecurringFixedDates ?? [];
       if (fixed.isNotEmpty) {
         final upcoming = fixed.where((d) => d.isAfter(task.dateTime)).toList()
@@ -1442,13 +1480,14 @@ class TaskProvider with ChangeNotifier {
     return nextDate;
   }
 
-  Future<void> _cloneRecurringTaskAfterCompletion(Task sourceTask) async {
-    final recurringDateTime = _recurringDateTimeFor(sourceTask);
-    if (recurringDateTime == null) return;
-
+  Future<void> _cloneRecurringTaskToDate(
+    Task sourceTask,
+    DateTime recurringDateTime,
+  ) async {
     // Check if a clone for this exact date and task already exists
     final hasExistingClone = _tasks.any(
       (t) =>
+          !t.isDeleted &&
           t.title == sourceTask.title &&
           t.creatorId == sourceTask.creatorId &&
           t.isRecurring == sourceTask.isRecurring &&
@@ -1518,8 +1557,62 @@ class TaskProvider with ChangeNotifier {
     await _firestore.collection('tasks').doc(cloneId).set(cloneData);
   }
 
+  Future<void> _cloneRecurringTaskAfterCompletion(Task sourceTask) async {
+    final recurringDateTime = _nextUpcomingRecurringDateTime(sourceTask) ??
+        _recurringDateTimeFor(sourceTask);
+    if (recurringDateTime == null) return;
+    await _cloneRecurringTaskToDate(sourceTask, recurringDateTime);
+  }
+
+  bool _isEnsuringRecurring = false;
+  Future<void> _ensureUpcomingRecurringTasks() async {
+    if (_isEnsuringRecurring) return;
+    final currentUserId = _currentUserId;
+    if (currentUserId == null) return;
+
+    _isEnsuringRecurring = true;
+    try {
+      final now = DateTime.now();
+      final recurringTasks = _tasks
+          .where(
+            (t) =>
+                t.isRecurring &&
+                !t.isDeleted &&
+                t.status != TaskStatus.completed &&
+                (t.creatorId == currentUserId ||
+                    t.assigneeIds.contains(currentUserId)) &&
+                t.dateTime.isBefore(now),
+          )
+          .toList();
+
+      for (final task in recurringTasks) {
+        final upcomingDate = _nextUpcomingRecurringDateTime(task);
+        if (upcomingDate == null) continue;
+
+        final hasExisting = _tasks.any(
+          (t) =>
+              !t.isDeleted &&
+              t.title == task.title &&
+              t.creatorId == task.creatorId &&
+              t.isRecurring == task.isRecurring &&
+              t.recurringType == task.recurringType &&
+              t.dateTime.isAtSameMomentAs(upcomingDate),
+        );
+
+        if (!hasExisting) {
+          await _cloneRecurringTaskToDate(task, upcomingDate);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error ensuring upcoming recurring tasks: $e');
+    } finally {
+      _isEnsuringRecurring = false;
+    }
+  }
+
   Future<void> _deleteRecurringCloneOnUndo(Task sourceTask) async {
-    final recurringDateTime = _recurringDateTimeFor(sourceTask);
+    final recurringDateTime = _nextUpcomingRecurringDateTime(sourceTask) ??
+        _recurringDateTimeFor(sourceTask);
     if (recurringDateTime == null) return;
 
     // ค้นหางานโคลนที่ตรงกับรอบถัดไปและยังไม่ได้ทำเสร็จ
