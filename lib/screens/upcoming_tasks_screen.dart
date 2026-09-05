@@ -43,6 +43,14 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
     super.dispose();
   }
 
+  String _taskSeriesKey(Task task) {
+    final cleanTitle = task.title.trim().toLowerCase();
+    final creator = task.creatorId;
+    final type = task.type.name;
+    final project = task.projectId ?? '';
+    return '$creator|$type|$project|$cleanTitle';
+  }
+
   Map<_UpcomingSection, List<Task>> _groupUpcomingTasks(List<Task> tasks) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -53,8 +61,11 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
       _UpcomingSection.later: <Task>[],
     };
 
+    // 1. คัดกรองเฉพาะงานในอนาคตที่ยังไม่เสร็จ (หรือกำลังแอนิเมชันออก)
+    final candidateTasks = <Task>[];
     for (final task in tasks) {
-      if (task.isCompleted) continue;
+      final isExiting = _exitingTasks.containsKey(task.id);
+      if (task.isCompleted && !isExiting) continue;
 
       final dueDate = DateTime(
         task.dateTime.year,
@@ -63,6 +74,26 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
       );
 
       if (!dueDate.isAfter(today)) continue;
+      candidateTasks.add(task);
+    }
+
+    // 2. จัดเรียงตามวันและเวลาที่ใกล้ที่สุดมาก่อน (Ascending)
+    candidateTasks.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+    // 3. รวมกลุ่มงานซีรีส์เดียวกัน (เช่น งานทำซ้ำหรือชื่องานเดียวกัน) ให้แสดงแค่งานเดียวที่มีเวลาใกล้ที่สุด
+    final seenSeries = <String>{};
+    for (final task in candidateTasks) {
+      final seriesKey = _taskSeriesKey(task);
+      if (seenSeries.contains(seriesKey)) {
+        continue;
+      }
+      seenSeries.add(seriesKey);
+
+      final dueDate = DateTime(
+        task.dateTime.year,
+        task.dateTime.month,
+        task.dateTime.day,
+      );
 
       final daysFromToday = dueDate.difference(today).inDays;
       if (daysFromToday == 1) {
@@ -74,6 +105,7 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
       }
     }
 
+    // 4. จัดเรียงงานในแต่ละช่วงเวลาตามลำดับความสำคัญ (Priority) และเวลา
     for (final sectionTasks in grouped.values) {
       sectionTasks.sort((a, b) {
         final priorityComparison = b.priority.index.compareTo(a.priority.index);
@@ -104,11 +136,246 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
       );
       return;
     }
-    _stageTaskExit(task);
-    _playTaskCompleteSound();
 
     final taskProvider = context.read<TaskProvider>();
-    final result = await taskProvider.completeTaskWithSubtasks(task.id, true);
+    final latestTask = taskProvider.tasks.firstWhere(
+      (t) => t.id == task.id,
+      orElse: () => task,
+    );
+
+    if (!latestTask.isCompleted) {
+      // 1. ตรวจสอบเงื่อนไขภารกิจกลุ่ม (Group Task)
+      if (latestTask.isGroup ||
+          latestTask.type == TaskType.group ||
+          latestTask.members.isNotEmpty) {
+        final currentUserId = context.read<AuthProvider>().currentUser?.id;
+        final isLeader = taskProvider.isLeaderForTask(
+          latestTask,
+          currentUserId,
+        );
+
+        if (!isLeader) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: isDark
+                  ? AppColors.stormyDarkSlate
+                  : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.0),
+              ),
+              title: Text(
+                'ไม่สามารถเสร็จสิ้นภารกิจได้',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              content: Text(
+                'เฉพาะหัวหน้ากลุ่มเท่านั้นที่สามารถทำเครื่องหมายเสร็จสิ้นภารกิจได้',
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.85)
+                      : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
+                ),
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.stormySkyBlue,
+                    foregroundColor: isDark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                  ),
+                  child: const Text(
+                    'ตกลง',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+
+        final leaderId = taskProvider.leaderIdForTask(latestTask);
+        final nonLeaderMembers = latestTask.members
+            .where((m) => m.id != leaderId)
+            .toList();
+        final membersToCheck = nonLeaderMembers.isNotEmpty
+            ? nonLeaderMembers
+            : latestTask.members;
+        final areAllCompleted = latestTask.members.isEmpty
+            ? (latestTask.status == TaskStatus.completed ||
+                (latestTask.submissionText != null &&
+                    latestTask.submissionText!.trim().isNotEmpty) ||
+                latestTask.attachments.isNotEmpty ||
+                (latestTask.submittedBy != null &&
+                    latestTask.submittedBy!.isNotEmpty) ||
+                latestTask.status == TaskStatus.pending)
+            : membersToCheck.every((m) => m.status == 'completed');
+
+        if (!areAllCompleted) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final incompleteCount = membersToCheck
+              .where((m) => m.status != 'completed')
+              .length;
+          final pendingReviewCount = membersToCheck
+              .where((m) => m.status == 'pending')
+              .length;
+
+          String message;
+          if (latestTask.members.isEmpty) {
+            message = 'ยังไม่มีการส่งงานของสมาชิกเข้ามาในภารกิจนี้';
+          } else if (pendingReviewCount > 0 &&
+              incompleteCount == pendingReviewCount) {
+            message =
+                'มีงานของสมาชิกที่รอการตรวจสอบและอนุมัติอยู่ $pendingReviewCount คน กรุณาตรวจอนุมัติงานให้ครบก่อนเสร็จสิ้นภารกิจ';
+          } else if (pendingReviewCount > 0) {
+            message =
+                'สมาชิกยังส่งงานไม่ครบถ้วน (และมีงานรอตรวจ $pendingReviewCount คน) กรุณาให้สมาชิกส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
+          } else {
+            message =
+                'สมาชิกในกลุ่มยังส่งงานไม่ครบถ้วน (เหลืออีก $incompleteCount คน) กรุณารอให้สมาชิกทุกคนส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
+          }
+
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: isDark
+                  ? AppColors.stormyDarkSlate
+                  : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.0),
+              ),
+              title: Text(
+                'ไม่สามารถเสร็จสิ้นภารกิจได้',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              content: Text(
+                message,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.85)
+                      : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
+                ),
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.stormySkyBlue,
+                    foregroundColor: isDark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                  ),
+                  child: const Text(
+                    'ตกลง',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+      }
+
+      // 2. ตรวจสอบภารกิจย่อย (Subtasks)
+      if (latestTask.subtasks.isNotEmpty &&
+          latestTask.subtasks.any((s) => !s.isDone)) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            title: Text(
+              'ไม่สามารถเสร็จสิ้นภารกิจได้',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            content: Text(
+              'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.85)
+                    : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
+              ),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.stormySkyBlue,
+                  foregroundColor: isDark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                ),
+                child: const Text(
+                  'ตกลง',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    }
+
+    _stageTaskExit(latestTask);
+    _playTaskCompleteSound();
+
+    final result = await taskProvider.completeTaskWithSubtasks(
+      latestTask.id,
+      true,
+    );
     if (!mounted) return;
     await FastCompletionWarningDialog.showCompletionFeedback(context, result);
 
@@ -117,7 +384,10 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
       context,
       message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
       onUndo: () async {
-        await taskProvider.toggleTaskCompletion(task.id, updateSubtasks: true);
+        await taskProvider.toggleTaskCompletion(
+          latestTask.id,
+          updateSubtasks: true,
+        );
       },
     );
   }

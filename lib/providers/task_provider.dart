@@ -78,11 +78,6 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void _triggerXPCapAlert() {
-    _showXPCapAlert = true;
-    notifyListeners();
-  }
-
   int getDailyGroupXPForLeader(String leaderId) {
     final now = DateTime.now();
     final completedGroupTasksToday = _tasks
@@ -97,27 +92,12 @@ class TaskProvider with ChangeNotifier {
         )
         .toList();
 
-    completedGroupTasksToday.sort(
-      (a, b) => a.completedAt!.compareTo(b.completedAt!),
-    );
-
     int totalXP = 0;
     for (final task in completedGroupTasksToday) {
       if (task.assigneeIds.contains(leaderId)) {
-        final rawAward = task.calculateXP;
-        if (totalXP >= 270) {
-          continue;
-        } else if (totalXP + rawAward >= 270) {
-          totalXP = 270;
-        } else {
-          totalXP += rawAward + 10;
-        }
+        totalXP += task.calculateXP + 10;
       } else {
-        if (totalXP >= 270) {
-          continue;
-        } else {
-          totalXP += 10;
-        }
+        totalXP += 10;
       }
     }
     return totalXP;
@@ -135,41 +115,15 @@ class TaskProvider with ChangeNotifier {
     final multiplier = isNowCompleted ? 1 : -1;
 
     int leaderXPAward = 0;
-    int taskCountDelta = 1;
-
-    final todayXP = getDailyGroupXPForLeader(leaderId);
+    const int taskCountDelta = 1;
 
     if (!task.assigneeIds.contains(leaderId)) {
       // Case 1: Management Only (Leader is NOT an assignee)
-      if (todayXP >= 270) {
-        leaderXPAward = 0;
-        if (isNowCompleted) {
-          _triggerXPCapAlert();
-        }
-      } else {
-        leaderXPAward = 10;
-        taskCountDelta = 1;
-      }
+      leaderXPAward = 10;
     } else {
       // Case 2: Player-Coach (Leader IS an assignee alongside others)
-      int taskXPAward = task.calculateXP;
-      if (todayXP >= 270) {
-        taskXPAward = 0;
-        leaderXPAward = 0;
-        if (isNowCompleted) {
-          _triggerXPCapAlert();
-        }
-      } else if (todayXP + taskXPAward >= 270) {
-        taskXPAward = 270 - todayXP;
-        leaderXPAward = taskXPAward + 10;
-        taskCountDelta = 1;
-        if (isNowCompleted) {
-          _triggerXPCapAlert();
-        }
-      } else {
-        leaderXPAward = taskXPAward + 10;
-        taskCountDelta = 1;
-      }
+      final taskXPAward = task.calculateXP;
+      leaderXPAward = taskXPAward + 10;
     }
 
     await _updateUserProgress(
@@ -387,42 +341,99 @@ class TaskProvider with ChangeNotifier {
   }
   List<Task> get pendingTasks => tasks.where((t) => !t.isCompleted).toList();
 
+  String _taskSeriesKey(Task task) {
+    if (!task.isRecurring) return task.id;
+    final cleanTitle = task.title.trim().toLowerCase();
+    final creator = task.creatorId;
+    final type = task.type.name;
+    final project = task.projectId ?? '';
+    final recurrence = task.recurringType.trim();
+    return '$creator|$type|$project|$cleanTitle|$recurrence';
+  }
+
+  List<Task> _collapseRecurringTasks(
+    List<Task> taskList, {
+    Set<String>? excludeSeriesKeys,
+  }) {
+    final result = <Task>[];
+    final seenKeys = <String>{...?excludeSeriesKeys};
+
+    // เรียงตามเวลาล่าสุดก่อน เพื่อเลือกงานรอบล่าสุดมาแสดงผล
+    final sorted = List<Task>.from(taskList)
+      ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+
+    for (final task in sorted) {
+      if (!task.isRecurring) {
+        result.add(task);
+        continue;
+      }
+      final key = _taskSeriesKey(task);
+      if (seenKeys.contains(key)) {
+        continue;
+      }
+      seenKeys.add(key);
+      result.add(task);
+    }
+
+    return result;
+  }
+
   List<Task> get todayTasks => todayPersonalTasks;
 
   List<Task> get todayPersonalTasks {
     final today = _todayString();
-    return personalTasks
+    final rawToday = personalTasks
         .where((task) => _dateString(task.dateTime) == today)
         .toList();
+    return _collapseRecurringTasks(rawToday);
   }
 
   List<Task> get overduePersonalTasks {
     final today = _todayString();
-    return personalTasks
+    final rawToday = personalTasks
+        .where((task) => _dateString(task.dateTime) == today)
+        .toList();
+    final todaySeriesKeys = rawToday
+        .where((t) => t.isRecurring)
+        .map(_taskSeriesKey)
+        .toSet();
+
+    final rawOverdue = personalTasks
         .where(
           (task) =>
               _dateString(task.dateTime).compareTo(today) < 0 &&
               task.status != TaskStatus.completed,
         )
         .toList();
+    return _collapseRecurringTasks(rawOverdue, excludeSeriesKeys: todaySeriesKeys);
   }
 
   List<Task> get todayGroupTasks {
     final today = _todayString();
-    return groupTasks
+    final rawToday = groupTasks
         .where((task) => _dateString(task.dateTime) == today)
         .toList();
+    return _collapseRecurringTasks(rawToday);
   }
 
   List<Task> get overdueGroupTasks {
     final today = _todayString();
-    return groupTasks
+    final rawToday = groupTasks
+        .where((task) => _dateString(task.dateTime) == today)
+        .toList();
+    final todaySeriesKeys = rawToday
+        .where((t) => t.isRecurring)
+        .map(_taskSeriesKey)
+        .toSet();
+
+    final rawOverdue = groupTasks
         .where(
           (task) =>
               _dateString(task.dateTime).compareTo(today) < 0 &&
               task.status != TaskStatus.completed,
         )
         .toList();
+    return _collapseRecurringTasks(rawOverdue, excludeSeriesKeys: todaySeriesKeys);
   }
 
   List<Task> get upcomingTasks {
@@ -1557,10 +1568,68 @@ class TaskProvider with ChangeNotifier {
     await _firestore.collection('tasks').doc(cloneId).set(cloneData);
   }
 
+  Future<void> _completeOlderRecurringClones(Task task, DateTime completedAt) async {
+    if (!task.isRecurring) return;
+
+    final olderPendingClones = _tasks.where(
+      (t) =>
+          t.id != task.id &&
+          !t.isDeleted &&
+          !t.isCompleted &&
+          t.isRecurring &&
+          t.title.trim().toLowerCase() == task.title.trim().toLowerCase() &&
+          t.creatorId == task.creatorId &&
+          (t.projectId ?? '') == (task.projectId ?? '') &&
+          t.dateTime.isBefore(task.dateTime),
+    ).toList();
+
+    if (olderPendingClones.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (final oldClone in olderPendingClones) {
+      final oldIndex = _tasks.indexWhere((t) => t.id == oldClone.id);
+      final updatedMembers = oldClone.members
+          .map((m) => m.copyWith(status: 'completed'))
+          .toList();
+
+      if (oldIndex != -1) {
+        _tasks[oldIndex] = oldClone.copyWith(
+          status: TaskStatus.completed,
+          completedAt: completedAt,
+          members: updatedMembers,
+        );
+      }
+      final updateData = <String, dynamic>{
+        'status': TaskStatus.completed.name,
+        'completedAt': Timestamp.fromDate(completedAt),
+      };
+      if (oldClone.members.isNotEmpty) {
+        updateData['members'] = updatedMembers.map((m) => m.toMap()).toList();
+      }
+      batch.update(_firestore.collection('tasks').doc(oldClone.id), updateData);
+    }
+    await batch.commit();
+  }
+
   Future<void> _cloneRecurringTaskAfterCompletion(Task sourceTask) async {
     final recurringDateTime = _nextUpcomingRecurringDateTime(sourceTask) ??
         _recurringDateTimeFor(sourceTask);
     if (recurringDateTime == null) return;
+
+    final now = DateTime.now();
+    // หากมีงานในซีรีส์เดียวกันที่ยังไม่เสร็จสำหรับรอบวันนี้หรือรอบในอนาคตอยู่แล้ว ไม่ต้องสร้างซ้ำ
+    final hasActiveUpcomingClone = _tasks.any(
+      (t) =>
+          !t.isDeleted &&
+          !t.isCompleted &&
+          t.isRecurring &&
+          t.title.trim().toLowerCase() == sourceTask.title.trim().toLowerCase() &&
+          t.creatorId == sourceTask.creatorId &&
+          (t.projectId ?? '') == (sourceTask.projectId ?? '') &&
+          (t.dateTime.isAtSameMomentAs(recurringDateTime) || !t.dateTime.isBefore(now)),
+    );
+    if (hasActiveUpcomingClone) return;
+
     await _cloneRecurringTaskToDate(sourceTask, recurringDateTime);
   }
 
@@ -1862,6 +1931,7 @@ class TaskProvider with ChangeNotifier {
     }
 
     if (!wasCompleted) {
+      await _completeOlderRecurringClones(task, updatedTask.completedAt ?? DateTime.now());
       await _cloneRecurringTaskAfterCompletion(task);
     }
   }
@@ -2176,6 +2246,7 @@ class TaskProvider with ChangeNotifier {
     }
 
     if (allMembersCompleted && !wasTaskCompleted) {
+      await _completeOlderRecurringClones(task, updatedTask.completedAt ?? DateTime.now());
       await _cloneRecurringTaskAfterCompletion(task);
     }
   }
@@ -2820,6 +2891,7 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
 
     if (!wasCompleted && isNowCompleted) {
+      await _completeOlderRecurringClones(task, completedAt);
       await _cloneRecurringTaskAfterCompletion(task);
     }
     // หากยกเลิกการทำงานเสร็จสิ้น (Undo) ให้ลบงานโคลนที่สร้างขึ้นสำหรับรอบถัดไปทิ้ง

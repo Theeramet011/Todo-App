@@ -2839,6 +2839,92 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     );
   }
 
+  Future<bool?> _showMidnightAutoNextDayDialog(
+    BuildContext context,
+    TimeOfDay pickedTime,
+    DateTime nextDate,
+  ) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final timeStr =
+        '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')} น.';
+    final dateStr =
+        '${nextDate.day} ${_thaiShortMonthsList[nextDate.month - 1]} ${nextDate.year + 543}';
+
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        title: Row(
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.stormySkyBlue,
+              size: 28,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'ปรับวันที่เป็นวันพรุ่งนี้อัตโนมัติ',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'เนื่องจากคุณตั้งเป็นเวลา $timeStr ซึ่งผ่านเวลาปัจจุบันไปแล้ว จะเริ่มตั้งเป็นวันที่พรุ่งนี้อัตโนมัติ ($dateStr)',
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.85)
+                : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text(
+              'เลือกเวลาใหม่',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.stormySkyBlue,
+              foregroundColor: isDark
+                  ? AppColors.stormyNightBackground
+                  : Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text(
+              'ตกลง',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTimeField() {
     final theme = Theme.of(context);
     final isLight = theme.brightness == Brightness.light;
@@ -2863,6 +2949,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             if (picked == null) {
               break;
             }
+            if (!mounted) break;
 
             final now = DateTime.now();
             final isToday = _selectedDate.year == now.year &&
@@ -2873,20 +2960,28 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               final pickedTimeInMinutes = picked.hour * 60 + picked.minute;
               final nowTimeInMinutes = now.hour * 60 + now.minute;
               if (pickedTimeInMinutes < nowTimeInMinutes) {
+                // หากเวลาที่เลือกผ่านเวลาปัจจุบันของวันนี้ไปแล้ว ให้เสนอปรับวันที่เป็นวันพรุ่งนี้อัตโนมัติ
+                final tomorrow = _selectedDate.add(const Duration(days: 1));
+                final confirmed = await _showMidnightAutoNextDayDialog(
+                  context,
+                  picked,
+                  tomorrow,
+                );
                 if (!mounted) break;
-
-                // รีเซ็ตเวลากลับไปเป็นเวลาปัจจุบันทันทีตามคำขอ
-                final nowTime = TimeOfDay.now();
-                setState(() {
-                  _selectedTime = nowTime;
-                });
-                currentTime = nowTime;
-
-                // แสดง AlertDialog แจ้งเตือน
-                await _showTimeInPastDialog(context);
-
-                // หลังจากผู้ใช้กด "ตกลง" ให้ continue เพื่อเปิด showTimePicker ต่อทันที
-                continue;
+                if (confirmed == true) {
+                  setState(() {
+                    _selectedDate = tomorrow;
+                    _selectedTime = picked;
+                  });
+                  break;
+                } else if (confirmed == false) {
+                  // ผู้ใช้กดปุ่ม "เลือกเวลาใหม่"
+                  currentTime = _selectedTime;
+                  continue;
+                } else {
+                  // ผู้ใช้กดพื้นที่ว่างด้านนอกเพื่อปิดหน้าต่างนี้ (ยกเลิก)
+                  break;
+                }
               }
             }
 
