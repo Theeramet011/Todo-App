@@ -13,6 +13,7 @@ import 'fast_completion_warning_dialog.dart';
 import '../utils/snack_bar_utils.dart';
 import '../screens/bin_screen.dart';
 import '../providers/connectivity_provider.dart';
+import '../config/constants.dart';
 
 class GroupProjectCard extends StatelessWidget {
   final Task project;
@@ -40,6 +41,23 @@ class GroupProjectCard extends StatelessWidget {
       authProvider.currentUser?.id,
     );
     final isCompleted = isCompletedOverride ?? project.isCompleted;
+    final leaderId = taskProvider.leaderIdForTask(project);
+    final nonLeaderMembers = project.members
+        .where((m) => m.id != leaderId)
+        .toList();
+    final membersToCheck = nonLeaderMembers.isNotEmpty
+        ? nonLeaderMembers
+        : project.members;
+    final areAllCompleted = project.members.isEmpty
+        ? (isCompleted ||
+            (project.submissionText != null &&
+                project.submissionText!.trim().isNotEmpty) ||
+            project.attachments.isNotEmpty ||
+            (project.submittedBy != null &&
+                project.submittedBy!.isNotEmpty) ||
+            project.status == TaskStatus.pending)
+        : membersToCheck.every((m) => m.status == 'completed');
+    final canMemberDelete = !isLeader && (isCompleted || areAllCompleted);
 
     return GestureDetector(
       onTap: () async {
@@ -109,7 +127,7 @@ class GroupProjectCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (isLeader)
+                if (isLeader || canMemberDelete)
                   PopupMenuButton<String>(
                     onSelected: (value) async {
                       switch (value) {
@@ -290,7 +308,7 @@ class GroupProjectCard extends StatelessWidget {
                           }
                           break;
                         case 'delete':
-                          _showDeleteConfirmation(context);
+                          _showDeleteConfirmation(context, isLeader: isLeader);
                           break;
                       }
                     },
@@ -299,40 +317,42 @@ class GroupProjectCard extends StatelessWidget {
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.edit_outlined,
-                              color: AppColors.primaryBlue,
-                              size: 20,
-                            ),
-                            SizedBox(width: 10),
-                            Text('แก้ไขภารกิจ'),
-                          ],
+                      if (isLeader) ...[
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.edit_outlined,
+                                color: AppColors.primaryBlue,
+                                size: 20,
+                              ),
+                              SizedBox(width: 10),
+                              Text('แก้ไขภารกิจ'),
+                            ],
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'toggle_complete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              isCompleted
-                                  ? Icons.undo
-                                  : Icons.check_circle_outline,
-                              color: isCompleted
-                                  ? AppColors.warning
-                                  : AppColors.success,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              isCompleted ? 'ทำยังไม่เสร็จ' : 'ทำว่าเสร็จสิ้น',
-                            ),
-                          ],
+                        PopupMenuItem(
+                          value: 'toggle_complete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                isCompleted
+                                    ? Icons.undo
+                                    : Icons.check_circle_outline,
+                                color: isCompleted
+                                    ? AppColors.warning
+                                    : AppColors.success,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                isCompleted ? 'ทำยังไม่เสร็จ' : 'ทำว่าเสร็จสิ้น',
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                       const PopupMenuItem(
                         value: 'delete',
                         child: Row(
@@ -370,9 +390,11 @@ class GroupProjectCard extends StatelessWidget {
             ],
 
             if (project.subtasks.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: AppConstants.paddingSmall),
               Padding(
-                padding: const EdgeInsets.only(left: 32),
+                padding: const EdgeInsets.only(
+                  left: AppConstants.paddingSmall,
+                ),
                 child: _GroupInlineSubtasks(
                   project: project,
                   isLeader: isLeader,
@@ -597,7 +619,7 @@ class GroupProjectCard extends StatelessWidget {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext parentContext) {
+  void _showDeleteConfirmation(BuildContext parentContext, {required bool isLeader}) {
     showDialog(
       context: parentContext,
       builder: (dialogContext) => AlertDialog(
@@ -613,7 +635,9 @@ class GroupProjectCard extends StatelessWidget {
           ),
         ),
         content: Text(
-          'คุณแน่ใจหรือไม่ว่าต้องการลบโครงการกลุ่มนี้โดยส่งไปที่ถังขยะ?',
+          isLeader
+              ? 'คุณแน่ใจหรือไม่ว่าต้องการลบโครงการกลุ่มนี้โดยส่งไปที่ถังขยะ?'
+              : 'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจกลุ่มนี้ออกจากรายการของคุณ?\n\n(การลบนี้จะมีผลเฉพาะกับคุณเท่านั้น โดยไม่ส่งผลกระทบต่อกลุ่มหรือสมาชิกคนอื่น)',
           style: TextStyle(
             color: Theme.of(parentContext).brightness == Brightness.dark
                 ? AppColors.stormyIceBlue
@@ -668,7 +692,10 @@ class GroupProjectCard extends StatelessWidget {
             },
             style: TextButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  Theme.of(parentContext).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -767,22 +794,22 @@ class _GroupInlineSubtasksState extends State<_GroupInlineSubtasks> {
                                 ? AppColors.stormySkyBlue
                                 : theme.colorScheme.primary)
                             : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.25,
+                                alpha: 0.22,
                               ),
-                        width: 1.5,
+                        width: 2,
                       ),
                     ),
                     child: entry.value.isDone
                         ? Icon(
                             Icons.check,
-                            size: 13,
+                            size: 12,
                             color: theme.brightness == Brightness.dark
                                 ? AppColors.stormyNightBackground
-                                : Colors.white,
+                                : theme.colorScheme.onPrimary,
                           )
                         : null,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppConstants.paddingSmall),
                   Flexible(
                     child: Text(
                       entry.value.title,

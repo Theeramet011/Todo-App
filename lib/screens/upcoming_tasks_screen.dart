@@ -1112,7 +1112,10 @@ class _UpcomingTaskCard extends StatelessWidget {
             },
             style: TextButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  Theme.of(parentContext).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),

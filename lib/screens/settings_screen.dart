@@ -690,7 +690,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               style: TextButton.styleFrom(
                 foregroundColor: isDark
-                    ? AppColors.stormyMutedBlueGrey
+                    ? AppColors.stormySkyBlue
                     : AppColors.textSecondary,
               ),
               child: const Text('ยกเลิก'),

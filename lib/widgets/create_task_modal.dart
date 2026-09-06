@@ -2027,7 +2027,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor: isDark
+                  ? AppColors.stormyNightBackground
+                  : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -4490,7 +4492,10 @@ class _CustomReminderSheetContentState
                         (Theme.of(context).brightness == Brightness.light
                         ? AppColors.stormySkyBlue
                         : AppColors.stormySkyBlue),
-                    foregroundColor: Colors.white,
+                    foregroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),

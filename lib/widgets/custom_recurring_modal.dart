@@ -320,7 +320,10 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.stormySkyBlue,
-                      foregroundColor: Colors.white,
+                      foregroundColor:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.stormyNightBackground
+                              : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),

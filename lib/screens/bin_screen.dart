@@ -314,7 +314,9 @@ class BinScreen extends StatelessWidget {
             },
             style: TextButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.stormyNightBackground
+                  : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -512,7 +514,9 @@ class _DeletedTaskCard extends StatelessWidget {
             },
             style: TextButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.stormyNightBackground
+                  : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),

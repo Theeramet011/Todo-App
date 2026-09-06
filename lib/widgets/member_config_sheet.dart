@@ -656,7 +656,10 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -764,7 +767,10 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -1195,7 +1201,11 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.stormySkyBlue,
-                                  foregroundColor: Colors.white,
+                                  foregroundColor:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppColors.stormyNightBackground
+                                          : Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 16,
                                   ),
@@ -1312,7 +1322,11 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.stormySkyBlue,
-                                      foregroundColor: Colors.white,
+                                      foregroundColor:
+                                          Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? AppColors.stormyNightBackground
+                                              : Colors.white,
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 16,
                                       ),

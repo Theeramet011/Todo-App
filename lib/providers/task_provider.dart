@@ -1963,6 +1963,10 @@ class TaskProvider with ChangeNotifier {
       }
     }
 
+    final submitterId = task.submittedBy;
+    final leaderId = task.isGroup ? leaderIdForTask(task) : '';
+    final isLeaderSubmitter = task.isGroup && submitterId == leaderId;
+
     final updatedTask = task.copyWith(
       status: TaskStatus.inProgress,
       clearSubmissionText: true,
@@ -1970,6 +1974,12 @@ class TaskProvider with ChangeNotifier {
       clearSubmittedAt: true,
       attachments: [],
       clearCompletedAt: true,
+      deletedForUserIds: submitterId != null && submitterId.isNotEmpty
+          ? task.deletedForUserIds.where((id) => id != submitterId).toList()
+          : (task.isGroup ? const [] : task.deletedForUserIds),
+      hiddenForUserIds: submitterId != null && submitterId.isNotEmpty
+          ? task.hiddenForUserIds.where((id) => id != submitterId).toList()
+          : (task.isGroup ? const [] : task.hiddenForUserIds),
     );
 
     _tasks[index] = updatedTask;
@@ -1978,10 +1988,6 @@ class TaskProvider with ChangeNotifier {
     }
     _calculateInitialXP();
     notifyListeners();
-
-    final submitterId = task.submittedBy;
-    final leaderId = task.isGroup ? leaderIdForTask(task) : '';
-    final isLeaderSubmitter = task.isGroup && submitterId == leaderId;
     if (submitterId != null && submitterId.isNotEmpty && wasCompleted) {
       int xpAward = task.calculateXP;
       try {
@@ -2005,13 +2011,25 @@ class TaskProvider with ChangeNotifier {
       await _handleGroupTaskCompletionRewards(task, false);
     }
 
-    await _firestore.collection('tasks').doc(taskId).update({
+    final rejectUpdateData = <String, dynamic>{
       'status': TaskStatus.inProgress.name,
       'submissionText': FieldValue.delete(),
       'submittedBy': FieldValue.delete(),
       'submittedAt': FieldValue.delete(),
       'attachments': [],
-    });
+    };
+    if (task.isGroup) {
+      if (submitterId != null && submitterId.isNotEmpty) {
+        rejectUpdateData['deletedForUserIds'] =
+            FieldValue.arrayRemove([submitterId]);
+        rejectUpdateData['hiddenForUserIds'] =
+            FieldValue.arrayRemove([submitterId]);
+      } else {
+        rejectUpdateData['deletedForUserIds'] = [];
+        rejectUpdateData['hiddenForUserIds'] = [];
+      }
+    }
+    await _firestore.collection('tasks').doc(taskId).update(rejectUpdateData);
     if (submitterId != null && submitterId.isNotEmpty && leaderId.isNotEmpty) {
       await _notifyTaskReviewDecision(
         task,
@@ -2038,13 +2056,21 @@ class TaskProvider with ChangeNotifier {
 
     final updatedMembers = List<Member>.from(task.members);
     final member = updatedMembers[memberIndex];
+    final finalAttachments = member.attachments.isNotEmpty
+        ? member.attachments
+        : (task.submittedBy == memberId ? task.attachments : member.attachments);
+
     updatedMembers[memberIndex] = member.copyWith(
       status: 'pending',
       submissionText: submissionText.trim(),
       submittedAt: DateTime.now(),
+      attachments: finalAttachments,
     );
 
-    final updatedTask = task.copyWith(members: updatedMembers);
+    final updatedTask = task.copyWith(
+      members: updatedMembers,
+      attachments: memberId == task.submittedBy ? finalAttachments : task.attachments,
+    );
 
     _tasks[index] = updatedTask;
     if (_selectedTask?.id == taskId) {
@@ -2132,7 +2158,13 @@ class TaskProvider with ChangeNotifier {
       attachments: updatedAttachments,
     );
 
-    final updatedTask = task.copyWith(members: updatedMembers);
+    final updatedTaskAttachments = List<TaskAttachment>.from(task.attachments)
+      ..removeWhere((a) => a.fileUrl == attachment.fileUrl);
+
+    final updatedTask = task.copyWith(
+      members: updatedMembers,
+      attachments: updatedTaskAttachments,
+    );
 
     _tasks[index] = updatedTask;
     if (_selectedTask?.id == taskId) {
@@ -2142,6 +2174,7 @@ class TaskProvider with ChangeNotifier {
 
     await _firestore.collection('tasks').doc(taskId).update({
       'members': updatedMembers.map((m) => m.toMap()).toList(),
+      'attachments': updatedTaskAttachments.map((a) => a.toMap()).toList(),
     });
   }
 
@@ -2275,31 +2308,34 @@ class TaskProvider with ChangeNotifier {
     final member = task.members[memberIndex];
     final wasMemberCompleted = member.status == 'completed';
 
-    // Delete member's attachments from Storage
-    for (final attachment in member.attachments) {
-      try {
-        final ref = firebase_storage.FirebaseStorage.instance.refFromURL(
-          attachment.fileUrl,
-        );
-        await ref.delete();
-      } catch (e) {
-        debugPrint('Error deleting member storage file on reject: $e');
-      }
-    }
-
     final updatedMembers = List<Member>.from(task.members);
+    // Keep existing attachments so member can resubmit them or attach more
+    final preservedAttachments = member.attachments.isNotEmpty
+        ? member.attachments
+        : (task.submittedBy == memberId ? task.attachments : member.attachments);
+
     updatedMembers[memberIndex] = member.copyWith(
       status: 'inProgress',
-      clearSubmissionText: true,
       clearSubmittedAt: true,
-      attachments: [],
+      attachments: preservedAttachments,
     );
 
     final wasTaskCompleted = task.isCompleted;
+    final clearTaskSubmission = task.submittedBy == memberId;
     final updatedTask = task.copyWith(
       members: updatedMembers,
       status: wasTaskCompleted ? TaskStatus.inProgress : task.status,
       clearCompletedAt: wasTaskCompleted,
+      clearSubmissionText: clearTaskSubmission,
+      clearSubmittedBy: clearTaskSubmission,
+      clearSubmittedAt: clearTaskSubmission,
+      attachments: clearTaskSubmission ? [] : task.attachments,
+      deletedForUserIds: wasTaskCompleted
+          ? const []
+          : task.deletedForUserIds.where((id) => id != memberId).toList(),
+      hiddenForUserIds: wasTaskCompleted
+          ? const []
+          : task.hiddenForUserIds.where((id) => id != memberId).toList(),
     );
 
     _tasks[index] = updatedTask;
@@ -2333,6 +2369,19 @@ class TaskProvider with ChangeNotifier {
 
     final updateData = <String, dynamic>{
       'members': updatedMembers.map((m) => m.toMap()).toList(),
+      if (clearTaskSubmission) ...{
+        'submissionText': FieldValue.delete(),
+        'submittedBy': FieldValue.delete(),
+        'submittedAt': FieldValue.delete(),
+        'attachments': [],
+      },
+      if (wasTaskCompleted) ...{
+        'deletedForUserIds': [],
+        'hiddenForUserIds': [],
+      } else ...{
+        'deletedForUserIds': FieldValue.arrayRemove([memberId]),
+        'hiddenForUserIds': FieldValue.arrayRemove([memberId]),
+      },
     };
     if (wasTaskCompleted) {
       updateData['status'] = TaskStatus.inProgress.name;
@@ -2506,6 +2555,8 @@ class TaskProvider with ChangeNotifier {
           clearRewardBlockedAt: true,
           clearRewardBlockedBy: true,
           clearCompletionAgeSeconds: true,
+          deletedForUserIds: task.isGroup ? const [] : task.deletedForUserIds,
+          hiddenForUserIds: task.isGroup ? const [] : task.hiddenForUserIds,
         );
         _tasks[index] = updatedTask;
         restoredTasks.add(updatedTask);
@@ -2535,7 +2586,7 @@ class TaskProvider with ChangeNotifier {
 
     final batch = _firestore.batch();
     for (final task in restoredTasks) {
-      batch.set(_firestore.collection('tasks').doc(task.id), {
+      final restoreData = <String, dynamic>{
         'status': TaskStatus.pending.name,
         'completedAt': null,
         'awardedXP': 0,
@@ -2544,7 +2595,12 @@ class TaskProvider with ChangeNotifier {
         'rewardBlockedAt': null,
         'rewardBlockedBy': null,
         'completionAgeSeconds': null,
-      }, SetOptions(merge: true));
+      };
+      if (task.isGroup) {
+        restoreData['deletedForUserIds'] = [];
+        restoreData['hiddenForUserIds'] = [];
+      }
+      batch.set(_firestore.collection('tasks').doc(task.id), restoreData, SetOptions(merge: true));
     }
 
     if (currentUserId != null &&
@@ -2875,6 +2931,10 @@ class TaskProvider with ChangeNotifier {
         await _handleGroupTaskCompletionRewards(task, true);
       } else if (wasCompleted && !isNowCompleted) {
         await _handleGroupTaskCompletionRewards(task, false);
+        updatedTask = updatedTask.copyWith(
+          deletedForUserIds: const [],
+          hiddenForUserIds: const [],
+        );
       }
 
       await _firestore
@@ -3238,8 +3298,12 @@ class TaskProvider with ChangeNotifier {
 
       final updatedMembers = List<Member>.from(task.members);
       final member = updatedMembers[memberIndex];
-      final updatedAttachments = List<TaskAttachment>.from(member.attachments)
-        ..add(newAttachment);
+      final baseAttachments = member.attachments.isNotEmpty
+          ? List<TaskAttachment>.from(member.attachments)
+          : (task.submittedBy == memberId
+              ? List<TaskAttachment>.from(task.attachments)
+              : <TaskAttachment>[]);
+      final updatedAttachments = baseAttachments..add(newAttachment);
 
       updatedMembers[memberIndex] = member.copyWith(
         attachments: updatedAttachments,

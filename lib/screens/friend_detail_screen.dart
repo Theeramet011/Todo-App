@@ -70,7 +70,10 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
               onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(
                 backgroundColor: AppColors.accentRed,
-                foregroundColor: Colors.white,
+                foregroundColor:
+                    Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
               ),
               child: const Text(
                 'ลบ',

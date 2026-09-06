@@ -538,7 +538,10 @@ class _SearchResultCardState extends State<SearchResultCard> {
                       onPressed: _sendFriendRequest,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.stormySkyBlue,
-                        foregroundColor: Colors.white,
+                        foregroundColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.stormyNightBackground
+                                : Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,

@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/connectivity_provider.dart';
 import 'package:todo_app/screens/member_assignment_detail_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -144,7 +145,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           (Theme.of(context).brightness == Brightness.light
                           ? AppColors.stormySkyBlue
                           : AppColors.primaryPink),
-                      foregroundColor: Colors.white,
+                      foregroundColor:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.stormyNightBackground
+                              : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -190,12 +194,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return const Scaffold(body: Center(child: Text('ยังไม่ได้เลือกภารกิจ')));
     }
     final currentTask = task;
-    final currentUserId =
-        firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '';
+    final currentUserId = authProvider.currentUser?.id ??
+        firebase_auth.FirebaseAuth.instance.currentUser?.uid ??
+        '';
     final isLeader = taskProvider.isLeaderForTask(
       currentTask,
       authProvider.currentUser?.id,
     );
+    final leaderId = currentTask.isGroup
+        ? taskProvider.leaderIdForTask(currentTask)
+        : '';
+    final myMember = currentTask.isGroup
+        ? currentTask.members.where((m) => m.id == currentUserId).firstOrNull
+        : null;
+    final canMemberDelete = currentTask.isGroup &&
+        !isLeader &&
+        (currentTask.isCompleted || _areAllMembersCompleted(currentTask, leaderId));
 
     return Scaffold(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
@@ -221,7 +235,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ),
         ),
         actions: [
-          if (isLeader)
+          if (isLeader || canMemberDelete)
             IconButton(
               icon: Icon(
                 Icons.more_vert,
@@ -230,7 +244,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     : null,
               ),
               onPressed: () {
-                _showOptionsMenu(context, currentTask);
+                _showOptionsMenu(context, currentTask, isLeader: isLeader);
               },
             ),
         ],
@@ -273,7 +287,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               _buildLeaderReviewSection(currentTask, taskProvider, authProvider),
 
               // Attachments Section
-              if (!isLeader) _buildAttachmentsSection(currentTask, taskProvider),
+              if (!isLeader) _buildAttachmentsSection(currentTask, taskProvider, myMember: myMember),
 
               // Comments Section
               if (!currentTask.isPersonal)
@@ -1009,14 +1023,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return const SizedBox.shrink();
     }
 
+    Member? myMember;
     if (task.isGroup || task.members.isNotEmpty) {
-      final myMember = task.members.firstWhere(
+      final found = task.members.firstWhere(
         (m) => m.id == currentUserId,
         orElse: () => const Member(id: '', name: '', avatarUrl: ''),
       );
+      if (found.id.isNotEmpty) {
+        myMember = found;
+      }
+    }
 
-      if (myMember.id.isNotEmpty) {
-        if (myMember.status == 'pending') {
+    if (myMember != null) {
+      final currentMember = myMember;
+      if (currentMember.status == 'pending') {
           return Column(
             children: [
               _buildWaitingForApprovalCard(),
@@ -1051,7 +1071,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               onPressed: () => Navigator.pop(context, true),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.accentRed,
-                                foregroundColor: Colors.white,
+                                foregroundColor:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppColors.stormyNightBackground
+                                        : Colors.white,
                               ),
                               child: const Text('ยกเลิกการส่ง'),
                             ),
@@ -1062,7 +1086,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       if (confirm == true) {
                         await taskProvider.cancelMemberTaskSubmission(
                           task.id,
-                          myMember.id,
+                          currentMember.id,
                         );
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1096,12 +1120,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             ],
           );
-        } else if (myMember.status == 'completed') {
+        } else if (currentMember.status == 'completed') {
           return _buildCompletedReviewCard(isLeader: false, isSubmitter: true);
         } else {
-          return _buildMemberSubmitForm(task, taskProvider, myMember: myMember);
+          return _buildMemberSubmitForm(task, taskProvider, myMember: currentMember);
         }
-      }
     }
 
     switch (task.status) {
@@ -1140,7 +1163,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             onPressed: () => Navigator.pop(context, true),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.accentRed,
-                              foregroundColor: Colors.white,
+                              foregroundColor:
+                                  Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? AppColors.stormyNightBackground
+                                      : Colors.white,
                             ),
                             child: const Text('ยกเลิกการส่ง'),
                           ),
@@ -1189,7 +1216,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         );
       case TaskStatus.todo:
       case TaskStatus.inProgress:
-        return _buildMemberSubmitForm(task, taskProvider);
+        return _buildMemberSubmitForm(task, taskProvider, myMember: myMember);
     }
   }
 
@@ -1200,7 +1227,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }) {
     final theme = Theme.of(context);
     final attachments = myMember != null
-        ? myMember.attachments
+        ? (myMember.attachments.isNotEmpty
+            ? myMember.attachments
+            : (task.submittedBy == myMember.id ? task.attachments : <TaskAttachment>[]))
         : task.attachments;
     final canSubmit =
         _submissionController.text.trim().isNotEmpty || attachments.isNotEmpty;
@@ -1515,7 +1544,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               label: const Text('ส่งงานให้หัวหน้าตรวจสอบ'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.stormySkyBlue,
-                foregroundColor: Colors.white,
+                foregroundColor:
+                    theme.brightness == Brightness.dark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
                 disabledBackgroundColor: theme.disabledColor.withValues(
                   alpha: 0.12,
                 ),
@@ -1716,7 +1748,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
-                    foregroundColor: Colors.white,
+                    foregroundColor:
+                        theme.brightness == Brightness.dark
+                            ? AppColors.stormyNightBackground
+                            : Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -2704,7 +2739,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
           const SizedBox(height: 16),
 
-          if (submissionText != null && submissionText.isNotEmpty) ...[
+          if ((isMemberPending || isMemberCompleted) &&
+              submissionText != null &&
+              submissionText.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -2742,7 +2779,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             const SizedBox(height: 12),
           ],
 
-          if (attachments.isNotEmpty) ...[
+          if ((isMemberPending || isMemberCompleted) &&
+              attachments.isNotEmpty) ...[
             ...attachments.map(
               (attachment) => _buildAttachmentTile(
                 attachment,
@@ -2806,10 +2844,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
+                      await _checkAndShowAllMembersApprovedDialog(
+                        task,
+                        taskProvider,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryGreen,
-                      foregroundColor: Colors.white,
+                      foregroundColor:
+                          theme.brightness == Brightness.dark
+                              ? AppColors.stormyNightBackground
+                              : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -4042,6 +4087,204 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
+  Future<void> _completeTaskAsLeader(
+    Task task,
+    TaskProvider taskProvider, {
+    bool closeDetailScreen = true,
+  }) async {
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      _showOfflineDialog(context);
+      return;
+    }
+
+    final latestTask = taskProvider.tasks.firstWhere(
+      (t) => t.id == task.id,
+      orElse: () => task,
+    );
+    if (latestTask.subtasks.isNotEmpty &&
+        latestTask.subtasks.any((s) => !s.isDone)) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('ไม่สามารถเสร็จสิ้นภารกิจได้'),
+          content: const Text(
+            'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.stormySkyBlue,
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.stormyNightBackground
+                    : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              child: const Text('ตกลง'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final isSoundEnabled =
+        context.read<AuthProvider>().currentUser?.isSoundEnabled ?? true;
+    final shouldProceed = await LatePenaltyDialog.checkAndShow(
+      context,
+      latestTask,
+    );
+    if (!shouldProceed) return;
+    if (!mounted) return;
+
+    unawaited(
+      SoundService.instance.playTaskCompleteSound(
+        isSoundEnabled: isSoundEnabled,
+      ),
+    );
+    final result = await taskProvider.completeTaskWithSubtasks(
+      latestTask.id,
+      true,
+    );
+    if (!mounted) return;
+    await FastCompletionWarningDialog.showCompletionFeedback(
+      context,
+      result,
+    );
+
+    if (!mounted) return;
+    SnackBarUtils.showUndoSnackBar(
+      context,
+      message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
+      onUndo: () async {
+        await taskProvider.toggleTaskCompletion(
+          latestTask.id,
+          updateSubtasks: true,
+        );
+      },
+    );
+    if (closeDetailScreen && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _checkAndShowAllMembersApprovedDialog(
+    Task task,
+    TaskProvider taskProvider,
+  ) async {
+    if (!mounted) return;
+
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
+    final latestTask =
+        _latestTaskFromProvider(taskProvider, task.id) ?? task;
+
+    if (!latestTask.isGroup && latestTask.members.isEmpty) return;
+    if (latestTask.isCompleted || latestTask.isDeleted) return;
+
+    final isLeader = taskProvider.isLeaderForTask(latestTask, currentUserId);
+    if (!isLeader) return;
+
+    final leaderId = taskProvider.leaderIdForTask(latestTask);
+    if (!_areAllMembersCompleted(latestTask, leaderId)) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen =
+        prefs.getBool('has_seen_all_members_approved_dialog') ?? false;
+    if (hasSeen) return;
+
+    if (!mounted) return;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        final isDark = theme.brightness == Brightness.dark;
+
+        return AlertDialog(
+          backgroundColor: isDark
+              ? AppColors.stormyDarkSlate
+              : theme.colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(
+                Icons.task_alt_rounded,
+                color: AppColors.primaryGreen,
+                size: 26,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'อนุมัติงานครบทุกคนแล้ว',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'เนื่องจากคุณอนุมัติงานสมาชิกทุกคนแล้ว ต้องการกดเสร็จสิ้นเพื่อปิดงานนี้เลยหรือไม่? ซึ่งคุณสามารถกดปุ่มเสร็จสิ้นได้ในปุ่มสามจุดมุมขวาบนในหน้านี้ทีหลังได้',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: isDark
+                  ? AppColors.stormyIceBlue
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.85),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              style: TextButton.styleFrom(
+                foregroundColor: isDark
+                    ? AppColors.stormySkyBlue
+                    : AppColors.textSecondary,
+              ),
+              child: const Text('ยังก่อน'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: TextButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: isDark
+                    ? AppColors.stormyNightBackground
+                    : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'เสร็จสิ้น',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      if (!mounted) return;
+      await _completeTaskAsLeader(
+        latestTask,
+        taskProvider,
+        closeDetailScreen: true,
+      );
+    }
+  }
+
   Future<void> _openEditTaskModal(BuildContext context, Task task) async {
     await showModalBottomSheet<Task>(
       context: context,
@@ -4051,7 +4294,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  void _showOptionsMenu(BuildContext context, Task task) {
+  void _showOptionsMenu(BuildContext context, Task task, {bool isLeader = true}) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
 
@@ -4084,7 +4327,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            if (!task.isDeleted)
+            if (isLeader && !task.isDeleted)
               ListTile(
                 leading: Icon(
                   Icons.edit_outlined,
@@ -4098,7 +4341,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   _openEditTaskModal(context, task);
                 },
               ),
-            ListTile(
+            if (isLeader &&
+                (task.isDeleted || task.isCompleted || task.subtasks.isEmpty))
+              ListTile(
               leading: Icon(
                 task.isDeleted
                     ? Icons.restore
@@ -4155,83 +4400,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       }
                     }
 
-                    final latestTask = taskProvider.tasks.firstWhere(
-                      (t) => t.id == task.id,
-                      orElse: () => task,
-                    );
-                    if (latestTask.subtasks.isNotEmpty &&
-                        latestTask.subtasks.any((s) => !s.isDone)) {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('ไม่สามารถเสร็จสิ้นภารกิจได้'),
-                          content: const Text(
-                            'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16.0),
-                          ),
-                          actions: [
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.stormySkyBlue,
-                                foregroundColor:
-                                    Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? AppColors.stormyNightBackground
-                                    : Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                              ),
-                              child: const Text('ตกลง'),
-                            ),
-                          ],
-                        ),
-                      );
-                      return;
-                    }
-
-                    final shouldProceed = await LatePenaltyDialog.checkAndShow(
-                      context,
-                      task,
-                    );
-                    if (!shouldProceed) return;
-                    if (!context.mounted) return;
-
-                    final isSoundEnabled =
-                        context
-                            .read<AuthProvider>()
-                            .currentUser
-                            ?.isSoundEnabled ??
-                        true;
-                    unawaited(
-                      SoundService.instance.playTaskCompleteSound(
-                        isSoundEnabled: isSoundEnabled,
-                      ),
-                    );
-                    final result = await taskProvider.completeTaskWithSubtasks(
-                      task.id,
-                      true,
-                    );
-                    if (!mounted || !sheetContext.mounted) return;
                     Navigator.pop(sheetContext);
-                    await FastCompletionWarningDialog.showCompletionFeedback(
-                      context,
-                      result,
-                    );
-
-                    if (!context.mounted) return;
-                    SnackBarUtils.showUndoSnackBar(
-                      context,
-                      message: 'ทำเครื่องหมายเสร็จสิ้นแล้ว',
-                      onUndo: () async {
-                        await taskProvider.toggleTaskCompletion(
-                          task.id,
-                          updateSubtasks: true,
-                        );
-                      },
+                    await _completeTaskAsLeader(
+                      task,
+                      taskProvider,
+                      closeDetailScreen: false,
                     );
                   } else {
                     await taskProvider.toggleTaskCompletion(
@@ -4259,7 +4432,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 if (task.isDeleted) {
                   _showPermanentDeleteConfirmation(task);
                 } else {
-                  _showDeleteConfirmation(task);
+                  _showDeleteConfirmation(task, isLeader: isLeader);
                 }
               },
             ),
@@ -4345,7 +4518,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  void _showDeleteConfirmation(Task task) {
+  void _showDeleteConfirmation(Task task, {bool isLeader = true}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -4358,7 +4531,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
         ),
         content: Text(
-          'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจ "${task.title}"? การดำเนินการนี้จะส่งงานไปที่ถังขยะและสามารถกู้คืนได้ภายหลัง',
+          task.isGroup && !isLeader
+              ? 'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจกลุ่มนี้ออกจากรายการของคุณ?\n\n(การลบนี้จะมีผลเฉพาะกับคุณเท่านั้น โดยไม่ส่งผลกระทบต่อกลุ่มหรือสมาชิกคนอื่น)'
+              : 'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจ "${task.title}"? การดำเนินการนี้จะส่งงานไปที่ถังขยะและสามารถกู้คืนได้ภายหลัง',
           style: TextStyle(
             color: Theme.of(context).brightness == Brightness.dark
                 ? AppColors.stormyIceBlue
@@ -4418,12 +4593,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               rootNavigator.pop(); // ปิดหน้า TaskDetailScreen
             },
             style: TextButton.styleFrom(
-              backgroundColor: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFFEF9A9A).withValues(alpha: 0.15)
-                  : AppColors.error,
-              foregroundColor: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFFEF9A9A)
-                  : Colors.white,
+              backgroundColor: AppColors.accentRed,
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -4459,8 +4633,36 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
-  Widget _buildAttachmentsSection(Task task, TaskProvider taskProvider) {
-    if (task.attachments.isEmpty) return const SizedBox.shrink();
+  Widget _buildAttachmentsSection(
+    Task task,
+    TaskProvider taskProvider, {
+    Member? myMember,
+  }) {
+    // สำหรับภารกิจกลุ่ม: หน้าสมาชิกเมื่อยังไม่ได้ส่งงาน (กำลังทำ/โดนปฏิเสธ/ส่งกลับไปแก้ไข)
+    // ไฟล์แนบจะแสดงเฉพาะในช่องส่งงานด้านบนเท่านั้น
+    // ไฟล์แนบข้างล่างจะแสดงก็ต่อเมื่อกดส่งงานไปแล้ว (status == 'pending' หรือ 'completed')
+    if (task.isGroup) {
+      final isSubmitted = myMember != null &&
+          (myMember.status == 'pending' || myMember.status == 'completed');
+      if (!isSubmitted) {
+        return const SizedBox.shrink();
+      }
+    }
+
+    final List<TaskAttachment> displayAttachments;
+    if (task.isGroup) {
+      if (myMember != null && myMember.attachments.isNotEmpty) {
+        displayAttachments = myMember.attachments;
+      } else if (task.submittedBy == myMember?.id && task.attachments.isNotEmpty) {
+        displayAttachments = task.attachments;
+      } else {
+        displayAttachments = myMember?.attachments ?? task.attachments;
+      }
+    } else {
+      displayAttachments = task.attachments;
+    }
+
+    if (displayAttachments.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -4510,7 +4712,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                'ไฟล์แนบ (${task.attachments.length})',
+                'ไฟล์แนบ (${displayAttachments.length})',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -4523,10 +4725,29 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: task.attachments.length,
+            itemCount: displayAttachments.length,
             itemBuilder: (context, index) {
-              final attachment = task.attachments[index];
-              return _buildAttachmentTile(attachment, task, taskProvider);
+              final attachment = displayAttachments[index];
+              return _buildAttachmentTile(
+                attachment,
+                task,
+                taskProvider,
+                showDelete: myMember != null && myMember.status == 'inProgress',
+                onDelete: () async {
+                  if (myMember != null) {
+                    await taskProvider.deleteMemberAttachment(
+                      task.id,
+                      myMember.id,
+                      attachment,
+                    );
+                  } else {
+                    await taskProvider.deleteTaskAttachment(
+                      task.id,
+                      attachment,
+                    );
+                  }
+                },
+              );
             },
           ),
         ],
@@ -4799,7 +5020,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
             ),
             child: const Text('ลบไฟล์'),
           ),
@@ -4849,7 +5073,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
             ),
             child: const Text('ลบไฟล์'),
           ),
@@ -5192,7 +5419,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     (Theme.of(context).brightness == Brightness.light
                     ? AppColors.stormySkyBlue
                     : AppColors.primaryBlue),
-                foregroundColor: Colors.white,
+                foregroundColor:
+                    Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.stormyNightBackground
+                        : Colors.white,
               ),
             ),
           ],
@@ -5279,7 +5509,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor:
                   isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  isDark ? AppColors.stormyNightBackground : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -5376,7 +5607,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor:
                   isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  isDark ? AppColors.stormyNightBackground : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),

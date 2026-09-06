@@ -101,7 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.stormySkyBlue,
-                      foregroundColor: Colors.white,
+                      foregroundColor:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.stormyNightBackground
+                              : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -1866,7 +1869,11 @@ class _NotificationPanelState extends State<NotificationPanel> {
                                   _acceptFriendRequestNotification(item),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.stormySkyBlue,
-                                foregroundColor: Colors.white,
+                                foregroundColor:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppColors.stormyNightBackground
+                                        : Colors.white,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 8,
@@ -2538,7 +2545,10 @@ class _TodayTaskCard extends StatelessWidget {
             },
             style: TextButton.styleFrom(
               backgroundColor: AppColors.accentRed,
-              foregroundColor: Colors.white,
+              foregroundColor:
+                  Theme.of(parentContext).brightness == Brightness.dark
+                      ? AppColors.stormyNightBackground
+                      : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -2599,12 +2609,14 @@ class _TodayTaskCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _TodayCompletionCheckbox(
-                    task: task,
-                    onToggle: () => onToggleComplete(task),
-                    isCompleted: isCompleted,
-                  ),
-                  const SizedBox(width: AppConstants.paddingMedium),
+                  if (task.subtasks.isEmpty) ...[
+                    _TodayCompletionCheckbox(
+                      task: task,
+                      onToggle: () => onToggleComplete(task),
+                      isCompleted: isCompleted,
+                    ),
+                    const SizedBox(width: AppConstants.paddingMedium),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2612,12 +2624,13 @@ class _TodayTaskCard extends StatelessWidget {
                         Text(
                           task.title,
                           style: theme.textTheme.titleMedium?.copyWith(
+                            fontSize: 18,
                             color: isCompleted
                                 ? theme.colorScheme.onSurface.withValues(
                                     alpha: 0.45,
                                   )
                                 : theme.colorScheme.onSurface,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.bold,
                             decoration: isCompleted
                                 ? TextDecoration.lineThrough
                                 : null,
@@ -2642,9 +2655,14 @@ class _TodayTaskCard extends StatelessWidget {
                         ],
                         if (task.subtasks.isNotEmpty) ...[
                           const SizedBox(height: AppConstants.paddingSmall),
-                          _TodaySubtasks(
-                            task: task,
-                            onToggleComplete: onToggleComplete,
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              left: AppConstants.paddingSmall,
+                            ),
+                            child: _TodaySubtasks(
+                              task: task,
+                              onToggleComplete: onToggleComplete,
+                            ),
                           ),
                         ],
                       ],
@@ -2720,7 +2738,7 @@ class _TodayTaskCard extends StatelessWidget {
               if (task.subtasks.isNotEmpty) ...[
                 const SizedBox(height: AppConstants.paddingMedium),
                 Padding(
-                  padding: const EdgeInsets.only(left: 40),
+                  padding: EdgeInsets.zero,
                   child: Column(
                     children: [
                       Row(
@@ -2757,7 +2775,9 @@ class _TodayTaskCard extends StatelessWidget {
               ],
               const SizedBox(height: AppConstants.paddingMedium),
               Padding(
-                padding: const EdgeInsets.only(left: 40),
+                padding: EdgeInsets.only(
+                  left: task.subtasks.isNotEmpty ? 0 : 40,
+                ),
                 child: Wrap(
                   spacing: AppConstants.paddingSmall,
                   runSpacing: AppConstants.paddingSmall,
