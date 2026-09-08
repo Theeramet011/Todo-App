@@ -2,6 +2,7 @@
 //
 // แสดงรายการเพื่อน รายการคำขอเป็นเพื่อน (Received/Sent Requests)
 // และช่องทางค้นหาเพื่อส่งคำขอเป็นเพื่อนใหม่
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/colors.dart';
@@ -59,6 +60,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
         .toList();
     final theme = Theme.of(context);
 
+    // เช็คหากมีเพื่อนใหม่ใน currentUser.friends ที่ยังไม่ได้ถูกโหลดลงใน taskProvider.friends
+    final loadedIds = taskProvider.friends.map((u) => u.id).toSet();
+    final hasMissingFriends = friendIds.any((id) => !loadedIds.contains(id));
+    if (hasMissingFriends) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<TaskProvider>().loadFriends();
+        }
+      });
+    }
+
     // Sort friends by points (leaderboard style)
     final sortedFriends = List<User>.from(friends)
       ..sort((a, b) => b.totalXP.compareTo(a.totalXP));
@@ -79,24 +91,39 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
           // Friends List
           Expanded(
-            child: filteredFriends.isEmpty
-                ? _buildEmptySearchState(context)
-                : ListView.separated(
-                    padding: const EdgeInsets.all(AppConstants.paddingMedium),
-                    itemCount: filteredFriends.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: AppConstants.paddingSmall),
-                    itemBuilder: (context, index) {
-                      final friend = filteredFriends[index];
-                      final rank =
-                          sortedFriends.indexWhere(
-                            (sortedFriend) => sortedFriend.id == friend.id,
-                          ) +
-                          1;
+            child: RefreshIndicator(
+              onRefresh: () => context.read<TaskProvider>().loadFriends(),
+              color: AppColors.stormySkyBlue,
+              backgroundColor: theme.brightness == Brightness.dark
+                  ? AppColors.stormyDarkSlate
+                  : Colors.white,
+              child: filteredFriends.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.45,
+                        child: _buildEmptySearchState(context),
+                      ),
+                    )
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding:
+                          const EdgeInsets.all(AppConstants.paddingMedium),
+                      itemCount: filteredFriends.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppConstants.paddingSmall),
+                      itemBuilder: (context, index) {
+                        final friend = filteredFriends[index];
+                        final rank =
+                            sortedFriends.indexWhere(
+                              (sortedFriend) => sortedFriend.id == friend.id,
+                            ) +
+                            1;
 
-                      return _buildFriendCard(context, friend, rank);
-                    },
-                  ),
+                        return _buildFriendCard(context, friend, rank);
+                      },
+                    ),
+            ),
           ),
         ],
       ),
@@ -291,6 +318,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Widget _buildSearchBar(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final currentUserId = context.watch<AuthProvider>().currentUser?.id;
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppConstants.paddingMedium,
@@ -307,23 +337,62 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 builder: (context) => const AddFriendModal(),
               );
             },
-            child: Container(
-              padding: const EdgeInsets.all(AppConstants.paddingMedium),
-              decoration: BoxDecoration(
-                color: theme.brightness == Brightness.dark
-                    ? AppColors.stormyDarkSlate
-                    : theme.cardColor,
-                borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-              ),
-              child: Icon(
-                Icons.person_add_alt_1,
-                color: theme.brightness == Brightness.dark
-                    ? AppColors.stormySkyBlue
-                    : (theme.brightness == Brightness.light
-                          ? AppColors.stormyDarkSlate
-                          : AppColors.primaryPink),
-                size: 24,
-              ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.stormyDarkSlate
+                        : theme.cardColor,
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.radiusMedium),
+                  ),
+                  child: Icon(
+                    Icons.person_add_alt_1,
+                    color: isDark
+                        ? AppColors.stormySkyBlue
+                        : (theme.brightness == Brightness.light
+                              ? AppColors.stormyDarkSlate
+                              : AppColors.primaryPink),
+                    size: 24,
+                  ),
+                ),
+                if (currentUserId != null)
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('friend_requests')
+                        .where('toId', isEqualTo: currentUserId)
+                        .where('status', isEqualTo: 'pending')
+                        .limit(1)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      final hasPending =
+                          snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+                      if (!hasPending) return const SizedBox.shrink();
+
+                      return Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark
+                                  ? AppColors.stormyNightBackground
+                                  : theme.scaffoldBackgroundColor,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
           ),
 

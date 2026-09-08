@@ -6,6 +6,7 @@ import '../config/constants.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/connectivity_provider.dart';
+import '../providers/task_provider.dart';
 import '../services/friend_request_service.dart';
 
 class AddFriendModal extends StatefulWidget {
@@ -607,6 +608,7 @@ class _PendingRequestTileState extends State<PendingRequestTile> {
       );
 
       if (mounted) {
+        context.read<TaskProvider>().loadFriends();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('ยอมรับคำขอเพิ่มเพื่อนสำเร็จแล้ว 🎉'),

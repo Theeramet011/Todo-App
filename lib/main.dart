@@ -36,12 +36,16 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   DartPluginRegistrant.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await _initializeLocalNotifications();
-  await _showTaskReminderNotification(message);
   debugPrint(
     "📬 ได้รับแจ้งเตือนหลังบ้าน (Background): ${_notificationTitleFromMessage(message)}",
   );
+  // หากมี payload notification จากระบบปฏิบัติการ Android OS จะเป็นผู้วาดใน Status Bar ให้อัตโนมัติ
+  // จึงเรียก _showTaskReminderNotification เฉพาะเมื่อเป็นข้อความ data-only เพื่อป้องกันการแจ้งเตือนซ้ำ 2 อัน
+  if (message.notification == null) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await _initializeLocalNotifications();
+    await _showTaskReminderNotification(message);
+  }
 }
 
 const String taskReminderChannelId = 'task_reminder_alerts_v3';

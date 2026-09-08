@@ -1904,14 +1904,14 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
         InkWell(
           enableFeedback: false,
           onTap: onTap,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : AppColors.backgroundLightGrey,
-              borderRadius: BorderRadius.circular(15),
+                  ? AppColors.stormyDarkSlate
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isDark
                     ? Colors.grey[800]!

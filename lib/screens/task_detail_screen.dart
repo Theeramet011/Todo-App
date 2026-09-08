@@ -3681,6 +3681,93 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _showCopyToast('คัดลอกข้อความแล้ว');
   }
 
+  Future<void> _confirmDeleteComment(
+    BuildContext context,
+    Task task,
+    Comment comment,
+    TaskProvider taskProvider,
+  ) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.accentRed.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.accentRed,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'ลบความคิดเห็น?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'คุณต้องการลบความคิดเห็นนี้ใช่หรือไม่ ข้อความหรือไฟล์แนบนี้จะถูกลบออกจากทุกคนในกลุ่มทันที',
+          style: TextStyle(
+            color: isDark
+                ? AppColors.stormyIceBlue
+                : theme.colorScheme.onSurface.withValues(alpha: 0.82),
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(
+              foregroundColor: isDark
+                  ? AppColors.stormySkyBlue
+                  : AppColors.textSecondary,
+            ),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              backgroundColor: AppColors.accentRed,
+              foregroundColor: isDark
+                  ? AppColors.stormyNightBackground
+                  : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'ลบ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await taskProvider.deleteComment(task.id, comment.id);
+      _showCopyToast('ลบความคิดเห็นแล้ว');
+    }
+  }
+
   Widget _buildCommentItem(
     Comment comment,
     Task task,
@@ -3690,6 +3777,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final leaderId = taskProvider.leaderIdForTask(task);
     final isCommenterLeader = comment.userId == leaderId;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.id;
+    final canDelete =
+        (currentUserId != null && currentUserId == comment.userId) ||
+        (currentUserId != null && currentUserId == leaderId);
 
     final commenter = taskProvider.getUserById(comment.userId);
     final frameId = commenter?.equippedFrame ?? '';
@@ -3801,6 +3894,31 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                       : (Theme.of(context).brightness == Brightness.light
                                             ? AppColors.stormyMutedBlueGrey.withValues(alpha: 0.8)
                                             : AppColors.textLight),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (canDelete) ...[
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _confirmDeleteComment(
+                              context,
+                              task,
+                              comment,
+                              taskProvider,
+                            ),
+                            child: Tooltip(
+                              message: 'ลบความคิดเห็น',
+                              child: Padding(
+                                padding: const EdgeInsets.all(2.0),
+                                child: Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 14,
+                                  color: isDark
+                                      ? Colors.redAccent.withValues(alpha: 0.7)
+                                      : AppColors.accentRed.withValues(alpha: 0.8),
                                 ),
                               ),
                             ),
@@ -3937,24 +4055,77 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return;
     }
 
-    if (_commentController.text.trim().isEmpty && _commentAttachments.isEmpty) {
+    final trimmedText = _commentController.text.trim();
+    if (trimmedText.isEmpty && _commentAttachments.isEmpty) {
       return;
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUser;
+    if (user == null) return;
 
-    final comment = Comment(
-      id: 'comment_${DateTime.now().millisecondsSinceEpoch}',
-      userId: user!.id,
-      userName: user.name,
-      userAvatarUrl: user.avatarUrl,
-      content: _commentController.text.trim(),
-      createdAt: DateTime.now(),
-      attachments: List<TaskAttachment>.from(_commentAttachments),
-    );
+    final now = DateTime.now();
+    final List<Comment> commentsToSend = [];
 
-    taskProvider.addComment(task.id, comment);
+    if (trimmedText.isNotEmpty && _commentAttachments.isNotEmpty) {
+      // 💥 แยกส่งข้อความและไฟล์แนบออกจากกัน เพื่อให้เลือกลบเฉพาะจุดได้
+      // คอมเมนต์ที่ 1: เฉพาะข้อความ
+      commentsToSend.add(
+        Comment(
+          id: 'comment_${now.millisecondsSinceEpoch}_text',
+          userId: user.id,
+          userName: user.name,
+          userAvatarUrl: user.avatarUrl,
+          content: trimmedText,
+          createdAt: now,
+          attachments: const [],
+        ),
+      );
+      // คอมเมนต์ที่ 2+: สำหรับไฟล์แนบแต่ละไฟล์
+      for (int i = 0; i < _commentAttachments.length; i++) {
+        commentsToSend.add(
+          Comment(
+            id: 'comment_${now.millisecondsSinceEpoch + i + 1}_attachment',
+            userId: user.id,
+            userName: user.name,
+            userAvatarUrl: user.avatarUrl,
+            content: '',
+            createdAt: now.add(Duration(milliseconds: i + 10)),
+            attachments: [_commentAttachments[i]],
+          ),
+        );
+      }
+    } else if (trimmedText.isNotEmpty) {
+      // เฉพาะข้อความ
+      commentsToSend.add(
+        Comment(
+          id: 'comment_${now.millisecondsSinceEpoch}',
+          userId: user.id,
+          userName: user.name,
+          userAvatarUrl: user.avatarUrl,
+          content: trimmedText,
+          createdAt: now,
+          attachments: const [],
+        ),
+      );
+    } else {
+      // เฉพาะไฟล์แนบ (แยกการ์ดละไฟล์ เพื่อให้เลือกลบเฉพาะไฟล์ที่ต้องการได้)
+      for (int i = 0; i < _commentAttachments.length; i++) {
+        commentsToSend.add(
+          Comment(
+            id: 'comment_${now.millisecondsSinceEpoch + i}_attachment',
+            userId: user.id,
+            userName: user.name,
+            userAvatarUrl: user.avatarUrl,
+            content: '',
+            createdAt: now.add(Duration(milliseconds: i)),
+            attachments: [_commentAttachments[i]],
+          ),
+        );
+      }
+    }
+
+    taskProvider.addMultipleComments(task.id, commentsToSend);
     _commentController.clear();
     setState(() {
       _commentAttachments.clear();

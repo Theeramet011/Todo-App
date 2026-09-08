@@ -391,11 +391,36 @@ exports.pushInAppNotification = onCall({
       continue;
     }
 
+    const payload = notificationDataPayload(
+      notificationData,
+      userId,
+      notificationId
+    );
+    const channelId = androidChannelIdForNotificationType(notificationType);
+    const vibrationTimings = notificationType === "Comment"
+      ? [0, 350, 150, 350, 150, 550]
+      : [0, 700, 250, 700];
+
     const message = {
-      data: notificationDataPayload(notificationData, userId, notificationId),
+      notification: {
+        title: title,
+        body: body,
+      },
+      data: payload,
       android: {
         priority: "high",
-        ttl: 60 * 60 * 1000,
+        ttl: 24 * 60 * 60 * 1000,
+        notification: {
+          channelId: channelId,
+          sound: "notification",
+          icon: "ic_stat_noti_photoroom",
+          priority: "max",
+          defaultVibrateTimings: false,
+          vibrateTimingsMillis: vibrationTimings,
+          visibility: "public",
+          tag: notificationKey,
+          clickAction: "FLUTTER_NOTIFICATION_CLICK",
+        },
       },
       token: fcmToken,
     };
@@ -599,10 +624,15 @@ async function ensureNextRecurringTaskInstance(db, taskData, taskId, nowMs) {
     .where("title", "==", taskData.title)
     .where("isRecurring", "==", true)
     .where("dateTime", "==", nextTimestamp)
-    .limit(1)
+    .limit(5)
     .get();
 
-  if (!existingCloneSnap.empty) {
+  const hasActiveClone = existingCloneSnap.docs.some((doc) => {
+    const d = doc.data();
+    return d.isDeleted !== true;
+  });
+
+  if (hasActiveClone) {
     return;
   }
 
@@ -898,6 +928,10 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
           }
 
           const message = {
+            notification: {
+              title: sanitizeForDisplay(copy.title),
+              body: sanitizeForDisplay(copy.body),
+            },
             data: {
               title: copy.title,
               body: copy.body,
@@ -909,11 +943,22 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
               notificationKey: notificationKey,
               click_action: "FLUTTER_NOTIFICATION_CLICK",
             },
-            // ส่ง data-only message เพื่อให้ Client จัดการแสดง notification เอง
-            // ทำให้ควบคุม เสียง, Heads-up, และ vibration ได้ครบทุกสถานะ
+            // ส่ง Hybrid Payload (notification + data) เพื่อให้ Android System Tray
+            // แสดงผลแจ้งเตือนทะลุโหมดหลับลึก (Doze Mode) ได้อย่างแม่นยำ 100%
             android: {
               priority: "high",
-              ttl: 60 * 60 * 1000,
+              ttl: 24 * 60 * 60 * 1000,
+              notification: {
+                channelId: TASK_REMINDER_CHANNEL_ID,
+                sound: "notification",
+                icon: "ic_stat_noti_photoroom",
+                priority: "max",
+                defaultVibrateTimings: false,
+                vibrateTimingsMillis: [0, 700, 250, 700],
+                visibility: "public",
+                tag: notificationKey,
+                clickAction: "FLUTTER_NOTIFICATION_CLICK",
+              },
             },
             token: fcmToken,
           };

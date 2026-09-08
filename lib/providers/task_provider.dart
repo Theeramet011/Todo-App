@@ -65,6 +65,7 @@ class TaskProvider with ChangeNotifier {
   StreamSubscription<firebase_auth.User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _taskSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _projectSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userDocSubscription;
   String? _currentUserId;
   final List<DateTime> _recentCompletionTimestamps = [];
   List<DateTime> get recentCompletionTimestamps =>
@@ -448,6 +449,7 @@ class TaskProvider with ChangeNotifier {
     _authSubscription?.cancel();
     _taskSubscription?.cancel();
     _projectSubscription?.cancel();
+    _userDocSubscription?.cancel();
     for (final subscription in _subscriptions) {
       subscription.cancel();
     }
@@ -460,6 +462,7 @@ class TaskProvider with ChangeNotifier {
     });
     _listenToCurrentUserTasks(_currentUserId);
     _listenToCurrentUserProjects(_currentUserId);
+    _listenToCurrentUserDoc(_currentUserId);
   }
 
   void _handleAuthUserChanged(String? userId) {
@@ -474,10 +477,43 @@ class TaskProvider with ChangeNotifier {
     _totalXP = 0;
     _listenToCurrentUserTasks(userId);
     _listenToCurrentUserProjects(userId);
+    _listenToCurrentUserDoc(userId);
     if (userId != null) {
       loadFriends();
     }
     notifyListeners();
+  }
+
+  void _listenToCurrentUserDoc(String? userId) {
+    _userDocSubscription?.cancel();
+
+    if (userId == null) {
+      return;
+    }
+
+    _userDocSubscription = _firestore
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .listen((snapshot) {
+          final data = snapshot.data();
+          if (data == null) return;
+
+          final List<dynamic>? friendUids = data['friends'] as List<dynamic>?;
+          final currentFriendIds =
+              friendUids
+                  ?.map((e) => e.toString().trim())
+                  .where((e) => e.isNotEmpty)
+                  .toSet() ??
+              <String>{};
+          final loadedFriendIds = _friends.map((f) => f.id.trim()).toSet();
+
+          // หากมีเพื่อนใหม่ที่ยังไม่ได้โหลด หรือรายการเพื่อนเปลี่ยนแปลง ให้โหลดข้อมูลแบบเรียลไทม์ทันที
+          if (currentFriendIds.length != loadedFriendIds.length ||
+              currentFriendIds.any((id) => !loadedFriendIds.contains(id))) {
+            loadFriends();
+          }
+        }, onError: (error) => debugPrint('User doc stream error: $error'));
   }
 
   void _listenToCurrentUserProjects(String? userId) {
@@ -1039,15 +1075,6 @@ class TaskProvider with ChangeNotifier {
   ) async {
     if (!updatedTask.isGroup) return;
 
-    final oldMemberIds = previousTask.members.map((m) => m.id.trim()).toSet();
-    final newMembers = updatedTask.members
-        .where(
-          (m) => m.id.trim().isNotEmpty && !oldMemberIds.contains(m.id.trim()),
-        )
-        .toList();
-
-    if (newMembers.isEmpty) return;
-
     final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
     final leader = getUserById(updatedTask.creatorId);
     final actorUser =
@@ -1057,55 +1084,430 @@ class TaskProvider with ChangeNotifier {
     final actorAvatarUrl =
         actorUser?.avatarUrl ?? _auth.currentUser?.photoURL ?? '';
 
-    final newMemberIds = newMembers.map((m) => m.id.trim()).toSet();
-    final newMemberNames = newMembers
-        .map((m) => m.name.trim())
-        .where((name) => name.isNotEmpty)
-        .join(', ');
+    // 1. รวบรวม ID ของสมาชิกเดิมที่มีอยู่แล้วในกลุ่ม/โปรเจกต์
+    // ประกอบด้วย:
+    // - สมาชิกทั้งหมดในโปรเจกต์ (หากเป็นภารกิจในโปรเจกต์ Project.memberIds)
+    // - สมาชิกเดิมใน previousTask (members, assigneeIds, coAssigneeIds, creatorId, leaderId)
+    final projId = updatedTask.projectId;
+    final projectMemberIds = (projId != null && projId.trim().isNotEmpty)
+        ? (getProjectById(projId.trim())
+                ?.memberIds
+                .map((id) => id.trim())
+                .toSet() ??
+            <String>{})
+        : <String>{};
 
-    try {
-      // 1. แจ้งเตือนไปยังสมาชิกใหม่ทุกคนที่เพิ่งถูกเพิ่มเข้ามา
-      await _createUserNotifications(newMemberIds, {
-        'title': '$actorName เพิ่มคุณเข้าร่วมภารกิจกลุ่ม',
-        'body':
-            'คุณถูกเพิ่มเข้าร่วมภารกิจ "${updatedTask.title}" เปิดดูรายละเอียดและเริ่มภารกิจได้เลย',
-        'type': 'Group',
-        'taskId': updatedTask.id,
-        'taskType': 'group',
-        'notificationStage': 'groupMemberAdded',
-        'notificationKey':
-            '${updatedTask.id}-member-added-${DateTime.now().millisecondsSinceEpoch}',
-        'actorId': currentUserId ?? updatedTask.creatorId,
-        'actorName': actorName,
-        'actorAvatarUrl': actorAvatarUrl,
-      });
+    final previousTaskMemberIds = previousTask.members
+        .map((m) => m.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
 
-      // 2. แจ้งเตือนไปยังสมาชิกเดิมที่เหลือทุกคนในกลุ่ม (ยกเว้นผู้ดำเนินการและสมาชิกใหม่)
-      final existingRecipientIds = _taskNotificationRecipientIds(updatedTask)
-        ..removeAll(newMemberIds);
-      if (currentUserId != null) {
-        existingRecipientIds.remove(currentUserId);
+    final previousAllParticipantIds = _taskNotificationRecipientIds(previousTask)
+        .map((id) => id.trim())
+        .toSet();
+
+    final existingGroupUserIds = <String>{
+      ...projectMemberIds,
+      ...previousTaskMemberIds,
+      ...previousAllParticipantIds,
+    };
+
+    // 2. ตรวจสอบสมาชิกที่ได้รับมอบหมายงานใหม่ (Reassigned) หรือสมาชิกใหม่จากภายนอก (Truly New)
+    final reassignedMembers = <Member>[];
+    final trulyNewMembers = <Member>[];
+
+    final previousMemberMap = <String, Member>{
+      for (final m in previousTask.members)
+        if (m.id.trim().isNotEmpty) m.id.trim(): m,
+    };
+
+    for (final newM in updatedTask.members) {
+      final memberId = newM.id.trim();
+      if (memberId.isEmpty) continue;
+      if (currentUserId != null && memberId == currentUserId) continue;
+      if (memberId == leaderIdForTask(updatedTask)) continue;
+
+      final oldM = previousMemberMap[memberId];
+      final newHasTask =
+          newM.taskTitle != null && newM.taskTitle!.trim().isNotEmpty;
+      final oldHasTask =
+          oldM?.taskTitle != null && oldM!.taskTitle!.trim().isNotEmpty;
+
+      if (oldM == null) {
+        // สมาชิกที่เพิ่งมีชื่อในภารกิจนี้
+        if (existingGroupUserIds.contains(memberId)) {
+          // เป็นสมาชิกเดิมของกลุ่ม/โปรเจกต์ ที่เพิ่งได้รับมอบหมายงาน
+          reassignedMembers.add(newM);
+        } else {
+          // สมาชิกใหม่จากภายนอกจริงๆ
+          trulyNewMembers.add(newM);
+        }
+      } else {
+        // มีชื่ออยู่ในภารกิจเดิมอยู่แล้ว:
+        // ตรวจสอบว่าได้รับงานใหม่หรือไม่ (เดิมไม่มีงานแต่ตอนนี้มีงาน หรือเปลี่ยนชื่องานใหม่)
+        if (newHasTask &&
+            (!oldHasTask || oldM.taskTitle!.trim() != newM.taskTitle!.trim())) {
+          reassignedMembers.add(newM);
+        }
+      }
+    }
+
+    // 3. ตรวจสอบสมาชิกเดิมที่เคยมีงานใน previousTask แต่ถูกปลด/เปลี่ยนผู้รับผิดชอบออกไป (Unassigned Members)
+    final updatedMemberMap = <String, Member>{
+      for (final m in updatedTask.members)
+        if (m.id.trim().isNotEmpty) m.id.trim(): m,
+    };
+
+    final unassignedMemberIds = <String>{};
+    for (final oldM in previousTask.members) {
+      final oldId = oldM.id.trim();
+      if (oldId.isEmpty) continue;
+      if (currentUserId != null && oldId == currentUserId) continue;
+      if (oldId == leaderIdForTask(updatedTask)) continue;
+
+      final oldHasTask =
+          oldM.taskTitle != null && oldM.taskTitle!.trim().isNotEmpty;
+      if (!oldHasTask) continue;
+
+      final newM = updatedMemberMap[oldId];
+      final newHasTask =
+          newM?.taskTitle != null && newM!.taskTitle!.trim().isNotEmpty;
+
+      // ถูกปลดงานเมื่อ:
+      // 1) ถูกลบชื่อออกจากภารกิจ (newM == null)
+      // 2) หรือยังมีชื่ออยู่ แต่ taskTitle ถูกล้างเป็นค่าว่าง (newHasTask == false)
+      if (newM == null || !newHasTask) {
+        unassignedMemberIds.add(oldId);
+      }
+    }
+
+    // 4. ตรวจสอบการเพิ่มหรือนำออกผู้รับผิดชอบร่วม (Co-Assignees)
+    String getMemberName(String id) {
+      final u = getUserById(id);
+      if (u != null && u.name.trim().isNotEmpty) return u.name.trim();
+      for (final m in updatedTask.members) {
+        if (m.id == id && m.name.trim().isNotEmpty) return m.name.trim();
+      }
+      for (final m in previousTask.members) {
+        if (m.id == id && m.name.trim().isNotEmpty) return m.name.trim();
+      }
+      return 'เพื่อนร่วมทีม';
+    }
+
+    final addedCoNotifications = <Map<String, dynamic>>[];
+    final removedCoNotifications = <Map<String, dynamic>>[];
+
+    // รวบรวมคู่ความสัมพันธ์ผู้รับผิดชอบร่วมใน previousTask โดยผูกกับ taskTitle
+    // เพื่อป้องกันการตรวจจับคู่ผิดชื่องาน (Cross-Task Co-Assignee Mismatch)
+    final previousCoPairs = <String, Map<String, dynamic>>{};
+    for (final m in previousTask.members) {
+      final mTitle = m.taskTitle?.trim() ?? '';
+      final mId = m.id.trim();
+      if (mTitle.isEmpty || mId.isEmpty) continue;
+      for (final coId in m.coAssigneeIds.map((id) => id.trim())) {
+        if (coId.isEmpty || coId == mId) continue;
+        final pairUsers = [mId, coId]..sort();
+        final pairKey = '$mTitle::${pairUsers[0]}_${pairUsers[1]}';
+        if (!previousCoPairs.containsKey(pairKey)) {
+          previousCoPairs[pairKey] = {
+            'taskTitle': mTitle,
+            'user1': pairUsers[0],
+            'user2': pairUsers[1],
+            'memberId': mId,
+          };
+        }
+      }
+    }
+
+    // รวบรวมคู่ความสัมพันธ์ผู้รับผิดชอบร่วมใน updatedTask โดยผูกกับ taskTitle
+    final updatedCoPairs = <String, Map<String, dynamic>>{};
+    for (final m in updatedTask.members) {
+      final mTitle = m.taskTitle?.trim() ?? '';
+      final mId = m.id.trim();
+      if (mTitle.isEmpty || mId.isEmpty) continue;
+      for (final coId in m.coAssigneeIds.map((id) => id.trim())) {
+        if (coId.isEmpty || coId == mId) continue;
+        final pairUsers = [mId, coId]..sort();
+        final pairKey = '$mTitle::${pairUsers[0]}_${pairUsers[1]}';
+        if (!updatedCoPairs.containsKey(pairKey)) {
+          updatedCoPairs[pairKey] = {
+            'taskTitle': mTitle,
+            'user1': pairUsers[0],
+            'user2': pairUsers[1],
+            'memberId': mId,
+          };
+        }
+      }
+    }
+
+    // ตรวจหาคู่ผู้ช่วยที่เพิ่งถูกเพิ่มเข้ามาใหม่ (Added Co-assignees)
+    for (final entry in updatedCoPairs.entries) {
+      final pairKey = entry.key;
+      if (previousCoPairs.containsKey(pairKey)) continue;
+
+      final item = entry.value;
+      final taskTitle = item['taskTitle'] as String;
+      final u1 = item['user1'] as String;
+      final u2 = item['user2'] as String;
+
+      final oldM1 = previousMemberMap[u1];
+      final oldM2 = previousMemberMap[u2];
+      final u1HadTask = oldM1 != null && oldM1.taskTitle?.trim() == taskTitle;
+      final u2HadTask = oldM2 != null && oldM2.taskTitle?.trim() == taskTitle;
+
+      String actualMainId = u1;
+      String actualCoId = u2;
+      if (!u1HadTask && u2HadTask) {
+        actualMainId = u2;
+        actualCoId = u1;
+      } else if (!u1HadTask && !u2HadTask) {
+        actualMainId = item['memberId'] as String;
+        actualCoId = (actualMainId == u1) ? u2 : u1;
       }
 
-      if (existingRecipientIds.isNotEmpty) {
-        final displayName =
-            newMemberNames.isNotEmpty ? newMemberNames : 'สมาชิกใหม่';
-        await _createUserNotifications(existingRecipientIds, {
-          'title': 'สมาชิกใหม่ในภารกิจ "${updatedTask.title}"',
-          'body': '$displayName ถูกเพิ่มเข้ากลุ่มแล้ว',
+      addedCoNotifications.add({
+        'mainId': actualMainId,
+        'coId': actualCoId,
+        'mainName': getMemberName(actualMainId),
+        'coName': getMemberName(actualCoId),
+        'taskTitle': taskTitle,
+      });
+    }
+
+    // ตรวจหาคู่ผู้ช่วยที่เพิ่งถูกนำออก (Removed Co-assignees)
+    for (final entry in previousCoPairs.entries) {
+      final pairKey = entry.key;
+      if (updatedCoPairs.containsKey(pairKey)) continue;
+
+      final item = entry.value;
+      final taskTitle = item['taskTitle'] as String;
+      final u1 = item['user1'] as String;
+      final u2 = item['user2'] as String;
+
+      final newM1 = updatedMemberMap[u1];
+      final newM2 = updatedMemberMap[u2];
+      final u1StillHasTask =
+          newM1 != null && newM1.taskTitle?.trim() == taskTitle;
+      final u2StillHasTask =
+          newM2 != null && newM2.taskTitle?.trim() == taskTitle;
+
+      String actualMainId = u1;
+      String actualCoId = u2;
+      if (!u1StillHasTask && u2StillHasTask) {
+        actualMainId = u2;
+        actualCoId = u1;
+      } else if (!u1StillHasTask && !u2StillHasTask) {
+        actualMainId = item['memberId'] as String;
+        actualCoId = (actualMainId == u1) ? u2 : u1;
+      }
+
+      removedCoNotifications.add({
+        'mainId': actualMainId,
+        'coId': actualCoId,
+        'mainName': getMemberName(actualMainId),
+        'coName': getMemberName(actualCoId),
+        'taskTitle': taskTitle,
+      });
+    }
+
+    try {
+      final nowTimestamp = DateTime.now().millisecondsSinceEpoch;
+
+      // --- กรณีที่ 1: สมาชิกเดิมของกลุ่มที่ได้รับมอบหมายงานใหม่ (Reassigned) ---
+      for (final member in reassignedMembers) {
+        final memberId = member.id.trim();
+        if (currentUserId != null && memberId == currentUserId) continue;
+
+        final taskLabel = member.taskTitle?.trim().isNotEmpty == true
+            ? member.taskTitle!.trim()
+            : updatedTask.title;
+
+        // ข้ามเฉพาะกรณีที่เพิ่งได้รับแจ้งเตือนในฐานะผู้รับผิดชอบร่วมของงานเดียวกันนี้ไปแล้ว
+        final alreadyNotifiedAsCoForThisTask = addedCoNotifications.any(
+          (item) => item['coId'] == memberId && item['taskTitle'] == taskLabel,
+        );
+        if (alreadyNotifiedAsCoForThisTask) continue;
+
+        await _createUserNotifications({memberId}, {
+          'title': '$actorName มอบหมายงานให้คุณ',
+          'body':
+              'คุณได้รับมอบหมายงาน "$taskLabel" ในภารกิจ "${updatedTask.title}" เปิดดูรายละเอียดได้เลย',
           'type': 'Group',
           'taskId': updatedTask.id,
           'taskType': 'group',
-          'notificationStage': 'groupMemberJoined',
+          'notificationStage': 'taskAssigned',
           'notificationKey':
-              '${updatedTask.id}-member-joined-${DateTime.now().millisecondsSinceEpoch}',
+              '${updatedTask.id}-task-assigned-$memberId-$nowTimestamp',
           'actorId': currentUserId ?? updatedTask.creatorId,
           'actorName': actorName,
           'actorAvatarUrl': actorAvatarUrl,
         });
       }
+
+      // --- กรณีที่ 1.5: เพิ่มผู้รับผิดชอบร่วม (Co-Assignees Added) ---
+      for (final item in addedCoNotifications) {
+        final actualMainId = item['mainId'] as String;
+        final actualCoId = item['coId'] as String;
+        final mainName = item['mainName'] as String;
+        final coName = item['coName'] as String;
+        final taskTitle = item['taskTitle'] as String;
+
+        // 1) แจ้งเตือนไปยังคนที่ถูกเพิ่มเข้ามาช่วย (Co-Assignee)
+        if (currentUserId == null || actualCoId != currentUserId) {
+          await _createUserNotifications({actualCoId}, {
+            'title': '$actorName เพิ่มคุณเป็นผู้รับผิดชอบร่วม',
+            'body':
+                'คุณได้รับมอบหมายให้ร่วมทำภารกิจ "$taskTitle" กับ $mainName ในภารกิจ "${updatedTask.title}" เปิดดูรายละเอียดได้เลย',
+            'type': 'Group',
+            'taskId': updatedTask.id,
+            'taskType': 'group',
+            'notificationStage': 'coAssigneeAdded',
+            'notificationKey':
+                '${updatedTask.id}-co-assignee-added-$actualCoId-$nowTimestamp',
+            'actorId': currentUserId ?? updatedTask.creatorId,
+            'actorName': actorName,
+            'actorAvatarUrl': actorAvatarUrl,
+          });
+        }
+
+        // 2) แจ้งเตือนไปยังเจ้าของงานหลัก (Main Assignee)
+        if (currentUserId == null || actualMainId != currentUserId) {
+          await _createUserNotifications({actualMainId}, {
+            'title': '$actorName เพิ่มผู้ช่วยในงานของคุณ',
+            'body':
+                '$actorName ได้มอบหมายให้ $coName เข้ามาช่วยทำภารกิจ "$taskTitle" แล้ว',
+            'type': 'Group',
+            'taskId': updatedTask.id,
+            'taskType': 'group',
+            'notificationStage': 'coAssigneeJoined',
+            'notificationKey':
+                '${updatedTask.id}-co-assignee-joined-$actualMainId-$nowTimestamp',
+            'actorId': currentUserId ?? updatedTask.creatorId,
+            'actorName': actorName,
+            'actorAvatarUrl': actorAvatarUrl,
+          });
+        }
+      }
+
+      // --- กรณีที่ 1.6: นำผู้รับผิดชอบร่วมออก (Co-Assignees Removed) ---
+      for (final item in removedCoNotifications) {
+        final actualMainId = item['mainId'] as String;
+        final actualCoId = item['coId'] as String;
+        final mainName = item['mainName'] as String;
+        final coName = item['coName'] as String;
+        final taskTitle = item['taskTitle'] as String;
+
+        // 1) แจ้งเตือนไปยังคนที่ถูกนำออก (Removed Co-Assignee)
+        if (currentUserId == null || actualCoId != currentUserId) {
+          await _createUserNotifications({actualCoId}, {
+            'title': '$actorName ปรับเปลี่ยนผู้รับผิดชอบร่วม',
+            'body':
+                'คุณไม่ได้เป็นผู้รับผิดชอบร่วมในงาน "$taskTitle" กับ $mainName ของภารกิจ "${updatedTask.title}" แล้ว',
+            'type': 'Group',
+            'taskId': updatedTask.id,
+            'taskType': 'group',
+            'notificationStage': 'coAssigneeRemoved',
+            'notificationKey':
+                '${updatedTask.id}-co-assignee-removed-$actualCoId-$nowTimestamp',
+            'actorId': currentUserId ?? updatedTask.creatorId,
+            'actorName': actorName,
+            'actorAvatarUrl': actorAvatarUrl,
+          });
+        }
+
+        // 2) แจ้งเตือนไปยังเจ้าของงานหลัก (Main Assignee)
+        if (currentUserId == null || actualMainId != currentUserId) {
+          await _createUserNotifications({actualMainId}, {
+            'title': '$actorName ปรับเปลี่ยนผู้รับผิดชอบร่วม',
+            'body':
+                '$actorName ได้นำ $coName ออกจากการเป็นผู้ช่วยในงาน "$taskTitle"',
+            'type': 'Group',
+            'taskId': updatedTask.id,
+            'taskType': 'group',
+            'notificationStage': 'coAssigneeLeft',
+            'notificationKey':
+                '${updatedTask.id}-co-assignee-left-$actualMainId-$nowTimestamp',
+            'actorId': currentUserId ?? updatedTask.creatorId,
+            'actorName': actorName,
+            'actorAvatarUrl': actorAvatarUrl,
+          });
+        }
+      }
+
+      // --- กรณีที่ 2: สมาชิกเดิมที่ถูกเปลี่ยนผู้รับผิดชอบออก (Unassigned) ---
+      if (unassignedMemberIds.isNotEmpty) {
+        await _createUserNotifications(unassignedMemberIds, {
+          'title': '$actorName ปรับเปลี่ยนผู้รับผิดชอบ',
+          'body':
+              'ภารกิจ "${updatedTask.title}" มีการปรับเปลี่ยนผู้รับผิดชอบงานแล้ว',
+          'type': 'Group',
+          'taskId': updatedTask.id,
+          'taskType': 'group',
+          'notificationStage': 'taskUnassigned',
+          'notificationKey':
+              '${updatedTask.id}-task-unassigned-$nowTimestamp',
+          'actorId': currentUserId ?? updatedTask.creatorId,
+          'actorName': actorName,
+          'actorAvatarUrl': actorAvatarUrl,
+        });
+      }
+
+      // --- กรณีที่ 3: สมาชิกใหม่จริงๆ ที่เพิ่งเข้ากลุ่มเป็นครั้งแรก (Truly New Members) ---
+      if (trulyNewMembers.isNotEmpty) {
+        final trulyNewMemberIds =
+            trulyNewMembers.map((m) => m.id.trim()).toSet();
+        if (currentUserId != null) trulyNewMemberIds.remove(currentUserId);
+
+        if (trulyNewMemberIds.isNotEmpty) {
+          // แจ้งเตือนไปยังสมาชิกใหม่ว่าถูกเพิ่มเข้ากลุ่ม
+          await _createUserNotifications(trulyNewMemberIds, {
+            'title': '$actorName เพิ่มคุณเข้าร่วมภารกิจกลุ่ม',
+            'body':
+                'คุณถูกเพิ่มเข้าร่วมภารกิจ "${updatedTask.title}" เปิดดูรายละเอียดและเริ่มภารกิจได้เลย',
+            'type': 'Group',
+            'taskId': updatedTask.id,
+            'taskType': 'group',
+            'notificationStage': 'groupMemberAdded',
+            'notificationKey':
+                '${updatedTask.id}-member-added-$nowTimestamp',
+            'actorId': currentUserId ?? updatedTask.creatorId,
+            'actorName': actorName,
+            'actorAvatarUrl': actorAvatarUrl,
+          });
+
+          // แจ้งเตือนไปยังสมาชิกเดิมทุกคนในกลุ่มว่ามีสมาชิกใหม่เข้ากลุ่ม
+          final existingRecipients =
+              _taskNotificationRecipientIds(updatedTask)
+                ..removeAll(trulyNewMemberIds);
+          if (currentUserId != null) {
+            existingRecipients.remove(currentUserId);
+          }
+
+          if (existingRecipients.isNotEmpty) {
+            final newMemberNames = trulyNewMembers
+                .map((m) => m.name.trim())
+                .where((name) => name.isNotEmpty)
+                .join(', ');
+            final displayName =
+                newMemberNames.isNotEmpty ? newMemberNames : 'สมาชิกใหม่';
+            await _createUserNotifications(existingRecipients, {
+              'title': 'สมาชิกใหม่ในภารกิจ "${updatedTask.title}"',
+              'body': '$displayName ถูกเพิ่มเข้ากลุ่มแล้ว',
+              'type': 'Group',
+              'taskId': updatedTask.id,
+              'taskType': 'group',
+              'notificationStage': 'groupMemberJoined',
+              'notificationKey':
+                  '${updatedTask.id}-member-joined-$nowTimestamp',
+              'actorId': currentUserId ?? updatedTask.creatorId,
+              'actorName': actorName,
+              'actorAvatarUrl': actorAvatarUrl,
+            });
+          }
+        }
+      }
     } catch (error) {
-      debugPrint('Failed to send new member notifications: $error');
+      debugPrint('Failed to send member notifications: $error');
     }
   }
 
@@ -1130,14 +1532,89 @@ class TaskProvider with ChangeNotifier {
     recipients.remove(leaderId);
     recipients.remove(updatedTask.creatorId);
 
-    // สมาชิกใหม่ที่เพิ่งถูกเพิ่มในรอบนี้ จะได้รับแจ้งเตือน "คุณถูกเพิ่มเข้าร่วมภารกิจ" อยู่แล้ว
-    // จึงคัดแยกสมาชิกใหม่ออก เพื่อไม่ให้ได้รับแจ้งเตือนซ้ำซ้อน
-    final oldMemberIds = previousTask.members.map((m) => m.id.trim()).toSet();
-    final newMemberIds = updatedTask.members
-        .map((m) => m.id.trim())
-        .where((id) => id.isNotEmpty && !oldMemberIds.contains(id))
-        .toSet();
-    recipients.removeAll(newMemberIds);
+    // สมาชิกใหม่ที่เพิ่งถูกเพิ่ม หรือเพิ่งได้รับมอบหมายงานในรอบนี้ จะได้รับแจ้งเตือนเฉพาะเจาะจงอยู่แล้ว
+    // จึงคัดแยกออก เพื่อไม่ให้ได้รับแจ้งเตือนซ้ำซ้อน
+    final previousMemberMap = <String, Member>{
+      for (final m in previousTask.members)
+        if (m.id.trim().isNotEmpty) m.id.trim(): m,
+    };
+
+    final memberDetailUpdatedRecipients = <String, String>{};
+    final specificallyHandledMemberIds = <String>{};
+    for (final newM in updatedTask.members) {
+      final mid = newM.id.trim();
+      if (mid.isEmpty) continue;
+      final oldM = previousMemberMap[mid];
+      final newHasTask =
+          newM.taskTitle != null && newM.taskTitle!.trim().isNotEmpty;
+      final oldHasTask =
+          oldM?.taskTitle != null && oldM!.taskTitle!.trim().isNotEmpty;
+
+      final oldCoIds = (oldM?.coAssigneeIds ?? []).map((id) => id.trim()).toSet();
+      final newCoIds = newM.coAssigneeIds.map((id) => id.trim()).toSet();
+      final coChanged = oldCoIds.length != newCoIds.length ||
+          oldCoIds.any((id) => !newCoIds.contains(id));
+
+      if (oldM == null ||
+          coChanged ||
+          (newHasTask &&
+              (!oldHasTask || oldM.taskTitle!.trim() != newM.taskTitle!.trim()))) {
+        specificallyHandledMemberIds.add(mid);
+      } else if (oldHasTask &&
+          newHasTask &&
+          oldM.taskTitle!.trim() == newM.taskTitle!.trim()) {
+        final subTasksChanged = oldM.subTasks.length != newM.subTasks.length ||
+            oldM.subTasks.asMap().entries.any((e) =>
+                e.key >= newM.subTasks.length ||
+                e.value != newM.subTasks[e.key]);
+
+        final detailsChanged = oldM.description != newM.description ||
+            oldM.workload != newM.workload ||
+            oldM.difficulty != newM.difficulty ||
+            oldM.risk != newM.risk ||
+            subTasksChanged;
+
+        if (detailsChanged) {
+          specificallyHandledMemberIds.add(mid);
+          if (mid != currentUserId) {
+            memberDetailUpdatedRecipients[mid] = newM.taskTitle!.trim();
+          }
+        }
+      }
+    }
+
+    final leader = getUserById(currentUserId);
+    final actorName =
+        leader?.name ?? _auth.currentUser?.displayName ?? 'หัวหน้ากลุ่ม';
+    final actorAvatarUrl =
+        leader?.avatarUrl ?? _auth.currentUser?.photoURL ?? '';
+    final nowTimestamp = DateTime.now().millisecondsSinceEpoch;
+
+    // ส่งแจ้งเตือนการแก้ไขงานเฉพาะสมาชิกไปยังสมาชิกแต่ละคน
+    for (final entry in memberDetailUpdatedRecipients.entries) {
+      final targetUserId = entry.key;
+      final memberTaskTitle = entry.value;
+      try {
+        await _createUserNotifications({targetUserId}, {
+          'title': '$actorName อัปเดตรายละเอียดงานของคุณ',
+          'body':
+              'รายละเอียดในงาน "$memberTaskTitle" ของคุณในภารกิจ "${updatedTask.title}" มีการแก้ไขใหม่ เข้าไปเช็คเลย',
+          'type': 'Group',
+          'taskId': updatedTask.id,
+          'taskType': 'group',
+          'notificationStage': 'memberTaskUpdated',
+          'notificationKey':
+              '${updatedTask.id}-member-task-updated-$targetUserId-$nowTimestamp',
+          'actorId': currentUserId,
+          'actorName': actorName,
+          'actorAvatarUrl': actorAvatarUrl,
+        });
+      } catch (e) {
+        debugPrint('Failed to send member task update notification: $e');
+      }
+    }
+
+    recipients.removeAll(specificallyHandledMemberIds);
 
     if (recipients.isEmpty) return;
 
@@ -1162,13 +1639,12 @@ class TaskProvider with ChangeNotifier {
           oldM.risk != newM.risk;
     });
 
-    if (!isTaskContentUpdated && !membersContentChanged) return;
+    // ตรวจสอบว่ามีจำนวนสมาชิกเปลี่ยนไปหรือไม่ (เช่น มีคนถูกลบออก หรือเปลี่ยนผู้รับผิดชอบ)
+    final memberListChanged =
+        previousTask.members.length != updatedTask.members.length ||
+        previousTask.assigneeIds.length != updatedTask.assigneeIds.length;
 
-    final leader = getUserById(currentUserId);
-    final actorName =
-        leader?.name ?? _auth.currentUser?.displayName ?? 'หัวหน้ากลุ่ม';
-    final actorAvatarUrl =
-        leader?.avatarUrl ?? _auth.currentUser?.photoURL ?? '';
+    if (!isTaskContentUpdated && !membersContentChanged && !memberListChanged) return;
 
     try {
       await _createUserNotifications(recipients, {
@@ -1179,7 +1655,7 @@ class TaskProvider with ChangeNotifier {
         'taskType': 'group',
         'notificationStage': 'groupTaskUpdated',
         'notificationKey':
-            '${updatedTask.id}-task-updated-${DateTime.now().millisecondsSinceEpoch}',
+            '${updatedTask.id}-task-updated-$nowTimestamp',
         'actorId': currentUserId,
         'actorName': actorName,
         'actorAvatarUrl': actorAvatarUrl,
@@ -3090,6 +3566,14 @@ class TaskProvider with ChangeNotifier {
   }
 
   Future<void> addComment(String taskId, Comment comment) async {
+    return addMultipleComments(taskId, [comment]);
+  }
+
+  Future<void> addMultipleComments(
+    String taskId,
+    List<Comment> newComments,
+  ) async {
+    if (newComments.isEmpty) return;
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) return;
 
@@ -3097,7 +3581,7 @@ class TaskProvider with ChangeNotifier {
     if (task.isDeleted || (task.isGroup && task.isCompleted)) return;
 
     final updatedTask = task.copyWith(
-      comments: List<Comment>.from(task.comments)..add(comment),
+      comments: List<Comment>.from(task.comments)..addAll(newComments),
     );
     _tasks[index] = updatedTask;
     if (_selectedTask?.id == taskId) {
@@ -3109,7 +3593,52 @@ class TaskProvider with ChangeNotifier {
         .collection('tasks')
         .doc(taskId)
         .set(updatedTask.toMap(), SetOptions(merge: true));
-    await _notifyTaskComment(updatedTask, comment);
+
+    // แจ้งเตือนข้อความหลักเพียงครั้งเดียวเพื่อไม่ให้แจ้งเตือนเด้งซ้ำซ้อน
+    final primaryComment = newComments.firstWhere(
+      (c) => c.content.trim().isNotEmpty,
+      orElse: () => newComments.first,
+    );
+    await _notifyTaskComment(updatedTask, primaryComment);
+  }
+
+  Future<void> deleteComment(String taskId, String commentId) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final task = _tasks[index];
+    final commentIndex = task.comments.indexWhere((c) => c.id == commentId);
+    if (commentIndex == -1) return;
+
+    final commentToDelete = task.comments[commentIndex];
+    final updatedComments = List<Comment>.from(task.comments)
+      ..removeAt(commentIndex);
+
+    final updatedTask = task.copyWith(comments: updatedComments);
+    _tasks[index] = updatedTask;
+    if (_selectedTask?.id == taskId) {
+      _selectedTask = updatedTask;
+    }
+    notifyListeners();
+
+    await _firestore
+        .collection('tasks')
+        .doc(taskId)
+        .set(updatedTask.toMap(), SetOptions(merge: true));
+
+    // ลบไฟล์แนบออกจาก Firebase Storage เบื้องหลัง
+    for (final attachment in commentToDelete.attachments) {
+      try {
+        if (attachment.fileUrl.isNotEmpty) {
+          final ref = firebase_storage.FirebaseStorage.instance.refFromURL(
+            attachment.fileUrl,
+          );
+          await ref.delete();
+        }
+      } catch (e) {
+        debugPrint('Error deleting comment attachment from storage: $e');
+      }
+    }
   }
 
   Future<void> addProject(Project project) async {
