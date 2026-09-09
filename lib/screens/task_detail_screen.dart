@@ -35,13 +35,20 @@ import 'bin_screen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task? task;
-  const TaskDetailScreen({super.key, this.task});
+  final bool scrollToComments;
+
+  const TaskDetailScreen({
+    super.key,
+    this.task,
+    this.scrollToComments = false,
+  });
 
   @override
   State<TaskDetailScreen> createState() => _TaskDetailScreenState();
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
+  final _pageScrollController = ScrollController();
   final _commentController = TextEditingController();
   final _mainCommentFocusNode = FocusNode();
   final _sheetCommentFocusNode = FocusNode();
@@ -64,6 +71,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         _scrollMainCommentsToLatest(animated: true);
       }
     });
+
+    if (widget.scrollToComments) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToCommentsSection();
+      });
+    }
+  }
+
+  void _scrollToCommentsSection() {
+    void doScroll() {
+      if (!mounted) return;
+      if (_pageScrollController.hasClients) {
+        _pageScrollController.animateTo(
+          _pageScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    }
+
+    Future.delayed(const Duration(milliseconds: 300), doScroll);
+    Future.delayed(const Duration(milliseconds: 600), doScroll);
   }
 
   @override
@@ -78,6 +107,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void dispose() {
     _toastEntry?.remove();
     _toastEntry = null;
+    _pageScrollController.dispose();
     _mainCommentsScrollController.dispose();
     _mainCommentFocusNode.dispose();
     _sheetCommentFocusNode.dispose();
@@ -253,6 +283,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: SingleChildScrollView(
+          controller: _pageScrollController,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -540,17 +571,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Check if current user is an assigned group member with specific subtasks
+    // Check if current user is an assigned group member
     Member? myMember;
     if (task.isGroup && currentUserId != null) {
       myMember = task.members.where((m) => m.id == currentUserId).firstOrNull;
     }
 
-    final bool hasMemberSubtasks =
-        myMember != null && myMember.subTasks.isNotEmpty;
+    final bool showMyAssignedCard = task.isGroup &&
+        myMember != null &&
+        (!isLeader ||
+            (myMember.taskTitle?.trim().isNotEmpty == true ||
+                myMember.subTasks.isNotEmpty));
     final bool hasGeneralSubtasks = task.subtasks.isNotEmpty;
 
-    if (!hasMemberSubtasks && !hasGeneralSubtasks) {
+    if (!showMyAssignedCard && !hasGeneralSubtasks) {
       return const SizedBox.shrink();
     }
 
@@ -771,73 +805,328 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       );
     }
 
-    Widget? memberSubtasksWidget;
-    if (hasMemberSubtasks) {
-      final memberSubtasks = myMember.subTasks;
-      final completedCount = myMember.completedSubTasks
-          .where((c) => memberSubtasks.any((st) => st.trim() == c.trim()))
-          .length;
-      final totalCount = memberSubtasks.length;
+    Widget? myAssignedTaskWidget;
+    if (showMyAssignedCard) {
+      myAssignedTaskWidget = _buildMyAssignedTaskCard(
+        task,
+        myMember,
+        taskProvider,
+        isDark,
+        theme,
+      );
+    }
 
-      memberSubtasksWidget = Container(
-        margin: const EdgeInsets.symmetric(
-          horizontal: AppConstants.paddingMedium,
-          vertical: AppConstants.paddingSmall,
-        ),
-        padding: const EdgeInsets.all(AppConstants.paddingLarge),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.stormyDarkSlate : theme.cardColor,
-          borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
-          boxShadow: [
-            BoxShadow(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : AppColors.shadowLight,
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'ภารกิจย่อยจากงานของคุณ',
+    if (myAssignedTaskWidget != null && generalSubtasksWidget != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          myAssignedTaskWidget,
+          generalSubtasksWidget,
+        ],
+      );
+    }
+
+    return myAssignedTaskWidget ??
+        generalSubtasksWidget ??
+        const SizedBox.shrink();
+  }
+
+  /// การ์ดแสดงงานที่ได้รับมอบหมายของสมาชิก พร้อมรายละเอียดครบถ้วน
+  Widget _buildMyAssignedTaskCard(
+    Task task,
+    Member myMember,
+    TaskProvider taskProvider,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final statusInfo = _getMemberStatusInfo(myMember, task);
+    final memberSubtasks = myMember.subTasks;
+    final completedCount = myMember.completedSubTasks
+        .where((c) => memberSubtasks.any((st) => st.trim() == c.trim()))
+        .length;
+    final totalCount = memberSubtasks.length;
+
+    // รายชื่อผู้รับผิดชอบร่วมกันที่มีชื่องานเหมือนกัน
+    final coAssignees = task.members
+        .where(
+          (m) =>
+              m.id != myMember.id &&
+              m.taskTitle != null &&
+              m.taskTitle!.trim().isNotEmpty &&
+              m.taskTitle!.trim() == myMember.taskTitle?.trim(),
+        )
+        .toList();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppConstants.paddingMedium,
+        vertical: AppConstants.paddingSmall,
+      ),
+      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.stormyDarkSlate : theme.cardColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.3)
+                : AppColors.shadowLight,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ส่วนหัว: ไอคอน + ข้อความหัวข้อ + Status Badge
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.stormySkyBlue.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.assignment_ind_rounded,
+                  color: AppColors.stormySkyBlue,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'งานที่คุณได้รับมอบหมาย',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.stormySkyBlue.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: statusInfo.backgroundColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  statusInfo.label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: statusInfo.textColor,
                   ),
-                  child: Text(
-                    '$completedCount/$totalCount',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.stormySkyBlue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // ชื่องานมอบหมาย
+          Text(
+            myMember.taskTitle != null && myMember.taskTitle!.trim().isNotEmpty
+                ? myMember.taskTitle!
+                : 'ไม่ได้ระบุชื่อภารกิจ',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+
+          // คำอธิบายงาน (ถ้ามี)
+          if (myMember.description != null &&
+              myMember.description!.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              myMember.description!,
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                height: 1.4,
+              ),
+            ),
+          ],
+
+          // ผู้รับผิดชอบร่วม (Co-assignees)
+          if (coAssignees.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.people_outline_rounded,
+                  size: 16,
+                  color: AppColors.stormySkyBlue,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'ผู้รับผิดชอบร่วม: ',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: coAssignees.map((co) {
+                        return Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.stormySkyBlue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 8,
+                                backgroundImage: co.avatarUrl.isNotEmpty
+                                    ? NetworkImage(co.avatarUrl)
+                                    : null,
+                                backgroundColor:
+                                    AppColors.stormySkyBlue.withValues(alpha: 0.2),
+                                child: co.avatarUrl.isEmpty
+                                    ? Text(
+                                        co.name.isNotEmpty ? co.name[0] : '?',
+                                        style: const TextStyle(fontSize: 8),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                co.name,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppConstants.paddingMedium),
+          ],
+
+          // เมตริกภารกิจ (ความยาก / ปริมาณ / ความเสี่ยง / คะแนน)
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _buildSmallMetricBox(
+                label: 'ความยาก',
+                value: myMember.difficulty.isNotEmpty
+                    ? myMember.difficulty
+                    : 'Medium',
+                color: _getComplexityColor(myMember.difficulty),
+              ),
+              const SizedBox(width: 8),
+              _buildSmallMetricBox(
+                label: 'ปริมาณภารกิจ',
+                value: myMember.workload.isNotEmpty
+                    ? myMember.workload
+                    : 'Medium',
+                color: _getWorkloadColor(myMember.workload),
+              ),
+              const SizedBox(width: 8),
+              _buildSmallMetricBox(
+                label: 'ความเสี่ยง',
+                value: myMember.risk.isNotEmpty ? myMember.risk : 'Low',
+                color: _getRiskColor(myMember.risk),
+              ),
+              if (myMember.score != null &&
+                  myMember.score!.trim().isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _buildSmallMetricBox(
+                  label: 'คะแนน',
+                  value: '${myMember.score} XP',
+                  color: AppColors.stormySkyBlue,
+                ),
+              ],
+            ],
+          ),
+
+          // รายการภารกิจย่อยของสมาชิก (Subtasks)
+          const SizedBox(height: 14),
+          Divider(
+            height: 1,
+            color: theme.dividerColor.withValues(alpha: 0.15),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.checklist_rtl_rounded,
+                size: 18,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'ภารกิจย่อยของคุณ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              if (totalCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.stormySkyBlue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$completedCount/$totalCount',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.stormySkyBlue,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (memberSubtasks.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                'ไม่มีภารกิจย่อย',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
+              ),
+            )
+          else
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: memberSubtasks.length,
               itemBuilder: (context, index) {
                 final subtaskTitle = memberSubtasks[index];
-                final isDone = myMember!.completedSubTasks.any(
+                final isDone = myMember.completedSubTasks.any(
                   (c) => c.trim() == subtaskTitle.trim(),
                 );
 
@@ -858,15 +1147,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
                     await taskProvider.toggleMemberSubtask(
                       task.id,
-                      myMember!.id,
+                      myMember.id,
                       subtaskTitle,
                     );
                   },
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: 14,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
                       color: isDone
@@ -875,14 +1164,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               : AppColors.stormyOffWhite.withValues(
                                   alpha: 0.5,
                                 ))
-                          : AppColors.stormySkyBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(15),
+                          : AppColors.stormySkyBlue.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: isDone
                             ? (isDark
                                 ? Colors.white.withValues(alpha: 0.1)
                                 : AppColors.stormyMutedBlueGrey)
-                            : AppColors.stormySkyBlue.withValues(alpha: 0.5),
+                            : AppColors.stormySkyBlue.withValues(alpha: 0.4),
                         width: 1,
                       ),
                     ),
@@ -890,19 +1179,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       children: [
                         Icon(
                           isDone
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
                           size: 20,
                           color: isDone
                               ? AppColors.success
                               : AppColors.stormySkyBlue,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             subtaskTitle,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: isDone
                                   ? FontWeight.normal
                                   : FontWeight.w500,
@@ -923,24 +1212,84 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 );
               },
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallMetricBox({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    if (generalSubtasksWidget != null && memberSubtasksWidget != null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          generalSubtasksWidget,
-          memberSubtasksWidget,
-        ],
-      );
+  Color _getComplexityColor(String value) {
+    switch (value.toLowerCase()) {
+      case 'easy':
+        return AppColors.primaryGreen;
+      case 'hard':
+        return AppColors.accentRed;
+      default:
+        return AppColors.primaryBlue;
     }
+  }
 
-    return generalSubtasksWidget ??
-        memberSubtasksWidget ??
-        const SizedBox.shrink();
+  Color _getWorkloadColor(String value) {
+    switch (value.toLowerCase()) {
+      case 'small':
+        return AppColors.primaryGreen;
+      case 'large':
+        return AppColors.primaryPurple;
+      default:
+        return AppColors.primaryBlue;
+    }
+  }
+
+  Color _getRiskColor(String value) {
+    switch (value.toLowerCase()) {
+      case 'none':
+        return AppColors.primaryGreen;
+      case 'high':
+        return AppColors.accentRed;
+      default:
+        return AppColors.warning;
+    }
   }
 
   Widget _buildTaskInfoSection(Task task) {
@@ -2077,6 +2426,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     String leaderId,
   ) {
     final theme = Theme.of(context);
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
     final leaderUser = taskProvider.getUserById(leaderId);
     final leaderName = leaderUser?.name ?? 'หัวหน้าภารกิจ';
     final leaderAvatarUrl = leaderUser?.avatarUrl ?? '';
@@ -2134,8 +2484,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   maxLines: 2,
                 ),
               ),
-              // ปุ่มสามจุด — แสดงเฉพาะเมื่อหัวหน้ามีงานที่ได้รับมอบหมาย
-              if (leaderMember != null)
+              // ปุ่มสามจุด — แสดงเฉพาะเมื่อหัวหน้ามีงานที่ได้รับมอบหมาย และไม่ใช่ตัวเราเอง
+              if (leaderMember != null && leaderId != currentUserId)
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'view_details') {
@@ -2208,6 +2558,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   ) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
+    final isSelf = currentUserId != null && member.id == currentUserId;
     final memberFrame =
         taskProvider.getUserById(member.id)?.equippedFrame ?? '';
 
@@ -2270,33 +2622,35 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
           ),
         ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'view_details') {
-              _openMemberAssignmentDetails(member, task, isLeader: false);
-            }
-          },
-          itemBuilder: (BuildContext context) => [
-            PopupMenuItem<String>(
-              value: 'view_details',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.visibility_outlined,
-                    size: 20,
-                    color: theme.colorScheme.onSurface,
+        trailing: isSelf
+            ? null
+            : PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'view_details') {
+                    _openMemberAssignmentDetails(member, task, isLeader: false);
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'view_details',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 20,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('ดูรายละเอียดงานมอบหมาย'),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 10),
-                  const Text('ดูรายละเอียดงานมอบหมาย'),
                 ],
+                icon: Icon(
+                  Icons.more_vert,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
               ),
-            ),
-          ],
-          icon: Icon(
-            Icons.more_vert,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
-        ),
       ),
     );
   }
@@ -4512,8 +4866,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   _openEditTaskModal(context, task);
                 },
               ),
-            if (isLeader &&
-                (task.isDeleted || task.isCompleted || task.subtasks.isEmpty))
+            if (isLeader)
               ListTile(
               leading: Icon(
                 task.isDeleted

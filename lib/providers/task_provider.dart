@@ -891,6 +891,33 @@ class TaskProvider with ChangeNotifier {
     return currentUserId != null && currentUserId == leaderIdForTask(task);
   }
 
+  static bool checkAllGroupMembersCompleted({
+    required Task task,
+    required String leaderId,
+  }) {
+    if (!task.isGroup) return true;
+    final nonLeaderMembers =
+        task.members.where((m) => m.id != leaderId).toList();
+    final membersToCheck =
+        nonLeaderMembers.isNotEmpty ? nonLeaderMembers : task.members;
+    if (task.members.isEmpty) {
+      return task.isCompleted ||
+          (task.submissionText != null &&
+              task.submissionText!.trim().isNotEmpty) ||
+          task.attachments.isNotEmpty ||
+          (task.submittedBy != null && task.submittedBy!.isNotEmpty) ||
+          task.status == TaskStatus.pending;
+    }
+    return membersToCheck.every((m) => m.status == 'completed');
+  }
+
+  bool areAllGroupMembersCompleted(Task task) {
+    return checkAllGroupMembersCompleted(
+      task: task,
+      leaderId: leaderIdForTask(task),
+    );
+  }
+
   void setActiveSubTabIndex(int index) {
     _activeSubTabIndex = index;
     notifyListeners();
@@ -1618,44 +1645,81 @@ class TaskProvider with ChangeNotifier {
 
     if (recipients.isEmpty) return;
 
-    // ตรวจสอบว่ามีการแก้ไขข้อมูลงานหรือไม่
-    final isTaskContentUpdated = previousTask.title != updatedTask.title ||
-        previousTask.description != updatedTask.description ||
+    // ตรวจสอบว่ามีการแก้ไขข้อมูลงานกลุ่มภาพรวมหรือไม่ (เช่น ชื่องาน, รายละเอียด, วันที่เวลา, งานย่อย, ความสำคัญ ฯลฯ)
+    final isSubtasksChanged =
+        previousTask.subtasks.length != updatedTask.subtasks.length ||
+        previousTask.subtasks.asMap().entries.any((e) =>
+            e.key >= updatedTask.subtasks.length ||
+            e.value.title != updatedTask.subtasks[e.key].title ||
+            e.value.isDone != updatedTask.subtasks[e.key].isDone);
+
+    final isTaskContentUpdated = previousTask.title.trim() != updatedTask.title.trim() ||
+        previousTask.description.trim() != updatedTask.description.trim() ||
         !previousTask.dateTime.isAtSameMomentAs(updatedTask.dateTime) ||
         previousTask.priority != updatedTask.priority ||
-        previousTask.subtasks.length != updatedTask.subtasks.length ||
         previousTask.category != updatedTask.category ||
-        previousTask.location != updatedTask.location;
+        previousTask.location != updatedTask.location ||
+        previousTask.isRecurring != updatedTask.isRecurring ||
+        previousTask.recurringType != updatedTask.recurringType ||
+        isSubtasksChanged;
 
-    final membersContentChanged = previousTask.members.any((oldM) {
-      final newM = updatedTask.members.firstWhere(
-        (m) => m.id == oldM.id,
-        orElse: () => oldM,
-      );
-      return oldM.taskTitle != newM.taskTitle ||
-          oldM.description != newM.description ||
-          oldM.workload != newM.workload ||
-          oldM.difficulty != newM.difficulty ||
-          oldM.risk != newM.risk;
-    });
+    // ส่งแจ้งเตือนภาพรวมกลุ่มเฉพาะเมื่อมีการแก้ไขฟิลด์ภาพรวมของงานกลุ่มเท่านั้น
+    // หากเป็นการแก้ไขเฉพาะสมาชิก (เช่น มอบหมายงาน, แก้ไขรายละเอียดสมาชิก) จะไม่ส่งแจ้งเตือนภาพรวมนี้
+    if (!isTaskContentUpdated) return;
 
-    // ตรวจสอบว่ามีจำนวนสมาชิกเปลี่ยนไปหรือไม่ (เช่น มีคนถูกลบออก หรือเปลี่ยนผู้รับผิดชอบ)
-    final memberListChanged =
-        previousTask.members.length != updatedTask.members.length ||
-        previousTask.assigneeIds.length != updatedTask.assigneeIds.length;
+    final oldDate = previousTask.dateTime;
+    final newDate = updatedTask.dateTime;
+    final isDateTimeChanged = !oldDate.isAtSameMomentAs(newDate);
 
-    if (!isTaskContentUpdated && !membersContentChanged && !memberListChanged) return;
+    final isDateChanged = isDateTimeChanged &&
+        (oldDate.year != newDate.year ||
+            oldDate.month != newDate.month ||
+            oldDate.day != newDate.day);
+
+    final isTimeChanged = isDateTimeChanged &&
+        (oldDate.hour != newDate.hour || oldDate.minute != newDate.minute);
+
+    String notificationTitle;
+    String notificationBody;
+    String notificationStage;
+
+    if (isDateChanged && isTimeChanged) {
+      final dateStr = DateFormat('dd/MM/yyyy').format(newDate);
+      final timeStr = DateFormat('HH:mm').format(newDate);
+      notificationTitle =
+          '$actorName เปลี่ยนกำหนดเวลาภารกิจ "${updatedTask.title}"';
+      notificationBody = 'กำหนดเวลาใหม่เป็นวันที่ $dateStr เวลา $timeStr น.';
+      notificationStage = 'taskRescheduled';
+    } else if (isDateChanged) {
+      final dateStr = DateFormat('dd/MM/yyyy').format(newDate);
+      final timeStr = DateFormat('HH:mm').format(newDate);
+      notificationTitle =
+          '$actorName เลื่อนวันส่งภารกิจ "${updatedTask.title}"';
+      notificationBody = 'เลื่อนวันส่งใหม่เป็นวันที่ $dateStr (เวลา $timeStr น.)';
+      notificationStage = 'taskDateUpdated';
+    } else if (isTimeChanged) {
+      final dateStr = DateFormat('dd/MM/yyyy').format(newDate);
+      final timeStr = DateFormat('HH:mm').format(newDate);
+      notificationTitle =
+          '$actorName ปรับเวลาภารกิจ "${updatedTask.title}"';
+      notificationBody = 'ปรับเวลาส่งใหม่เป็น $timeStr น. (วันที่ $dateStr)';
+      notificationStage = 'taskTimeUpdated';
+    } else {
+      notificationTitle = '$actorName แก้ไขภารกิจ "${updatedTask.title}"';
+      notificationBody = '$actorName ได้แก้ไขรายละเอียดงานใหม่ เข้าไปเช็คเลย!';
+      notificationStage = 'groupTaskUpdated';
+    }
 
     try {
       await _createUserNotifications(recipients, {
-        'title': '$actorName แก้ไขภารกิจ "${updatedTask.title}"',
-        'body': '$actorName ได้แก้ไขรายละเอียดงานใหม่ เข้าไปเช็คเลย!',
+        'title': notificationTitle,
+        'body': notificationBody,
         'type': 'Group',
         'taskId': updatedTask.id,
         'taskType': 'group',
-        'notificationStage': 'groupTaskUpdated',
+        'notificationStage': notificationStage,
         'notificationKey':
-            '${updatedTask.id}-task-updated-$nowTimestamp',
+            '${updatedTask.id}-$notificationStage-$nowTimestamp',
         'actorId': currentUserId,
         'actorName': actorName,
         'actorAvatarUrl': actorAvatarUrl,

@@ -17,6 +17,7 @@ import 'package:todo_app/screens/friends_screen.dart';
 import 'firebase_options.dart';
 import 'config/theme.dart';
 import 'config/constants.dart';
+import 'config/colors.dart';
 import 'providers/auth_provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/theme_provider.dart';
@@ -162,6 +163,13 @@ Future<void> _initializeLocalNotifications() async {
       _handleNotificationPayload(response.payload);
     },
   );
+
+  final launchDetails =
+      await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+  if (launchDetails?.didNotificationLaunchApp == true &&
+      launchDetails?.notificationResponse?.payload != null) {
+    _handleNotificationPayload(launchDetails!.notificationResponse!.payload);
+  }
 }
 
 Future<void> _showTaskReminderNotification(RemoteMessage message) async {
@@ -241,10 +249,14 @@ AndroidNotificationChannel _androidChannelFromMessage(RemoteMessage message) {
   return _isCommentNotification(message) ? commentChannel : channel;
 }
 
+bool _isCommentNotificationData(Map<String, dynamic> data) {
+  final type = (data['notificationType'] ?? data['type'] ?? '').toString().toLowerCase();
+  final stage = (data['notificationStage'] ?? '').toString().toLowerCase();
+  return type == 'comment' || stage == 'commentadded';
+}
+
 bool _isCommentNotification(RemoteMessage message) {
-  final type = message.data['notificationType'] ?? message.data['type'] ?? '';
-  final stage = message.data['notificationStage'] ?? '';
-  return type == 'Comment' || stage == 'commentAdded';
+  return _isCommentNotificationData(message.data);
 }
 
 AndroidNotificationCategory _androidCategoryFromMessage(RemoteMessage message) {
@@ -266,11 +278,29 @@ List<int> _notificationVibrationPattern(RemoteMessage message) {
   return <int>[0, 700, 250, 700];
 }
 
+Map<String, dynamic>? _pendingNotificationData;
+
+void checkAndRoutePendingNotification() {
+  final data = _pendingNotificationData;
+  if (data == null) return;
+  final context = appNavigatorKey.currentContext;
+  if (context == null) return;
+
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  if (!authProvider.isLoggedIn || authProvider.currentUser == null) return;
+
+  _pendingNotificationData = null;
+  debugPrint('🚀 [Notification Navigation] Triggering pending notification route: $data');
+  _handleNotificationData(data);
+}
+
 void _handleNotificationNavigation(RemoteMessage message) {
+  debugPrint('🔔 [FCM Notification] _handleNotificationNavigation: messageId=${message.messageId}, data=${message.data}');
   _handleNotificationData(message.data);
 }
 
 void _handleNotificationPayload(String? payload) {
+  debugPrint('🔔 [Local Notification] _handleNotificationPayload: $payload');
   if (payload == null || payload.trim().isEmpty) return;
 
   try {
@@ -281,25 +311,69 @@ void _handleNotificationPayload(String? payload) {
       );
     }
   } catch (error) {
-    debugPrint('Unable to parse notification payload: $error');
+    debugPrint('❌ [Notification] Unable to parse payload: $error');
   }
 }
 
-void _handleNotificationData(Map<String, dynamic> data) {
-  final type = data['notificationType'] ?? data['type'] ?? '';
+String? _lastNavigatedNotificationKey;
+DateTime? _lastNavigatedNotificationTime;
 
-  if (type == 'FriendRequest') {
+bool _isDuplicateNavigation(String key) {
+  final now = DateTime.now();
+  if (_lastNavigatedNotificationKey == key &&
+      _lastNavigatedNotificationTime != null &&
+      now.difference(_lastNavigatedNotificationTime!).inMilliseconds < 1500) {
+    return true;
+  }
+  _lastNavigatedNotificationKey = key;
+  _lastNavigatedNotificationTime = now;
+  return false;
+}
+
+void _handleNotificationData(Map<String, dynamic> data) {
+  debugPrint('🔔 [Notification Navigation] _handleNotificationData: $data');
+  if (data.isEmpty) return;
+
+  Map<String, dynamic> resolvedData = Map<String, dynamic>.from(data);
+  if (resolvedData['data'] is Map) {
+    resolvedData.addAll(Map<String, dynamic>.from(resolvedData['data'] as Map));
+  }
+
+  // If Navigator/Auth is not ready yet, keep in _pendingNotificationData
+  final context = appNavigatorKey.currentContext;
+  if (context == null) {
+    debugPrint('⏳ [Notification Navigation] Context is null, saving to _pendingNotificationData');
+    _pendingNotificationData = resolvedData;
+  } else {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isLoggedIn || authProvider.currentUser == null) {
+      debugPrint('⏳ [Notification Navigation] User not logged in yet, saving to _pendingNotificationData');
+      _pendingNotificationData = resolvedData;
+    }
+  }
+
+  final type = (resolvedData['notificationType'] ?? resolvedData['type'] ?? '').toString().toLowerCase();
+  final stage = (resolvedData['notificationStage'] ?? '').toString().toLowerCase();
+
+  if (type == 'friendrequest' ||
+      type == 'friendaccepted' ||
+      stage.startsWith('friendrequest')) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _openFriendsScreenFromNotification();
     });
     return;
   }
 
-  final taskId = data['taskId']?.toString();
-  if (taskId == null || taskId.trim().isEmpty) return;
+  final taskId = (resolvedData['taskId'] ?? resolvedData['task_id'] ?? resolvedData['id'])?.toString().trim();
+  if (taskId == null || taskId.isEmpty) {
+    debugPrint('⚠️ [Notification Navigation] No valid taskId found in: $resolvedData');
+    return;
+  }
+
+  final isComment = _isCommentNotificationData(resolvedData);
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    _openTaskFromNotification(taskId.trim());
+    _openTaskFromNotification(taskId, scrollToComments: isComment);
   });
 }
 
@@ -308,22 +382,30 @@ Future<void> _openFriendsScreenFromNotification({int attempt = 0}) async {
   final context = appNavigatorKey.currentContext;
 
   if (navigator == null || context == null) {
-    if (attempt < 12) {
+    if (attempt < 40) {
       await Future.delayed(const Duration(milliseconds: 250));
       return _openFriendsScreenFromNotification(attempt: attempt + 1);
     }
+    debugPrint('❌ [Notification Navigation] Timed out waiting to open FriendsScreen.');
     return;
   }
 
   final authProvider = Provider.of<AuthProvider>(context, listen: false);
   if (!authProvider.isLoggedIn || authProvider.currentUser == null) {
-    if (attempt < 12) {
+    if (attempt < 40) {
       await Future.delayed(const Duration(milliseconds: 250));
       return _openFriendsScreenFromNotification(attempt: attempt + 1);
     }
+    debugPrint('❌ [Notification Navigation] Timed out waiting for AuthProvider to open FriendsScreen.');
     return;
   }
 
+  if (_isDuplicateNavigation('friends-screen')) {
+    debugPrint('ℹ️ [Notification Navigation] Duplicate FriendsScreen navigation skipped.');
+    return;
+  }
+
+  debugPrint('🚀 [Notification Navigation] Navigating to FriendsScreen');
   navigator.push(
     MaterialPageRoute(
       builder: (_) => const FriendsScreen(openAddFriendModal: true),
@@ -331,24 +413,39 @@ Future<void> _openFriendsScreenFromNotification({int attempt = 0}) async {
   );
 }
 
-Future<void> _openTaskFromNotification(String taskId, {int attempt = 0}) async {
+Future<void> _openTaskFromNotification(
+  String taskId, {
+  bool scrollToComments = false,
+  int attempt = 0,
+}) async {
+  debugPrint('🔔 [Notification Navigation] _openTaskFromNotification: taskId=$taskId, scrollToComments=$scrollToComments, attempt=$attempt');
   final navigator = appNavigatorKey.currentState;
   final context = appNavigatorKey.currentContext;
 
   if (navigator == null || context == null) {
-    if (attempt < 12) {
+    if (attempt < 40) {
       await Future.delayed(const Duration(milliseconds: 250));
-      return _openTaskFromNotification(taskId, attempt: attempt + 1);
+      return _openTaskFromNotification(
+        taskId,
+        scrollToComments: scrollToComments,
+        attempt: attempt + 1,
+      );
     }
+    debugPrint('❌ [Notification Navigation] Timed out waiting for navigator or context.');
     return;
   }
 
   final authProvider = Provider.of<AuthProvider>(context, listen: false);
   if (!authProvider.isLoggedIn || authProvider.currentUser == null) {
-    if (attempt < 12) {
+    if (attempt < 40) {
       await Future.delayed(const Duration(milliseconds: 250));
-      return _openTaskFromNotification(taskId, attempt: attempt + 1);
+      return _openTaskFromNotification(
+        taskId,
+        scrollToComments: scrollToComments,
+        attempt: attempt + 1,
+      );
     }
+    debugPrint('❌ [Notification Navigation] Timed out waiting for AuthProvider login.');
     return;
   }
 
@@ -356,6 +453,7 @@ Future<void> _openTaskFromNotification(String taskId, {int attempt = 0}) async {
   Task? task = _taskFromProvider(taskProvider, taskId);
 
   if (task == null) {
+    debugPrint('🔍 [Notification Navigation] Task not in provider cache, fetching from Firestore: $taskId');
     try {
       final snap = await FirebaseFirestore.instance
           .collection('tasks')
@@ -364,17 +462,44 @@ Future<void> _openTaskFromNotification(String taskId, {int attempt = 0}) async {
       final data = snap.data();
       if (snap.exists && data != null) {
         task = Task.fromMap(data, snap.id);
+        debugPrint('✅ [Notification Navigation] Fetched task successfully: ${task.title}');
+      } else {
+        debugPrint('⚠️ [Notification Navigation] Task doc does not exist in Firestore: $taskId');
       }
     } catch (error) {
-      debugPrint('Failed to fetch notification task $taskId: $error');
+      debugPrint('❌ [Notification Navigation] Failed to fetch task $taskId: $error');
     }
   }
 
-  if (task == null) return;
+  if (task == null) {
+    debugPrint('❌ [Notification Navigation] Could not find task $taskId anywhere.');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่พบภารกิจนี้ หรือภารกิจอาจถูกลบไปแล้ว'),
+          backgroundColor: AppColors.accentRed,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+    return;
+  }
+
+  final navigationKey = 'task-$taskId-comment-$scrollToComments';
+  if (_isDuplicateNavigation(navigationKey)) {
+    debugPrint('ℹ️ [Notification Navigation] Duplicate navigation skipped for $navigationKey');
+    return;
+  }
 
   taskProvider.selectTask(task);
-  navigator.push(
-    MaterialPageRoute(builder: (_) => TaskDetailScreen(task: task)),
+  debugPrint('🚀 [Notification Navigation] Navigating to TaskDetailScreen for "${task.title}" (scrollToComments=$scrollToComments)');
+  await navigator.push(
+    MaterialPageRoute(
+      builder: (_) => TaskDetailScreen(
+        task: task,
+        scrollToComments: scrollToComments,
+      ),
+    ),
   );
 }
 
@@ -557,6 +682,9 @@ class AuthGate extends StatelessWidget {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
         if (authProvider.isLoggedIn && authProvider.currentUser != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            checkAndRoutePendingNotification();
+          });
           return const HomeScreen();
         }
         return const SplashToLoginScreen();

@@ -219,15 +219,8 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
         final membersToCheck = nonLeaderMembers.isNotEmpty
             ? nonLeaderMembers
             : latestTask.members;
-        final areAllCompleted = latestTask.members.isEmpty
-            ? (latestTask.status == TaskStatus.completed ||
-                (latestTask.submissionText != null &&
-                    latestTask.submissionText!.trim().isNotEmpty) ||
-                latestTask.attachments.isNotEmpty ||
-                (latestTask.submittedBy != null &&
-                    latestTask.submittedBy!.isNotEmpty) ||
-                latestTask.status == TaskStatus.pending)
-            : membersToCheck.every((m) => m.status == 'completed');
+        final areAllCompleted =
+            taskProvider.areAllGroupMembersCompleted(latestTask);
 
         if (!areAllCompleted) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -829,6 +822,14 @@ class _UpcomingTaskCard extends StatelessWidget {
     final accentColor = theme.colorScheme.tertiary;
     final softPink = theme.colorScheme.primary;
     final isCompleted = task.isCompleted;
+    final authProvider = context.read<AuthProvider>();
+    final isGroup = task.isGroup;
+    final isLeader = !isGroup ||
+        taskProvider.isLeaderForTask(task, authProvider.currentUser?.id);
+    final areAllCompleted =
+        isGroup ? taskProvider.areAllGroupMembersCompleted(task) : true;
+    final canShowComplete =
+        !isGroup || (isLeader && (isCompleted || areAllCompleted));
     final iconColor = theme.brightness == Brightness.dark
         ? accentColor
         : AppColors.stormySkyBlue;
@@ -959,20 +960,21 @@ class _UpcomingTaskCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const PopupMenuItem(
-                              value: 'toggle_complete',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_outline,
-                                    color: AppColors.success,
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 10),
-                                  Text('ทำว่าเสร็จสิ้น'),
-                                ],
+                            if (canShowComplete)
+                              const PopupMenuItem(
+                                value: 'toggle_complete',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_outline,
+                                      color: AppColors.success,
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 10),
+                                    Text('ทำว่าเสร็จสิ้น'),
+                                  ],
+                                ),
                               ),
-                            ),
                             const PopupMenuItem(
                               value: 'delete',
                               child: Row(

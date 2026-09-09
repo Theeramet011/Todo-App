@@ -1322,9 +1322,15 @@ class _NotificationPanelState extends State<NotificationPanel> {
 
     if (!mounted || task == null) return;
     taskProvider.selectTask(task);
+    final isComment = item.tag.toLowerCase() == 'comment';
     Navigator.pop(context);
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => TaskDetailScreen(task: task)),
+      MaterialPageRoute(
+        builder: (context) => TaskDetailScreen(
+          task: task,
+          scrollToComments: isComment,
+        ),
+      ),
     );
   }
 
@@ -3303,15 +3309,8 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
         final membersToCheck = nonLeaderMembers.isNotEmpty
             ? nonLeaderMembers
             : latestProject.members;
-        final areAllCompleted = latestProject.members.isEmpty
-            ? (latestProject.status == TaskStatus.completed ||
-                  (latestProject.submissionText != null &&
-                      latestProject.submissionText!.trim().isNotEmpty) ||
-                  latestProject.attachments.isNotEmpty ||
-                  (latestProject.submittedBy != null &&
-                      latestProject.submittedBy!.isNotEmpty) ||
-                  latestProject.status == TaskStatus.pending)
-            : membersToCheck.every((m) => m.status == 'completed');
+        final areAllCompleted =
+            taskProvider.areAllGroupMembersCompleted(latestProject);
 
         if (!areAllCompleted) {
           final isDark = Theme.of(context).brightness == Brightness.dark;

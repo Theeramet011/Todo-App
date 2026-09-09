@@ -266,27 +266,26 @@ void main() {
       expect(shouldShowHomeCheckbox(taskWithSubtasks), false);
       expect(shouldShowHomeCheckbox(simpleTask), true);
 
-      // Options menu complete action logic
-      bool shouldShowCompleteMenu(Task t) =>
-          t.isDeleted || t.isCompleted || t.subtasks.isEmpty;
+      // Options menu complete action logic: isLeader can access complete/restore/undo in TaskDetailScreen
+      bool shouldShowCompleteMenu(Task t, {bool isLeader = true}) => isLeader;
 
-      // Incomplete task with subtasks -> should NOT show "ทำว่าเสร็จสิ้น"
-      expect(shouldShowCompleteMenu(taskWithSubtasks), false);
+      // Incomplete task with subtasks -> leader can see menu option
+      expect(shouldShowCompleteMenu(taskWithSubtasks, isLeader: true), true);
 
       // Incomplete simple task -> SHOULD show "ทำว่าเสร็จสิ้น"
-      expect(shouldShowCompleteMenu(simpleTask), true);
+      expect(shouldShowCompleteMenu(simpleTask, isLeader: true), true);
 
       // Completed task with subtasks -> SHOULD show (as "เลิกทำเสร็จสิ้น")
       final completedSubtaskTask = taskWithSubtasks.copyWith(
         status: TaskStatus.completed,
       );
-      expect(shouldShowCompleteMenu(completedSubtaskTask), true);
+      expect(shouldShowCompleteMenu(completedSubtaskTask, isLeader: true), true);
 
       // Deleted task with subtasks -> SHOULD show (as "คืนค่า")
       final deletedSubtaskTask = taskWithSubtasks.copyWith(
         isDeleted: true,
       );
-      expect(shouldShowCompleteMenu(deletedSubtaskTask), true);
+      expect(shouldShowCompleteMenu(deletedSubtaskTask, isLeader: true), true);
     });
   });
 }

@@ -41,23 +41,9 @@ class GroupProjectCard extends StatelessWidget {
       authProvider.currentUser?.id,
     );
     final isCompleted = isCompletedOverride ?? project.isCompleted;
-    final leaderId = taskProvider.leaderIdForTask(project);
-    final nonLeaderMembers = project.members
-        .where((m) => m.id != leaderId)
-        .toList();
-    final membersToCheck = nonLeaderMembers.isNotEmpty
-        ? nonLeaderMembers
-        : project.members;
-    final areAllCompleted = project.members.isEmpty
-        ? (isCompleted ||
-            (project.submissionText != null &&
-                project.submissionText!.trim().isNotEmpty) ||
-            project.attachments.isNotEmpty ||
-            (project.submittedBy != null &&
-                project.submittedBy!.isNotEmpty) ||
-            project.status == TaskStatus.pending)
-        : membersToCheck.every((m) => m.status == 'completed');
+    final areAllCompleted = taskProvider.areAllGroupMembersCompleted(project);
     final canMemberDelete = !isLeader && (isCompleted || areAllCompleted);
+    final canShowCompleteToggle = isLeader && (isCompleted || areAllCompleted);
 
     return GestureDetector(
       onTap: () async {
@@ -332,26 +318,27 @@ class GroupProjectCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        PopupMenuItem(
-                          value: 'toggle_complete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                isCompleted
-                                    ? Icons.undo
-                                    : Icons.check_circle_outline,
-                                color: isCompleted
-                                    ? AppColors.warning
-                                    : AppColors.success,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                isCompleted ? 'ทำยังไม่เสร็จ' : 'ทำว่าเสร็จสิ้น',
-                              ),
-                            ],
+                        if (canShowCompleteToggle)
+                          PopupMenuItem(
+                            value: 'toggle_complete',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isCompleted
+                                      ? Icons.undo
+                                      : Icons.check_circle_outline,
+                                  color: isCompleted
+                                      ? AppColors.warning
+                                      : AppColors.success,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  isCompleted ? 'ทำยังไม่เสร็จ' : 'ทำว่าเสร็จสิ้น',
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                       const PopupMenuItem(
                         value: 'delete',

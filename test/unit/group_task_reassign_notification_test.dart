@@ -634,5 +634,205 @@ void main() {
       expect(recipients.contains('member_alice'), isFalse);
       expect(recipients.contains('member_bob'), isTrue);
     });
+
+    test('groupTaskUpdated is NOT triggered when only member is modified without overall task changes', () {
+      final now = DateTime.now();
+      final previousTask = Task(
+        id: 'task_1',
+        title: 'noti',
+        description: 'same desc',
+        dateTime: now,
+        priority: Priority.low,
+        category: 'General',
+        location: 'Office',
+        type: TaskType.group,
+        creatorId: 'leader_1',
+        createdAt: now,
+        subtasks: [SubTask(title: 'Sub 1', isDone: false)],
+        members: [
+          const Member(id: 'leader_1', name: 'Leader'),
+          const Member(id: 'member_alice', name: 'Alice', taskTitle: 'old task'),
+        ],
+      );
+
+      // Leader only changes Alice's member task to 'new task', but leaves all overall task fields identical
+      final updatedTask = Task(
+        id: 'task_1',
+        title: 'noti',
+        description: 'same desc',
+        dateTime: now,
+        priority: Priority.low,
+        category: 'General',
+        location: 'Office',
+        type: TaskType.group,
+        creatorId: 'leader_1',
+        createdAt: now,
+        subtasks: [SubTask(title: 'Sub 1', isDone: false)],
+        members: [
+          const Member(id: 'leader_1', name: 'Leader'),
+          const Member(id: 'member_alice', name: 'Alice', taskTitle: 'new task'),
+        ],
+      );
+
+      final isSubtasksChanged =
+          previousTask.subtasks.length != updatedTask.subtasks.length ||
+          previousTask.subtasks.asMap().entries.any((e) =>
+              e.key >= updatedTask.subtasks.length ||
+              e.value.title != updatedTask.subtasks[e.key].title ||
+              e.value.isDone != updatedTask.subtasks[e.key].isDone);
+
+      final isTaskContentUpdated = previousTask.title.trim() != updatedTask.title.trim() ||
+          previousTask.description.trim() != updatedTask.description.trim() ||
+          !previousTask.dateTime.isAtSameMomentAs(updatedTask.dateTime) ||
+          previousTask.priority != updatedTask.priority ||
+          previousTask.category != updatedTask.category ||
+          previousTask.location != updatedTask.location ||
+          previousTask.isRecurring != updatedTask.isRecurring ||
+          previousTask.recurringType != updatedTask.recurringType ||
+          isSubtasksChanged;
+
+      // When only member changes, isTaskContentUpdated must be FALSE
+      expect(isTaskContentUpdated, isFalse);
+    });
+
+    test('groupTaskUpdated IS triggered when overall task fields (title, description, subtasks, etc.) are modified', () {
+      final now = DateTime.now();
+      final previousTask = Task(
+        id: 'task_1',
+        title: 'noti',
+        description: 'old desc',
+        dateTime: now,
+        type: TaskType.group,
+        creatorId: 'leader_1',
+        createdAt: now,
+        subtasks: [SubTask(title: 'Sub 1', isDone: false)],
+        members: [
+          const Member(id: 'leader_1', name: 'Leader'),
+        ],
+      );
+
+      // 1. Changing overall task description
+      final updatedWithDesc = previousTask.copyWith(description: 'new desc');
+      expect(previousTask.description.trim() != updatedWithDesc.description.trim(), isTrue);
+
+      // 2. Changing overall task subtasks
+      final updatedWithSubtasks = previousTask.copyWith(
+        subtasks: [
+          SubTask(title: 'Sub 1', isDone: false),
+          SubTask(title: 'Sub 2', isDone: false),
+        ],
+      );
+      final isSubtasksChanged =
+          previousTask.subtasks.length != updatedWithSubtasks.subtasks.length ||
+          previousTask.subtasks.asMap().entries.any((e) =>
+              e.key >= updatedWithSubtasks.subtasks.length ||
+              e.value.title != updatedWithSubtasks.subtasks[e.key].title ||
+              e.value.isDone != updatedWithSubtasks.subtasks[e.key].isDone);
+      expect(isSubtasksChanged, isTrue);
+
+      // 3. Changing overall task title
+      final updatedWithTitle = previousTask.copyWith(title: 'new noti title');
+      expect(previousTask.title.trim() != updatedWithTitle.title.trim(), isTrue);
+
+      // 4. Changing overall task dateTime
+      final updatedWithDate = previousTask.copyWith(dateTime: now.add(const Duration(days: 1)));
+      expect(!previousTask.dateTime.isAtSameMomentAs(updatedWithDate.dateTime), isTrue);
+    });
+
+    test('Rescheduled notification (Option 3) formats messages correctly based on date/time changes', () {
+      final baseDate = DateTime(2026, 8, 25, 15, 0); // 25/08/2026 15:00
+
+      // Helper function matching TaskProvider logic
+      Map<String, String> computeNotification({
+        required DateTime oldDate,
+        required DateTime newDate,
+        required String actorName,
+        required String taskTitle,
+      }) {
+        final isDateTimeChanged = !oldDate.isAtSameMomentAs(newDate);
+        final isDateChanged = isDateTimeChanged &&
+            (oldDate.year != newDate.year ||
+                oldDate.month != newDate.month ||
+                oldDate.day != newDate.day);
+        final isTimeChanged = isDateTimeChanged &&
+            (oldDate.hour != newDate.hour || oldDate.minute != newDate.minute);
+
+        if (isDateChanged && isTimeChanged) {
+          final dateStr = '${newDate.day.toString().padLeft(2, '0')}/${newDate.month.toString().padLeft(2, '0')}/${newDate.year}';
+          final timeStr = '${newDate.hour.toString().padLeft(2, '0')}:${newDate.minute.toString().padLeft(2, '0')}';
+          return {
+            'title': '$actorName เปลี่ยนกำหนดเวลาภารกิจ "$taskTitle"',
+            'body': 'กำหนดเวลาใหม่เป็นวันที่ $dateStr เวลา $timeStr น.',
+            'stage': 'taskRescheduled',
+          };
+        } else if (isDateChanged) {
+          final dateStr = '${newDate.day.toString().padLeft(2, '0')}/${newDate.month.toString().padLeft(2, '0')}/${newDate.year}';
+          final timeStr = '${newDate.hour.toString().padLeft(2, '0')}:${newDate.minute.toString().padLeft(2, '0')}';
+          return {
+            'title': '$actorName เลื่อนวันส่งภารกิจ "$taskTitle"',
+            'body': 'เลื่อนวันส่งใหม่เป็นวันที่ $dateStr (เวลา $timeStr น.)',
+            'stage': 'taskDateUpdated',
+          };
+        } else if (isTimeChanged) {
+          final dateStr = '${newDate.day.toString().padLeft(2, '0')}/${newDate.month.toString().padLeft(2, '0')}/${newDate.year}';
+          final timeStr = '${newDate.hour.toString().padLeft(2, '0')}:${newDate.minute.toString().padLeft(2, '0')}';
+          return {
+            'title': '$actorName ปรับเวลาภารกิจ "$taskTitle"',
+            'body': 'ปรับเวลาส่งใหม่เป็น $timeStr น. (วันที่ $dateStr)',
+            'stage': 'taskTimeUpdated',
+          };
+        } else {
+          return {
+            'title': '$actorName แก้ไขภารกิจ "$taskTitle"',
+            'body': '$actorName ได้แก้ไขรายละเอียดงานใหม่ เข้าไปเช็คเลย!',
+            'stage': 'groupTaskUpdated',
+          };
+        }
+      }
+
+      // Case 1: Both Date and Time Changed
+      final bothChanged = computeNotification(
+        oldDate: baseDate,
+        newDate: DateTime(2026, 8, 26, 17, 0),
+        actorName: 'Pookub2',
+        taskTitle: 'noti',
+      );
+      expect(bothChanged['title'], 'Pookub2 เปลี่ยนกำหนดเวลาภารกิจ "noti"');
+      expect(bothChanged['body'], 'กำหนดเวลาใหม่เป็นวันที่ 26/08/2026 เวลา 17:00 น.');
+      expect(bothChanged['stage'], 'taskRescheduled');
+
+      // Case 2: Only Date Changed (Time identical)
+      final dateOnlyChanged = computeNotification(
+        oldDate: baseDate,
+        newDate: DateTime(2026, 8, 26, 15, 0),
+        actorName: 'Pookub2',
+        taskTitle: 'noti',
+      );
+      expect(dateOnlyChanged['title'], 'Pookub2 เลื่อนวันส่งภารกิจ "noti"');
+      expect(dateOnlyChanged['body'], 'เลื่อนวันส่งใหม่เป็นวันที่ 26/08/2026 (เวลา 15:00 น.)');
+      expect(dateOnlyChanged['stage'], 'taskDateUpdated');
+
+      // Case 3: Only Time Changed (Date identical)
+      final timeOnlyChanged = computeNotification(
+        oldDate: baseDate,
+        newDate: DateTime(2026, 8, 25, 17, 0),
+        actorName: 'Pookub2',
+        taskTitle: 'noti',
+      );
+      expect(timeOnlyChanged['title'], 'Pookub2 ปรับเวลาภารกิจ "noti"');
+      expect(timeOnlyChanged['body'], 'ปรับเวลาส่งใหม่เป็น 17:00 น. (วันที่ 25/08/2026)');
+      expect(timeOnlyChanged['stage'], 'taskTimeUpdated');
+
+      // Case 4: Neither Changed (e.g. general description update)
+      final unchanged = computeNotification(
+        oldDate: baseDate,
+        newDate: baseDate,
+        actorName: 'Pookub2',
+        taskTitle: 'noti',
+      );
+      expect(unchanged['title'], 'Pookub2 แก้ไขภารกิจ "noti"');
+      expect(unchanged['body'], 'Pookub2 ได้แก้ไขรายละเอียดงานใหม่ เข้าไปเช็คเลย!');
+      expect(unchanged['stage'], 'groupTaskUpdated');
+    });
   });
 }
