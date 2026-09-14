@@ -31,6 +31,7 @@ class _FramePickerWidgetState extends State<FramePickerWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final unlockedItems = widget.user.unlockedItems.toSet();
     final frameOptions = [
       ProfileFrameStyle.none,
@@ -39,57 +40,59 @@ class _FramePickerWidgetState extends State<FramePickerWidget> {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppConstants.paddingLarge,
+        padding: EdgeInsets.fromLTRB(
+          isTablet ? 28 : AppConstants.paddingLarge,
           AppConstants.paddingMedium,
-          AppConstants.paddingLarge,
-          AppConstants.paddingLarge,
+          isTablet ? 28 : AppConstants.paddingLarge,
+          isTablet ? 28 : AppConstants.paddingLarge,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 44,
-              height: 4,
+              width: isTablet ? 56 : 44,
+              height: isTablet ? 5 : 4,
               decoration: BoxDecoration(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
-            const SizedBox(height: AppConstants.paddingLarge),
+            SizedBox(height: isTablet ? 20 : AppConstants.paddingLarge),
             Text(
               'เลือกกรอบโปรไฟล์',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
+                fontSize: isTablet ? 24 : null,
                 color: isDark ? Colors.white : null,
               ),
             ),
-            const SizedBox(height: 40),
+            SizedBox(height: isTablet ? 24 : 40),
             UserAvatarWithFrame(
               avatarUrl: widget.user.avatarUrl,
               frameId: previewFrameId,
               fallbackName: widget.user.name,
-              size: 132,
+              size: isTablet ? 150 : 132,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isTablet ? 12 : 16),
             Text(
               ProfileFrameStyle.fromId(previewFrameId).label,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textWhite,
+                fontSize: isTablet ? 22 : null,
+                color: isDark ? Colors.white : theme.colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppConstants.paddingLarge),
+            SizedBox(height: isTablet ? 20 : AppConstants.paddingLarge),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: frameOptions.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                mainAxisSpacing: AppConstants.paddingMedium,
-                crossAxisSpacing: AppConstants.paddingMedium,
-                childAspectRatio: 0.88,
+                mainAxisSpacing: isTablet ? 16 : AppConstants.paddingMedium,
+                crossAxisSpacing: isTablet ? 16 : AppConstants.paddingMedium,
+                childAspectRatio: isTablet ? 0.95 : 0.88,
               ),
               itemBuilder: (context, index) {
                 final frame = frameOptions[index];
@@ -102,6 +105,7 @@ class _FramePickerWidgetState extends State<FramePickerWidget> {
                   user: widget.user,
                   isUnlocked: isUnlocked,
                   isSelected: isSelected,
+                  isTablet: isTablet,
                   onTap: () {
                     setState(() {
                       previewFrameId = frame.id;
@@ -110,7 +114,7 @@ class _FramePickerWidgetState extends State<FramePickerWidget> {
                 );
               },
             ),
-            const SizedBox(height: AppConstants.paddingLarge),
+            SizedBox(height: isTablet ? 24 : AppConstants.paddingLarge),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -120,10 +124,12 @@ class _FramePickerWidgetState extends State<FramePickerWidget> {
                   foregroundColor: isDark
                       ? AppColors.stormyNightBackground
                       : AppColors.textWhite,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: EdgeInsets.symmetric(
+                    vertical: isTablet ? 18 : 14,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
-                      AppConstants.radiusMedium,
+                      isTablet ? 16 : AppConstants.radiusMedium,
                     ),
                   ),
                 ),
@@ -136,7 +142,13 @@ class _FramePickerWidgetState extends State<FramePickerWidget> {
                           color: AppColors.textWhite,
                         ),
                       )
-                    : const Text('นำไปใช้'),
+                    : Text(
+                        'นำไปใช้',
+                        style: TextStyle(
+                          fontSize: isTablet ? 18 : 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -327,6 +339,7 @@ class _FrameOptionTile extends StatelessWidget {
   final User user;
   final bool isUnlocked;
   final bool isSelected;
+  final bool isTablet;
   final VoidCallback? onTap;
 
   const _FrameOptionTile({
@@ -334,6 +347,7 @@ class _FrameOptionTile extends StatelessWidget {
     required this.user,
     required this.isUnlocked,
     required this.isSelected,
+    this.isTablet = false,
     required this.onTap,
   });
 
@@ -345,17 +359,21 @@ class _FrameOptionTile extends StatelessWidget {
     return InkWell(
       enableFeedback: false,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+      borderRadius: BorderRadius.circular(
+        isTablet ? 18 : AppConstants.radiusMedium,
+      ),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(isTablet ? 12 : 8),
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.stormySkyBlue.withValues(alpha: 0.15)
               : (isDark
                     ? AppColors.stormyDarkSlate
                     : theme.colorScheme.surface),
-          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          borderRadius: BorderRadius.circular(
+            isTablet ? 18 : AppConstants.radiusMedium,
+          ),
           border: Border.all(
             color: isSelected
                 ? AppColors.stormySkyBlue
@@ -378,14 +396,14 @@ class _FrameOptionTile extends StatelessWidget {
                       avatarUrl: user.avatarUrl,
                       frameId: frame.id,
                       fallbackName: user.name,
-                      size: 58,
+                      size: isTablet ? 74 : 58,
                       showShadow: false,
                     ),
                   ),
                   if (!isUnlocked)
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: isTablet ? 36 : 32,
+                      height: isTablet ? 36 : 32,
                       decoration: BoxDecoration(
                         color: isDark
                             ? Colors.transparent
@@ -397,18 +415,19 @@ class _FrameOptionTile extends StatelessWidget {
                         color: isDark
                             ? AppColors.stormyMutedBlueGrey
                             : AppColors.textWhite,
-                        size: 18,
+                        size: isTablet ? 20 : 18,
                       ),
                     ),
                 ],
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: isTablet ? 8 : 6),
             Text(
               frame.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelMedium?.copyWith(
+              style: (theme.textTheme.labelMedium)?.copyWith(
+                fontSize: isTablet ? 14 : 12,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 color: isDark
                     ? (isSelected
@@ -417,7 +436,7 @@ class _FrameOptionTile extends StatelessWidget {
                     : (isUnlocked
                           ? theme.colorScheme.onSurface
                           : theme.colorScheme.onSurface.withValues(
-                              alpha: 0.45,
+                              alpha: 0.65,
                             )),
               ),
             ),

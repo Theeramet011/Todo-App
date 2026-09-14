@@ -58,6 +58,7 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
     final grouped = {
       _UpcomingSection.tomorrow: <Task>[],
       _UpcomingSection.thisWeek: <Task>[],
+      _UpcomingSection.nextWeek: <Task>[],
       _UpcomingSection.later: <Task>[],
     };
 
@@ -96,10 +97,17 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
       );
 
       final daysFromToday = dueDate.difference(today).inDays;
+      final endOfThisWeek = today.add(
+        Duration(days: DateTime.sunday - today.weekday),
+      );
+      final endOfNextWeek = endOfThisWeek.add(const Duration(days: 7));
+
       if (daysFromToday == 1) {
         grouped[_UpcomingSection.tomorrow]!.add(task);
-      } else if (daysFromToday <= 7) {
+      } else if (!dueDate.isAfter(endOfThisWeek)) {
         grouped[_UpcomingSection.thisWeek]!.add(task);
+      } else if (!dueDate.isAfter(endOfNextWeek)) {
+        grouped[_UpcomingSection.nextWeek]!.add(task);
       } else {
         grouped[_UpcomingSection.later]!.add(task);
       }
@@ -460,7 +468,15 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
 
     final daysFromToday = dueDate.difference(today).inDays;
     if (daysFromToday == 1) return _UpcomingSection.tomorrow;
-    if (daysFromToday <= 7) return _UpcomingSection.thisWeek;
+
+    final endOfThisWeek = today.add(
+      Duration(days: DateTime.sunday - today.weekday),
+    );
+    if (!dueDate.isAfter(endOfThisWeek)) return _UpcomingSection.thisWeek;
+
+    final endOfNextWeek = endOfThisWeek.add(const Duration(days: 7));
+    if (!dueDate.isAfter(endOfNextWeek)) return _UpcomingSection.nextWeek;
+
     return _UpcomingSection.later;
   }
 
@@ -471,6 +487,7 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
     final groupedEntries = _buildUpcomingEntries(groupedTasks);
     final hasTasks = groupedEntries.values.any((tasks) => tasks.isNotEmpty);
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: theme.brightness == Brightness.dark
@@ -481,6 +498,7 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
+            size: isTablet ? 28 : 24,
             color: theme.brightness == Brightness.dark
                 ? AppColors.textWhite
                 : theme.colorScheme.onSurface,
@@ -489,7 +507,8 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
         ),
         title: Text(
           'ภารกิจเร็วๆ นี้',
-          style: theme.textTheme.headlineMedium?.copyWith(
+          style: (theme.textTheme.headlineMedium ?? const TextStyle()).copyWith(
+            fontSize: isTablet ? 30 : null,
             color: theme.brightness == Brightness.dark
                 ? AppColors.textWhite
                 : theme.colorScheme.onSurface,
@@ -505,10 +524,10 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
       body: SafeArea(
         child: hasTasks
             ? ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppConstants.paddingLarge,
-                  AppConstants.paddingLarge,
-                  AppConstants.paddingLarge,
+                padding: EdgeInsets.fromLTRB(
+                  isTablet ? AppConstants.paddingXLarge : AppConstants.paddingLarge,
+                  isTablet ? AppConstants.paddingXLarge : AppConstants.paddingLarge,
+                  isTablet ? AppConstants.paddingXLarge : AppConstants.paddingLarge,
                   110,
                 ),
                 children: [
@@ -524,8 +543,8 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
             : const _UpcomingEmptyState(),
       ),
       floatingActionButton: Container(
-        width: 62,
-        height: 62,
+        width: isTablet ? 72 : 62,
+        height: isTablet ? 72 : 62,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           boxShadow: [
@@ -542,14 +561,14 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
           onPressed: () => _showCreateTaskModal(context),
           elevation: 4,
           backgroundColor: AppColors.stormySkyBlue,
-          child: const Icon(Icons.add, size: 32, color: Colors.white),
+          child: Icon(Icons.add, size: isTablet ? 36 : 32, color: Colors.white),
         ),
       ),
     );
   }
 }
 
-enum _UpcomingSection { tomorrow, thisWeek, later }
+enum _UpcomingSection { tomorrow, thisWeek, nextWeek, later }
 
 class _UpcomingTaskEntry {
   final Task task;
@@ -565,6 +584,8 @@ extension _UpcomingSectionText on _UpcomingSection {
         return 'พรุ่งนี้';
       case _UpcomingSection.thisWeek:
         return 'สัปดาห์นี้';
+      case _UpcomingSection.nextWeek:
+        return 'สัปดาห์หน้า';
       case _UpcomingSection.later:
         return 'หลังจากนี้';
     }
@@ -609,13 +630,30 @@ class _UpcomingSectionBlock extends StatelessWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
+    final endOfThisWeek = today.add(
+      Duration(days: DateTime.sunday - today.weekday),
+    );
+    final startOfNextWeek = endOfThisWeek.add(const Duration(days: 1));
+    final endOfNextWeek = startOfNextWeek.add(const Duration(days: 6));
+
     switch (section) {
       case _UpcomingSection.tomorrow:
         return _thaiDate(today.add(const Duration(days: 1)));
       case _UpcomingSection.thisWeek:
         final start = today.add(const Duration(days: 2));
-        final end = today.add(const Duration(days: 7));
-        return '${_thaiDateShort(start)} - ${_thaiDate(end)}';
+        if (start.isAtSameMomentAs(endOfThisWeek)) {
+          return _thaiDate(endOfThisWeek);
+        }
+        return '${_thaiDateShort(start)} - ${_thaiDate(endOfThisWeek)}';
+      case _UpcomingSection.nextWeek:
+        final effectiveStart =
+            startOfNextWeek.isBefore(today.add(const Duration(days: 2)))
+                ? today.add(const Duration(days: 2))
+                : startOfNextWeek;
+        if (effectiveStart.isAtSameMomentAs(endOfNextWeek)) {
+          return _thaiDate(endOfNextWeek);
+        }
+        return '${_thaiDateShort(effectiveStart)} - ${_thaiDate(endOfNextWeek)}';
       case _UpcomingSection.later:
         final firstDate = entries.first.task.dateTime;
         return '${_thaiDate(firstDate)} เป็นต้นไป';
@@ -628,22 +666,32 @@ class _UpcomingSectionBlock extends StatelessWidget {
     final accentColor = theme.brightness == Brightness.dark
         ? theme.colorScheme.tertiary
         : AppColors.stormySkyBlue;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppConstants.paddingXLarge),
+      padding: EdgeInsets.only(
+        bottom: isTablet
+            ? AppConstants.paddingXLarge * 1.2
+            : AppConstants.paddingXLarge,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.calendar_month_outlined, color: accentColor, size: 28),
+              Icon(
+                Icons.calendar_month_outlined,
+                color: accentColor,
+                size: isTablet ? 34 : 28,
+              ),
               const SizedBox(width: AppConstants.paddingSmall),
               Expanded(
                 child: Text(
                   section.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineMedium?.copyWith(
+                  style: (theme.textTheme.headlineMedium ?? const TextStyle()).copyWith(
+                    fontSize: isTablet ? 28 : null,
                     color: accentColor,
                     fontWeight: FontWeight.w800,
                   ),
@@ -653,15 +701,18 @@ class _UpcomingSectionBlock extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Padding(
-            padding: const EdgeInsets.only(left: 40),
+            padding: EdgeInsets.only(left: isTablet ? 46 : 40),
             child: Text(
               _subtitle(),
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: (theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
+                fontSize: isTablet ? 17 : null,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.58),
               ),
             ),
           ),
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(
+            height: isTablet ? 18 : AppConstants.paddingMedium,
+          ),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -673,7 +724,7 @@ class _UpcomingSectionBlock extends StatelessWidget {
                 isExiting: entry.isExiting,
                 bottomSpacing: index == entries.length - 1
                     ? 0
-                    : AppConstants.paddingMedium,
+                    : (isTablet ? 18 : AppConstants.paddingMedium),
                 child: _UpcomingTaskCard(
                   task: entry.task,
                   onCompleteTask: onCompleteTask,
@@ -807,6 +858,13 @@ class _UpcomingTaskCard extends StatelessWidget {
   }
 
   Future<void> _openEditTaskModal(BuildContext context) async {
+    final taskProvider = context.read<TaskProvider>();
+    final authProvider = context.read<AuthProvider>();
+    final isGroup = task.isGroup;
+    final isLeader = !isGroup ||
+        taskProvider.isLeaderForTask(task, authProvider.currentUser?.id);
+    if (!isLeader) return;
+
     await showModalBottomSheet<Task>(
       context: context,
       isScrollControlled: true,
@@ -833,6 +891,7 @@ class _UpcomingTaskCard extends StatelessWidget {
     final iconColor = theme.brightness == Brightness.dark
         ? accentColor
         : AppColors.stormySkyBlue;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Material(
       color: Colors.transparent,
@@ -842,14 +901,20 @@ class _UpcomingTaskCard extends StatelessWidget {
           taskProvider.selectTask(task);
           await Navigator.pushNamed(context, '/task-detail');
         },
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 22 : AppConstants.radiusXLarge,
+        ),
         child: Container(
-          padding: const EdgeInsets.all(AppConstants.paddingMedium),
+          padding: EdgeInsets.all(
+            isTablet ? 22 : AppConstants.paddingMedium,
+          ),
           decoration: BoxDecoration(
             color: theme.brightness == Brightness.dark
                 ? AppColors.stormyDarkSlate
                 : theme.cardColor,
-            borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+            borderRadius: BorderRadius.circular(
+              isTablet ? 22 : AppConstants.radiusXLarge,
+            ),
             border: Border.all(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
             ),
@@ -865,12 +930,12 @@ class _UpcomingTaskCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: isTablet ? 68 : 56,
+                height: isTablet ? 68 : 56,
                 decoration: BoxDecoration(
                   color: iconColor.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(
-                    AppConstants.radiusMedium,
+                    isTablet ? 18 : AppConstants.radiusMedium,
                   ),
                   border: Border.all(
                     color: iconColor.withValues(alpha: 0.28),
@@ -879,10 +944,14 @@ class _UpcomingTaskCard extends StatelessWidget {
                 child: Icon(
                   isCompleted ? Icons.check_circle_outline : _icon,
                   color: iconColor,
-                  size: 30,
+                  size: isTablet ? 36 : 30,
                 ),
               ),
-              const SizedBox(width: AppConstants.paddingMedium),
+              SizedBox(
+                width: isTablet
+                    ? AppConstants.paddingLarge
+                    : AppConstants.paddingMedium,
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -896,7 +965,8 @@ class _UpcomingTaskCard extends StatelessWidget {
                             children: [
                               Text(
                                 _teamName,
-                                style: theme.textTheme.titleMedium?.copyWith(
+                                style: (theme.textTheme.titleMedium ?? const TextStyle()).copyWith(
+                                  fontSize: isTablet ? 18 : null,
                                   color: accentColor,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -904,7 +974,8 @@ class _UpcomingTaskCard extends StatelessWidget {
                               const SizedBox(height: 6),
                               Text(
                                 task.title,
-                                style: theme.textTheme.titleLarge?.copyWith(
+                                style: (theme.textTheme.titleLarge ?? const TextStyle()).copyWith(
+                                  fontSize: isTablet ? 23 : null,
                                   color: isCompleted
                                       ? theme.colorScheme.onSurface.withValues(
                                           alpha: 0.45,
@@ -921,7 +992,8 @@ class _UpcomingTaskCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        PopupMenuButton<String>(
+                        if (isLeader)
+                          PopupMenuButton<String>(
                           onSelected: (value) {
                             switch (value) {
                               case 'edit':
@@ -941,6 +1013,7 @@ class _UpcomingTaskCard extends StatelessWidget {
                           },
                           icon: Icon(
                             Icons.more_vert,
+                            size: isTablet ? 28 : null,
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.55,
                             ),
@@ -1001,16 +1074,17 @@ class _UpcomingTaskCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.schedule,
-                          size: 18,
+                          size: isTablet ? 22 : 18,
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.58,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        SizedBox(width: isTablet ? 8 : 6),
                         Expanded(
                           child: Text(
                             _formatDueDateTime(task.dateTime),
-                            style: theme.textTheme.bodySmall?.copyWith(
+                            style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                              fontSize: isTablet ? 15 : null,
                               color: theme.colorScheme.onSurface.withValues(
                                 alpha: 0.58,
                               ),
@@ -1020,7 +1094,9 @@ class _UpcomingTaskCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppConstants.paddingMedium),
+                    SizedBox(
+                      height: isTablet ? 16 : AppConstants.paddingMedium,
+                    ),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -1044,6 +1120,14 @@ class _UpcomingTaskCard extends StatelessWidget {
     Task task,
     TaskProvider taskProvider,
   ) {
+    final isGroup = task.isGroup;
+    final isLeader = !isGroup ||
+        taskProvider.isLeaderForTask(
+          task,
+          parentContext.read<AuthProvider>().currentUser?.id,
+        );
+    if (!isLeader) return;
+
     showDialog(
       context: parentContext,
       builder: (dialogContext) => AlertDialog(
@@ -1156,23 +1240,32 @@ class _UpcomingAvatars extends StatelessWidget {
 
     final visibleMembers = memberIds.take(3).toList();
     final hiddenCount = memberIds.length - visibleMembers.length;
-    final width = (visibleMembers.length * 26.0) + (hiddenCount > 0 ? 30 : 8);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+    final avatarSize = isTablet ? 42.0 : 36.0;
+    final step = isTablet ? 26.0 : 22.0;
+    final width = (visibleMembers.length * (isTablet ? 30.0 : 26.0)) + (hiddenCount > 0 ? 34 : 8);
 
     return SizedBox(
       width: width,
-      height: 36,
+      height: avatarSize,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           for (var i = 0; i < visibleMembers.length; i++)
             Positioned(
-              left: i * 22,
-              child: _UpcomingAvatar(userId: visibleMembers[i]),
+              left: i * step,
+              child: _UpcomingAvatar(
+                userId: visibleMembers[i],
+                size: avatarSize,
+              ),
             ),
           if (hiddenCount > 0)
             Positioned(
-              left: visibleMembers.length * 22,
-              child: _MoreAvatar(count: hiddenCount),
+              left: visibleMembers.length * step,
+              child: _MoreAvatar(
+                count: hiddenCount,
+                size: avatarSize,
+              ),
             ),
         ],
       ),
@@ -1182,8 +1275,9 @@ class _UpcomingAvatars extends StatelessWidget {
 
 class _UpcomingAvatar extends StatelessWidget {
   final String userId;
+  final double size;
 
-  const _UpcomingAvatar({required this.userId});
+  const _UpcomingAvatar({required this.userId, this.size = 36});
 
   @override
   Widget build(BuildContext context) {
@@ -1195,8 +1289,8 @@ class _UpcomingAvatar extends StatelessWidget {
         : '?';
 
     return Container(
-      width: 36,
-      height: 36,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: theme.cardColor, width: 2),
@@ -1222,16 +1316,17 @@ class _UpcomingAvatar extends StatelessWidget {
 
 class _MoreAvatar extends StatelessWidget {
   final int count;
+  final double size;
 
-  const _MoreAvatar({required this.count});
+  const _MoreAvatar({required this.count, this.size = 36});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
-      width: 36,
-      height: 36,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: theme.colorScheme.surfaceContainerHighest,

@@ -1023,6 +1023,7 @@ class _MemberAssignmentDetailScreenState
           builder: (dialogContext, setDialogState) {
             return Dialog(
               backgroundColor: Colors.transparent,
+              constraints: const BoxConstraints(maxWidth: 800, maxHeight: 800),
               insetPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 24,

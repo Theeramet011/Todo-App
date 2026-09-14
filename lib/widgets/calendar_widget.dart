@@ -25,15 +25,18 @@ class CalendarWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Container(
-      margin: const EdgeInsets.all(AppConstants.paddingMedium),
-      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      margin: EdgeInsets.all(isTablet ? 20 : AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 22 : AppConstants.paddingMedium),
       decoration: BoxDecoration(
         color: isDarkMode
             ? AppColors.stormyDarkSlate
             : AppColors.backgroundWhite,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 24 : AppConstants.radiusXLarge,
+        ),
         boxShadow: [
           BoxShadow(
             color: isDarkMode
@@ -50,6 +53,8 @@ class CalendarWidget extends StatelessWidget {
         lastDay: DateTime.utc(2026, 12, 31),
         focusedDay: focusedDay,
         calendarFormat: calendarFormat,
+        rowHeight: isTablet ? 64.0 : 52.0,
+        daysOfWeekHeight: isTablet ? 36.0 : 16.0,
         onFormatChanged: onFormatChanged,
         selectedDayPredicate: (day) => isSameDay(selectedDay, day),
         eventLoader: (day) => events[day] ?? [],
@@ -62,9 +67,10 @@ class CalendarWidget extends StatelessWidget {
             color: AppColors.stormySkyBlue.withValues(alpha: 0.2),
             shape: BoxShape.circle,
           ),
-          todayTextStyle: const TextStyle(
+          todayTextStyle: TextStyle(
             color: AppColors.stormySkyBlue,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 17 : null,
           ),
           // Selected
           selectedDecoration: const BoxDecoration(
@@ -76,19 +82,23 @@ class CalendarWidget extends StatelessWidget {
                 ? AppColors.stormyNightBackground
                 : AppColors.textWhite,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 17 : null,
           ),
           // Weekend
           weekendTextStyle: TextStyle(
             color: isDarkMode ? const Color(0xFFE57373) : AppColors.accentRed,
+            fontSize: isTablet ? 16 : null,
           ),
           // Outside days
           outsideDaysVisible: true,
           outsideTextStyle: TextStyle(
             color: isDarkMode ? Colors.grey[600] : AppColors.textLight,
+            fontSize: isTablet ? 15 : null,
           ),
           // Default days
           defaultTextStyle: TextStyle(
             color: isDarkMode ? Colors.white : AppColors.textPrimary,
+            fontSize: isTablet ? 16 : null,
           ),
           // Marker
           markerDecoration: const BoxDecoration(
@@ -101,27 +111,29 @@ class CalendarWidget extends StatelessWidget {
           formatButtonVisible: false,
           titleCentered: true,
           titleTextStyle: TextStyle(
-            fontSize: 18,
+            fontSize: isTablet ? 22 : 18,
             fontWeight: FontWeight.bold,
             color: isDarkMode ? Colors.white : AppColors.textPrimary,
           ),
           leftChevronIcon: Icon(
             Icons.chevron_left,
+            size: isTablet ? 30 : 24,
             color: isDarkMode ? Colors.white70 : AppColors.textSecondary,
           ),
           rightChevronIcon: Icon(
             Icons.chevron_right,
+            size: isTablet ? 30 : 24,
             color: isDarkMode ? Colors.white70 : AppColors.textSecondary,
           ),
         ),
         daysOfWeekStyle: DaysOfWeekStyle(
           weekdayStyle: TextStyle(
-            fontSize: 12,
+            fontSize: isTablet ? 16 : 12,
             fontWeight: FontWeight.w600,
             color: isDarkMode ? Colors.grey[400] : AppColors.textSecondary,
           ),
           weekendStyle: TextStyle(
-            fontSize: 12,
+            fontSize: isTablet ? 16 : 12,
             fontWeight: FontWeight.w600,
             color: isDarkMode ? AppColors.primaryPink : AppColors.accentRed,
           ),
@@ -129,7 +141,7 @@ class CalendarWidget extends StatelessWidget {
         calendarBuilders: CalendarBuilders(
           todayBuilder: (context, day, focusedDay) {
             return Container(
-              margin: const EdgeInsets.all(6.4),
+              margin: EdgeInsets.all(isTablet ? 8.0 : 6.4),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.transparent,
@@ -137,13 +149,15 @@ class CalendarWidget extends StatelessWidget {
                   color: isDarkMode
                       ? const Color(0xFF88BDF2)
                       : AppColors.stormySkyBlue,
-                  width: 1.5,
+                  width: isTablet ? 2.0 : 1.5,
                 ),
               ),
               alignment: Alignment.center,
               child: Text(
                 '${day.day}',
                 style: TextStyle(
+                  fontSize: isTablet ? 17 : null,
+                  fontWeight: FontWeight.bold,
                   color: isDarkMode
                       ? const Color(0xFF88BDF2)
                       : AppColors.stormySkyBlue,
@@ -154,7 +168,7 @@ class CalendarWidget extends StatelessWidget {
           selectedBuilder: (context, day, focusedDay) {
             final isToday = isSameDay(day, DateTime.now());
             return Container(
-              margin: const EdgeInsets.all(6.4),
+              margin: EdgeInsets.all(isTablet ? 8.0 : 6.4),
               decoration: BoxDecoration(
                 color: isDarkMode
                     ? const Color(0xFF88BDF2)
@@ -165,6 +179,7 @@ class CalendarWidget extends StatelessWidget {
               child: Text(
                 '${day.day}',
                 style: TextStyle(
+                  fontSize: isTablet ? 17 : null,
                   color: isDarkMode
                       ? const Color(0xFF1A2530)
                       : AppColors.textWhite,
@@ -176,15 +191,16 @@ class CalendarWidget extends StatelessWidget {
           markerBuilder: (context, date, events) {
             if (events.isEmpty) return const SizedBox.shrink();
 
+            final dotSize = isTablet ? 6.0 : 4.0;
             return Positioned(
-              bottom: 1,
+              bottom: 2,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: events.map((event) {
                   return Container(
-                    width: 4,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    width: dotSize,
+                    height: dotSize,
+                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
                     decoration: BoxDecoration(
                       color: isDarkMode
                           ? AppColors.primaryPurple

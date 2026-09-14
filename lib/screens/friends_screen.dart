@@ -76,18 +76,29 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ..sort((a, b) => b.totalXP.compareTo(a.totalXP));
     final filteredFriends = sortedFriends.where(_matchesSearchQuery).toList();
 
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     return Scaffold(
       backgroundColor: theme.brightness == Brightness.dark
           ? AppColors.stormyNightBackground
           : theme.scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text('เพื่อน'), elevation: 0),
+      appBar: AppBar(
+        title: Text(
+          'เพื่อน',
+          style: (theme.textTheme.headlineMedium ?? const TextStyle()).copyWith(
+            fontSize: isTablet ? 26 : 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        elevation: 0,
+      ),
       body: Column(
         children: [
           // Header with Stats
-          _buildHeaderSection(context, friends),
+          _buildHeaderSection(context, friends, isTablet),
 
           // Search Bar
-          _buildSearchBar(context),
+          _buildSearchBar(context, isTablet),
 
           // Friends List
           Expanded(
@@ -107,11 +118,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     )
                   : ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding:
-                          const EdgeInsets.all(AppConstants.paddingMedium),
+                      padding: EdgeInsets.all(
+                        isTablet
+                            ? AppConstants.paddingLarge
+                            : AppConstants.paddingMedium,
+                      ),
                       itemCount: filteredFriends.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: AppConstants.paddingSmall),
+                      separatorBuilder: (context, index) => SizedBox(
+                        height: isTablet ? 14 : AppConstants.paddingSmall,
+                      ),
                       itemBuilder: (context, index) {
                         final friend = filteredFriends[index];
                         final rank =
@@ -120,7 +135,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
                             ) +
                             1;
 
-                        return _buildFriendCard(context, friend, rank);
+                        return _buildFriendCard(
+                          context,
+                          friend,
+                          rank,
+                          isTablet,
+                        );
                       },
                     ),
             ),
@@ -146,16 +166,25 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return searchableText.contains(query);
   }
 
-  Widget _buildHeaderSection(BuildContext context, List<User> friends) {
+  Widget _buildHeaderSection(
+    BuildContext context,
+    List<User> friends,
+    bool isTablet,
+  ) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final currentUser = context.watch<AuthProvider>().currentUser;
     if (currentUser == null) return const SizedBox.shrink();
     final userRank = _getUserRank(currentUser, friends);
+    final isMaxLevel = currentUser.currentLevel >= AppConstants.maxLevel;
 
     return Container(
-      margin: const EdgeInsets.all(AppConstants.paddingMedium),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      margin: EdgeInsets.all(
+        isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium,
+      ),
+      padding: EdgeInsets.all(
+        isTablet ? 26 : AppConstants.paddingLarge,
+      ),
       decoration: BoxDecoration(
         gradient: theme.brightness == Brightness.light
             ? const LinearGradient(
@@ -168,7 +197,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 end: Alignment.bottomRight,
                 colors: [Color(0xFF101720), AppColors.stormyDarkSlate],
               ),
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 24 : AppConstants.radiusXLarge,
+        ),
       ),
       child: Column(
         children: [
@@ -180,9 +211,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 avatarUrl: currentUser.avatarUrl,
                 frameId: currentUser.equippedFrame,
                 fallbackName: currentUser.name,
-                size: AppConstants.avatarXLarge,
+                size: isTablet ? 96 : AppConstants.avatarXLarge,
               ),
-              const SizedBox(width: AppConstants.paddingLarge),
+              SizedBox(
+                width: isTablet
+                    ? AppConstants.paddingXLarge
+                    : AppConstants.paddingLarge,
+              ),
 
               // User Info
               Expanded(
@@ -191,8 +226,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   children: [
                     Text(
                       currentUser.name,
-                      style: const TextStyle(
-                        fontSize: 20,
+                      style: TextStyle(
+                        fontSize: isTablet ? 26 : 20,
                         fontWeight: FontWeight.bold,
                         color: AppColors.textWhite,
                       ),
@@ -200,31 +235,35 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.star,
-                          size: 16,
+                          size: isTablet ? 18 : 16,
                           color: AppColors.accentYellow,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'Level ${currentUser.currentLevel}',
-                          style: const TextStyle(
-                            fontSize: 14,
+                          style: TextStyle(
+                            fontSize: isTablet ? 16 : 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textWhite,
                           ),
                         ),
-                        const SizedBox(width: AppConstants.paddingMedium),
+                        SizedBox(
+                          width: isTablet
+                              ? AppConstants.paddingLarge
+                              : AppConstants.paddingMedium,
+                        ),
                         Icon(
                           Icons.check_circle_outline,
-                          size: 16,
+                          size: isTablet ? 18 : 16,
                           color: AppColors.textWhite.withValues(alpha: 0.8),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${currentUser.totalTasksCompleted} ภารกิจ',
-                          style: const TextStyle(
-                            fontSize: 14,
+                          style: TextStyle(
+                            fontSize: isTablet ? 16 : 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textWhite,
                           ),
@@ -236,14 +275,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       children: [
                         Icon(
                           Icons.emoji_events,
-                          size: 16,
+                          size: isTablet ? 18 : 16,
                           color: AppColors.textWhite.withValues(alpha: 0.8),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'อันดับ #$userRank',
-                          style: const TextStyle(
-                            fontSize: 14,
+                          style: TextStyle(
+                            fontSize: isTablet ? 16 : 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textWhite,
                           ),
@@ -254,7 +293,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     Text(
                       currentUser.levelTitle,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: isTablet ? 15 : 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textWhite.withValues(alpha: 0.82),
                       ),
@@ -265,7 +304,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ],
           ),
 
-          const SizedBox(height: AppConstants.paddingLarge),
+          SizedBox(
+            height: isTablet
+                ? AppConstants.paddingXLarge
+                : AppConstants.paddingLarge,
+          ),
 
           // Progress to Next Level
           Column(
@@ -275,21 +318,27 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'ความคืบหน้าไปยัง Level ${currentUser.currentLevel + 1}',
+                    isMaxLevel
+                        ? 'ระดับเลเวลสูงสุดแล้ว'
+                        : 'ความคืบหน้าไปยัง Level ${currentUser.currentLevel + 1}',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isTablet ? 15 : 12,
                       fontWeight: FontWeight.w600,
                       // ignore: deprecated_member_use
                       color: AppColors.textWhite.withValues(alpha: 0.92),
                     ),
                   ),
                   Text(
-                    '${currentUser.progressToNextLevel} / ${currentUser.nextLevelPoints} XP',
+                    isMaxLevel
+                        ? 'MAX LEVEL'
+                        : '${currentUser.progressToNextLevel} / ${currentUser.nextLevelPoints} XP',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isTablet ? 15 : 12,
                       fontWeight: FontWeight.w600,
                       // ignore: deprecated_member_use
-                      color: AppColors.textWhite.withValues(alpha: 0.92),
+                      color: isMaxLevel
+                          ? Colors.amberAccent.shade100
+                          : AppColors.textWhite.withValues(alpha: 0.92),
                     ),
                   ),
                 ],
@@ -298,15 +347,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
                 child: LinearProgressIndicator(
-                  value: currentUser.progressToNextLevelValue,
+                  value: isMaxLevel ? 1.0 : currentUser.progressToNextLevelValue,
                   // ignore: deprecated_member_use
                   backgroundColor: isDark
                       ? Colors.white24
                       : AppColors.backgroundWhite.withValues(alpha: 0.3),
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    isDark ? AppColors.stormySkyBlue : AppColors.stormyDeepBlue,
+                    isMaxLevel
+                        ? Colors.amberAccent
+                        : (isDark ? AppColors.stormySkyBlue : AppColors.stormyDeepBlue),
                   ),
-                  minHeight: 8,
+                  minHeight: isTablet ? 10 : 8,
                 ),
               ),
             ],
@@ -316,14 +367,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
-  Widget _buildSearchBar(BuildContext context) {
+  Widget _buildSearchBar(BuildContext context, bool isTablet) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final currentUserId = context.watch<AuthProvider>().currentUser?.id;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet
+            ? AppConstants.paddingLarge
+            : AppConstants.paddingMedium,
       ),
       child: Row(
         children: [
@@ -341,13 +394,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                  padding: EdgeInsets.all(
+                    isTablet ? 16 : AppConstants.paddingMedium,
+                  ),
                   decoration: BoxDecoration(
                     color: isDark
                         ? AppColors.stormyDarkSlate
                         : theme.cardColor,
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMedium),
+                    borderRadius: BorderRadius.circular(
+                      isTablet ? 16 : AppConstants.radiusMedium,
+                    ),
                   ),
                   child: Icon(
                     Icons.person_add_alt_1,
@@ -356,7 +412,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         : (theme.brightness == Brightness.light
                               ? AppColors.stormyDarkSlate
                               : AppColors.primaryPink),
-                    size: 24,
+                    size: isTablet ? 28 : 24,
                   ),
                 ),
                 if (currentUserId != null)
@@ -376,8 +432,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         top: -2,
                         right: -2,
                         child: Container(
-                          width: 10,
-                          height: 10,
+                          width: isTablet ? 12 : 10,
+                          height: isTablet ? 12 : 10,
                           decoration: BoxDecoration(
                             color: AppColors.error,
                             shape: BoxShape.circle,
@@ -396,7 +452,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ),
           ),
 
-          const SizedBox(width: 12),
+          SizedBox(width: isTablet ? 16 : 12),
 
           // Search Bar
           Expanded(
@@ -408,16 +464,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   _searchQuery = value;
                 });
               },
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: (theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
+                fontSize: isTablet ? 17 : null,
                 color: theme.colorScheme.onSurface,
               ),
               decoration: InputDecoration(
                 hintText: 'ค้นหา',
-                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                hintStyle: (theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
+                  fontSize: isTablet ? 17 : null,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
                 ),
                 prefixIcon: Icon(
                   Icons.search,
+                  size: isTablet ? 28 : 24,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
                 ),
                 suffixIcon: _searchQuery.isEmpty
@@ -426,6 +485,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         tooltip: 'ล้างคำค้นหา',
                         icon: Icon(
                           Icons.close,
+                          size: isTablet ? 28 : 24,
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.55,
                           ),
@@ -443,13 +503,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     : theme.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(
-                    AppConstants.radiusMedium,
+                    isTablet ? 16 : AppConstants.radiusMedium,
                   ),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.paddingMedium,
-                  vertical: AppConstants.paddingMedium,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : AppConstants.paddingMedium,
+                  vertical: isTablet ? 18 : AppConstants.paddingMedium,
                 ),
               ),
             ),
@@ -498,7 +558,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
-  Widget _buildFriendCard(BuildContext context, User friend, int rank) {
+  Widget _buildFriendCard(
+    BuildContext context,
+    User friend,
+    int rank,
+    bool isTablet,
+  ) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isTopThree = rank <= 3;
@@ -507,7 +572,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
       color: Colors.transparent,
       child: InkWell(
         enableFeedback: false,
-        borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 20 : AppConstants.radiusLarge,
+        ),
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -516,12 +583,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
           );
         },
         child: Ink(
-          padding: const EdgeInsets.all(AppConstants.paddingMedium),
+          padding: EdgeInsets.all(
+            isTablet ? 20 : AppConstants.paddingMedium,
+          ),
           decoration: BoxDecoration(
             color: theme.brightness == Brightness.dark
                 ? AppColors.stormyDarkSlate
                 : theme.cardColor,
-            borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+            borderRadius: BorderRadius.circular(
+              isTablet ? 20 : AppConstants.radiusLarge,
+            ),
             boxShadow: isDark
                 ? null
                 : [
@@ -536,12 +607,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
             children: [
               // Rank
               SizedBox(
-                width: 40,
+                width: isTablet ? 50 : 40,
                 child: Center(
                   child: isTopThree
                       ? Container(
-                          width: 32,
-                          height: 32,
+                          width: isTablet ? 42 : 32,
+                          height: isTablet ? 42 : 32,
                           decoration: BoxDecoration(
                             color: _getRankColor(rank),
                             shape: BoxShape.circle,
@@ -549,15 +620,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           child: Center(
                             child: Icon(
                               Icons.emoji_events,
-                              size: 18,
+                              size: isTablet ? 24 : 18,
                               color: _getRankIconColor(rank),
                             ),
                           ),
                         )
                       : Text(
                           '#$rank',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontSize: 16,
+                          style: (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
+                            fontSize: isTablet ? 20 : 16,
                             fontWeight: FontWeight.bold,
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.75,
@@ -567,7 +638,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 ),
               ),
 
-              const SizedBox(width: AppConstants.paddingMedium),
+              SizedBox(
+                width: isTablet
+                    ? AppConstants.paddingLarge
+                    : AppConstants.paddingMedium,
+              ),
 
               // Avatar
               Stack(
@@ -576,30 +651,37 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     avatarUrl: friend.avatarUrl,
                     frameId: friend.equippedFrame,
                     fallbackName: friend.name,
-                    size: AppConstants.avatarMedium,
+                    size: isTablet ? 60 : AppConstants.avatarMedium,
                     showShadow: false,
                   ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: friend.isOnline
-                              ? AppColors.success
-                              : (theme.brightness == Brightness.dark
-                                    ? Colors.grey.shade600
-                                    : Colors.grey.shade400),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: theme.cardColor, width: 2),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: isTablet ? 18 : 14,
+                      height: isTablet ? 18 : 14,
+                      decoration: BoxDecoration(
+                        color: friend.isOnline
+                            ? AppColors.success
+                            : (theme.brightness == Brightness.dark
+                                  ? Colors.grey.shade600
+                                  : Colors.grey.shade400),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.cardColor,
+                          width: isTablet ? 2.5 : 2,
                         ),
                       ),
                     ),
+                  ),
                 ],
               ),
 
-              const SizedBox(width: AppConstants.paddingMedium),
+              SizedBox(
+                width: isTablet
+                    ? AppConstants.paddingLarge
+                    : AppConstants.paddingMedium,
+              ),
 
               // Info
               Expanded(
@@ -611,8 +693,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         Expanded(
                           child: Text(
                             friend.name,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontSize: 16,
+                            style: (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
+                              fontSize: isTablet ? 20 : 16,
                               fontWeight: FontWeight.w600,
                               color: theme.brightness == Brightness.dark
                                   ? AppColors.textWhite
@@ -623,8 +705,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         ),
                         const SizedBox(width: 6),
                         Container(
-                          width: 8,
-                          height: 8,
+                          width: isTablet ? 10 : 8,
+                          height: isTablet ? 10 : 8,
                           decoration: BoxDecoration(
                             color: friend.isOnline
                                 ? AppColors.success
@@ -639,25 +721,29 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.star,
-                          size: 14,
+                          size: isTablet ? 18 : 14,
                           color: AppColors.accentYellow,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'Level ${friend.currentLevel}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontSize: 12,
+                          style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                            fontSize: isTablet ? 15 : 12,
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.65,
                             ),
                           ),
                         ),
-                        const SizedBox(width: AppConstants.paddingMedium),
+                        SizedBox(
+                          width: isTablet
+                              ? AppConstants.paddingLarge
+                              : AppConstants.paddingMedium,
+                        ),
                         Icon(
                           Icons.check_circle_outline,
-                          size: 14,
+                          size: isTablet ? 18 : 14,
                           color: theme.brightness == Brightness.dark
                               ? AppColors.stormySkyBlue
                               : (theme.brightness == Brightness.light
@@ -667,8 +753,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         const SizedBox(width: 4),
                         Text(
                           '${friend.totalTasksCompleted} ภารกิจ',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontSize: 12,
+                          style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                            fontSize: isTablet ? 15 : 12,
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.65,
                             ),
@@ -676,11 +762,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       friend.levelTitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 11,
+                      style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                        fontSize: isTablet ? 14 : 11,
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.55,
@@ -698,8 +784,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 children: [
                   Text(
                     '${friend.totalXP}',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontSize: 18,
+                    style: (theme.textTheme.headlineMedium ?? const TextStyle()).copyWith(
+                      fontSize: isTablet ? 24 : 18,
                       fontWeight: FontWeight.bold,
                       color: theme.brightness == Brightness.dark
                           ? AppColors.stormySkyBlue
@@ -710,8 +796,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   ),
                   Text(
                     'XP',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 11,
+                    style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                      fontSize: isTablet ? 14 : 11,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),

@@ -590,10 +590,14 @@ class MyApp extends StatelessWidget {
             ],
             supportedLocales: const [Locale('th', 'TH'), Locale('en', 'US')],
             builder: (context, child) {
-              return _AppLifecycleObserver(
-                child: _AchievementUnlockListener(
-                  child: _LevelUpListener(
-                    child: child ?? const SizedBox.shrink(),
+              final mediaQueryData = MediaQuery.of(context);
+              return MediaQuery(
+                data: mediaQueryData.copyWith(alwaysUse24HourFormat: false),
+                child: _AppLifecycleObserver(
+                  child: _AchievementUnlockListener(
+                    child: _LevelUpListener(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               );

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../config/colors.dart';
 import '../config/constants.dart';
@@ -146,34 +147,26 @@ class AdaptiveNavBar extends StatelessWidget {
 
   Widget _buildNavigationRail(BuildContext context) {
     final theme = Theme.of(context);
+    final screenHeight = MediaQuery.of(context).size.height;
+    final topPadding = math.max(16.0, (screenHeight - 340) / 2);
+
     return NavigationRail(
       extended: Responsive.isDesktop(context),
       minWidth: 80,
+      groupAlignment: -1.0,
       backgroundColor: theme.colorScheme.surface,
       elevation: 2,
       selectedIndex: currentIndex,
       onDestinationSelected: onTap,
-      leading: Expanded(
+      leading: Padding(
+        padding: EdgeInsets.only(top: topPadding, bottom: 8),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 16),
             IconButton(
               icon: Icon(Icons.menu, color: theme.colorScheme.onSurface),
+              tooltip: 'เมนู',
               onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.check,
-                color: AppColors.textWhite,
-                size: 28,
-              ),
             ),
             if (Responsive.isDesktop(context)) ...[
               const SizedBox(height: 8),

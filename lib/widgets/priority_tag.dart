@@ -30,18 +30,23 @@ class PriorityTag extends StatelessWidget {
       textColor = Colors.grey.shade800;
     }
 
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 14 : 10,
+        vertical: isTablet ? 6 : 4,
+      ),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(isTablet ? 10 : 8),
       ),
       child: Text(
         priority,
         style: TextStyle(
           color: textColor,
           fontWeight: FontWeight.w600,
-          fontSize: 12,
+          fontSize: isTablet ? 15 : 12,
         ),
       ),
     );

@@ -75,18 +75,48 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
   String? _scoreErrorMessage;
   final ScrollController _scrollController = ScrollController();
 
-  void _scrollToSubtask({int delayMs = 100}) {
+  void _scrollToSubtask({BuildContext? targetContext, int delayMs = 100}) {
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(Duration(milliseconds: delayMs), () {
-        if (mounted && _subtaskKey.currentContext != null) {
+        if (!mounted) return;
+        final target = targetContext ?? _subtaskKey.currentContext;
+        if (target == null || !target.mounted) return;
+        final renderObject = target.findRenderObject();
+        final renderBox = renderObject is RenderBox ? renderObject : null;
+        if (renderBox == null || !renderBox.attached) {
           Scrollable.ensureVisible(
-            _subtaskKey.currentContext!,
+            target,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
-            alignment: 0.95,
+            alignment: 0.5,
           );
+          return;
         }
+
+        final scrollableState = Scrollable.maybeOf(target);
+        if (scrollableState == null) return;
+
+        final viewportHeight = scrollableState.position.viewportDimension;
+        final targetHeight = renderBox.size.height;
+
+        final double alignment;
+        if (viewportHeight > targetHeight) {
+          final targetBottom = viewportHeight - 24;
+          final targetY = (targetBottom - targetHeight)
+              .clamp(0.0, viewportHeight - targetHeight);
+          alignment =
+              (targetY / (viewportHeight - targetHeight)).clamp(0.0, 1.0);
+        } else {
+          alignment = 0.0;
+        }
+
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          alignment: alignment,
+        );
       });
     });
   }
@@ -510,6 +540,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
         _subTasks.add(_subTaskController.text.trim());
         _subTaskController.clear();
       });
+      _subTaskFocusNode.requestFocus();
       _scrollToSubtask(delayMs: 80);
     }
   }

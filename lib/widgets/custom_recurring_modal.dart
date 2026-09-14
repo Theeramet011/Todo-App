@@ -93,10 +93,12 @@ class CustomRecurringConfig {
 
 class CustomRecurringModal extends StatefulWidget {
   final CustomRecurringConfig initialConfig;
+  final DateTime? initialDate;
 
   const CustomRecurringModal({
     super.key,
     this.initialConfig = const CustomRecurringConfig(),
+    this.initialDate,
   });
 
   @override
@@ -138,7 +140,8 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
     _deduplicateFixedDates();
 
     final now = DateTime.now();
-    _calendarMonth = DateTime(now.year, now.month, 1);
+    final effectiveDate = widget.initialDate ?? now;
+    _calendarMonth = DateTime(effectiveDate.year, effectiveDate.month, 1);
 
     _numController = FixedExtentScrollController(
       initialItem: _frequencyNum - 1,
@@ -159,6 +162,10 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
     final isSoundEnabled =
         context.read<AuthProvider>().currentUser?.isSoundEnabled ?? true;
     SoundService.instance.playClickSound(isSoundEnabled: isSoundEnabled);
+  }
+
+  void _playClickSound() {
+    _playScrollSound();
   }
 
   void _deduplicateFixedDates() {
@@ -351,6 +358,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     final cardBgColor = isDark ? AppColors.stormyDarkSlate : Colors.white;
     final dialogBgColor = isDark
@@ -372,11 +380,18 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
           children: [
             // Header Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 16 : 12,
+                vertical: isTablet ? 12 : 8,
+              ),
               child: Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.close, color: textColor, size: 24),
+                    icon: Icon(
+                      Icons.close,
+                      color: textColor,
+                      size: isTablet ? 28 : 24,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                   Expanded(
@@ -384,7 +399,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                       child: Text(
                         'กำหนดเอง',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: isTablet ? 24 : 18,
                           fontWeight: FontWeight.bold,
                           color: textColor,
                         ),
@@ -392,7 +407,11 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.check, color: activeBlue, size: 24),
+                    icon: Icon(
+                      Icons.check,
+                      color: activeBlue,
+                      size: isTablet ? 28 : 24,
+                    ),
                     onPressed: _onSave,
                   ),
                 ],
@@ -400,9 +419,9 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 24 : 16,
+                  vertical: isTablet ? 16 : 12,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,13 +429,15 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                     // Section 1: Dropdown Mode Selector
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isTablet ? 20 : 16,
+                        vertical: isTablet ? 16 : 12,
                       ),
                       decoration: BoxDecoration(
                         color: cardBgColor,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(
+                          isTablet ? 24 : 20,
+                        ),
                         border: Border.all(color: boxBorderColor),
                         boxShadow: isDark
                             ? null
@@ -436,7 +457,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                               Text(
                                 'รูปแบบการซ้ำ',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: isTablet ? 18 : 16,
                                   fontWeight: FontWeight.w500,
                                   color: textColor,
                                 ),
@@ -446,7 +467,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                 onTap: () => _showRecurringInfoDialog(context),
                                 child: Icon(
                                   Icons.help_outline,
-                                  size: 18,
+                                  size: isTablet ? 22 : 18,
                                   color: textColor.withValues(alpha: 0.6),
                                 ),
                               ),
@@ -467,7 +488,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                 child: Text(
                                   'ตามวันถึงกำหนด',
                                   style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: isTablet ? 17 : 15,
                                     color: textColor,
                                     fontWeight: _selectedMode == 'byDueDate'
                                         ? FontWeight.bold
@@ -480,7 +501,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                 child: Text(
                                   'ตามวันที่กำหนด',
                                   style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: isTablet ? 17 : 15,
                                     color: textColor,
                                     fontWeight: _selectedMode == 'byFixedDate'
                                         ? FontWeight.bold
@@ -497,7 +518,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                       ? 'ตามวันที่กำหนด'
                                       : 'ตามวันถึงกำหนด',
                                   style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: isTablet ? 17 : 15,
                                     color: textColor,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -505,6 +526,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.keyboard_arrow_down,
+                                  size: isTablet ? 26 : 24,
                                   color: textColor,
                                 ),
                               ],
@@ -513,16 +535,18 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: isTablet ? 20 : 16),
 
                     if (_selectedMode == 'byDueDate') ...[
                       // Section 2: Frequency Wheel Card
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(isTablet ? 20 : 16),
                         decoration: BoxDecoration(
                           color: cardBgColor,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(
+                            isTablet ? 24 : 20,
+                          ),
                           border: Border.all(color: boxBorderColor),
                           boxShadow: isDark
                               ? null
@@ -540,14 +564,14 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                             Text(
                               'ความถี่',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: isTablet ? 20 : 16,
                                 fontWeight: FontWeight.bold,
                                 color: textColor,
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: isTablet ? 16 : 12),
                             SizedBox(
-                              height: 140,
+                              height: isTablet ? 160 : 140,
                               child: Row(
                                 children: [
                                   Expanded(
@@ -557,7 +581,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                       child: Text(
                                         'ทุกๆ',
                                         style: TextStyle(
-                                          fontSize: 18,
+                                          fontSize: isTablet ? 22 : 18,
                                           fontWeight: FontWeight.w500,
                                           color: textColor.withValues(
                                             alpha: 0.8,
@@ -570,7 +594,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                     flex: 2,
                                     child: CupertinoPicker(
                                       scrollController: _numController,
-                                      itemExtent: 40,
+                                      itemExtent: isTablet ? 48 : 40,
                                       selectionOverlay: const SizedBox.shrink(),
                                       onSelectedItemChanged: (index) {
                                         setState(() {
@@ -585,7 +609,9 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                           child: Text(
                                             '$num',
                                             style: TextStyle(
-                                              fontSize: isSelected ? 20 : 16,
+                                              fontSize: isSelected
+                                                  ? (isTablet ? 26 : 20)
+                                                  : (isTablet ? 20 : 16),
                                               fontWeight: isSelected
                                                   ? FontWeight.bold
                                                   : FontWeight.normal,
@@ -604,7 +630,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                     flex: 3,
                                     child: CupertinoPicker(
                                       scrollController: _unitController,
-                                      itemExtent: 40,
+                                      itemExtent: isTablet ? 48 : 40,
                                       selectionOverlay: const SizedBox.shrink(),
                                       onSelectedItemChanged: (index) {
                                         setState(() {
@@ -622,7 +648,9 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                           child: Text(
                                             unit,
                                             style: TextStyle(
-                                              fontSize: isSelected ? 20 : 16,
+                                              fontSize: isSelected
+                                                  ? (isTablet ? 26 : 20)
+                                                  : (isTablet ? 20 : 16),
                                               fontWeight: isSelected
                                                   ? FontWeight.bold
                                                   : FontWeight.normal,
@@ -643,21 +671,21 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: isTablet ? 16 : 12),
 
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: Text(
                           _getSummaryText(),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: isTablet ? 16 : 14,
                             color: textColor.withValues(alpha: 0.6),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: isTablet ? 16 : 12),
 
-                      // Section 3: Weekdays Multi-select Card (Always visible with high-contrast info badge)
+                      // Section 3: Weekdays Multi-select Card
                       Builder(
                         builder: (context) {
                           final isWeekUnit = _frequencyUnit == 'สัปดาห์';
@@ -673,10 +701,12 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
 
                           return Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.all(isTablet ? 20 : 16),
                             decoration: BoxDecoration(
                               color: cardBgColor,
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(
+                                isTablet ? 24 : 20,
+                              ),
                               border: Border.all(color: boxBorderColor),
                               boxShadow: isDark
                                   ? null
@@ -700,16 +730,16 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                     Text(
                                       'สัปดาห์',
                                       style: TextStyle(
-                                        fontSize: 16,
+                                        fontSize: isTablet ? 20 : 16,
                                         fontWeight: FontWeight.bold,
                                         color: textColor,
                                       ),
                                     ),
                                     if (!isWeekUnit)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 5,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: isTablet ? 14 : 10,
+                                          vertical: isTablet ? 7 : 5,
                                         ),
                                         decoration: BoxDecoration(
                                           color: badgeBgColor,
@@ -725,14 +755,14 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                           children: [
                                             Icon(
                                               Icons.info_outline_rounded,
-                                              size: 14,
+                                              size: isTablet ? 16 : 14,
                                               color: badgeTextColor,
                                             ),
                                             const SizedBox(width: 5),
                                             Text(
                                               'เฉพาะความถี่สัปดาห์',
                                               style: TextStyle(
-                                                fontSize: 12,
+                                                fontSize: isTablet ? 14 : 12,
                                                 fontWeight: FontWeight.w600,
                                                 color: badgeTextColor,
                                               ),
@@ -742,7 +772,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                       ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
+                                SizedBox(height: isTablet ? 20 : 16),
                                 IgnorePointer(
                                   ignoring: !isWeekUnit,
                                   child: AnimatedOpacity(
@@ -768,13 +798,14 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                                       unselectedBg:
                                                           unselectedPillBg,
                                                       textColor: textColor,
+                                                      isTablet: isTablet,
                                                     ),
                                                   ),
                                                 );
                                               })
                                               .toList(),
                                         ),
-                                        const SizedBox(height: 12),
+                                        SizedBox(height: isTablet ? 16 : 12),
                                         Row(
                                           children: [
                                             ..._allWeekdays.sublist(4, 7).map((
@@ -794,6 +825,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                                                     unselectedBg:
                                                         unselectedPillBg,
                                                     textColor: textColor,
+                                                    isTablet: isTablet,
                                                   ),
                                                 ),
                                               );
@@ -819,25 +851,27 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                         textColor: textColor,
                         activeBlue: activeBlue,
                         isDark: isDark,
+                        isTablet: isTablet,
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: isTablet ? 16 : 12),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: Text(
                           'เลือกไว้แล้ว ${_fixedDates.length} วัน',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: isTablet ? 17 : 14,
                             fontWeight: FontWeight.w500,
                             color: textColor.withValues(alpha: 0.7),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: isTablet ? 20 : 16),
                       _buildFixedDatesList(
                         cardBgColor: cardBgColor,
                         textColor: textColor,
                         boxBorderColor: boxBorderColor,
                         isDark: isDark,
+                        isTablet: isTablet,
                       ),
                     ],
                   ],
@@ -855,6 +889,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
     required Color textColor,
     required Color activeBlue,
     required bool isDark,
+    bool isTablet = false,
   }) {
     final year = _calendarMonth.year;
     final month = _calendarMonth.month;
@@ -872,7 +907,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
       'กรกฎาคม',
       'สิงหาคม',
       'กันยายน',
-      'ตลุาคม',
+      'ตุลาคม',
       'พฤศจิกายน',
       'ธันวาคม',
     ];
@@ -882,10 +917,10 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isTablet ? 20 : 16),
       decoration: BoxDecoration(
         color: cardBgColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
         border: null,
         boxShadow: isDark
             ? null
@@ -906,7 +941,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
               Text(
                 monthName,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   fontWeight: FontWeight.bold,
                   color: textColor,
                 ),
@@ -914,7 +949,11 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
               Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.chevron_left, color: textColor),
+                    icon: Icon(
+                      Icons.chevron_left,
+                      color: textColor,
+                      size: isTablet ? 28 : 24,
+                    ),
                     onPressed: () {
                       setState(() {
                         _calendarMonth = DateTime(year, month - 1, 1);
@@ -922,7 +961,11 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                     },
                   ),
                   IconButton(
-                    icon: Icon(Icons.chevron_right, color: textColor),
+                    icon: Icon(
+                      Icons.chevron_right,
+                      color: textColor,
+                      size: isTablet ? 28 : 24,
+                    ),
                     onPressed: () {
                       setState(() {
                         _calendarMonth = DateTime(year, month + 1, 1);
@@ -933,7 +976,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isTablet ? 16 : 12),
           Row(
             children: List.generate(weekDays.length, (i) {
               final w = weekDays[i];
@@ -943,7 +986,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                   child: Text(
                     w,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: isTablet ? 16 : 13,
                       fontWeight: FontWeight.w500,
                       color: isWeekendHeader
                           ? const Color(0xFFE57373)
@@ -954,15 +997,15 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
               );
             }),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isTablet ? 12 : 8),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: startingWeekday + daysInMonth,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              mainAxisSpacing: 6,
-              crossAxisSpacing: 6,
+              mainAxisSpacing: isTablet ? 10 : 6,
+              crossAxisSpacing: isTablet ? 10 : 6,
             ),
             itemBuilder: (context, index) {
               if (index < startingWeekday) {
@@ -1000,35 +1043,56 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                     : textColor.withValues(alpha: 0.85);
               }
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _fixedDates.removeWhere(
-                        (d) =>
-                            d.year == year &&
-                            d.month == month &&
-                            d.day == dayNum,
-                      );
-                    } else {
-                      _fixedDates.add(
-                        DateTime(year, month, dayNum, now.hour, now.minute),
-                      );
-                      _deduplicateFixedDates();
-                    }
-                  });
-                },
-                child: Container(
-                  decoration: cellDecoration,
-                  alignment: Alignment.center,
-                  child: Text(
-                    '$dayNum',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: (isSelected || isToday)
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: dayTextColor,
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(isTablet ? 28 : 24),
+                  onTap: () {
+                    _playClickSound();
+                    setState(() {
+                      if (isSelected) {
+                        _fixedDates.removeWhere(
+                          (d) =>
+                              d.year == year &&
+                              d.month == month &&
+                              d.day == dayNum,
+                        );
+                      } else {
+                        final defaultHour = _fixedDates.isNotEmpty
+                            ? _fixedDates.first.hour
+                            : (widget.initialDate?.hour ?? now.hour);
+                        final defaultMinute = _fixedDates.isNotEmpty
+                            ? _fixedDates.first.minute
+                            : (widget.initialDate?.minute ?? now.minute);
+                        _fixedDates.add(
+                          DateTime(
+                            year,
+                            month,
+                            dayNum,
+                            defaultHour,
+                            defaultMinute,
+                          ),
+                        );
+                        _deduplicateFixedDates();
+                      }
+                    });
+                  },
+                  child: Center(
+                    child: Container(
+                      width: isTablet ? 48 : 40,
+                      height: isTablet ? 48 : 40,
+                      decoration: cellDecoration,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$dayNum',
+                        style: TextStyle(
+                          fontSize: isTablet ? 17 : 14,
+                          fontWeight: (isSelected || isToday)
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: dayTextColor,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1045,6 +1109,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
     required Color textColor,
     required Color boxBorderColor,
     required bool isDark,
+    bool isTablet = false,
   }) {
     return Column(
       children: List.generate(_fixedDates.length, (index) {
@@ -1054,7 +1119,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
             '${itemDate.hour.toString().padLeft(2, '0')}:${itemDate.minute.toString().padLeft(2, '0')}';
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: EdgeInsets.only(bottom: isTablet ? 16 : 12),
           child: Row(
             children: [
               Expanded(
@@ -1080,15 +1145,15 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                       });
                     }
                   },
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 18 : 14,
+                      vertical: isTablet ? 16 : 12,
                     ),
                     decoration: BoxDecoration(
                       color: cardBgColor,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
                       border: Border.all(color: boxBorderColor),
                       boxShadow: isDark
                           ? null
@@ -1106,7 +1171,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                         Text(
                           'วันที่ทำซ้ำ',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: isTablet ? 14 : 12,
                             color: textColor.withValues(alpha: 0.6),
                           ),
                         ),
@@ -1115,14 +1180,14 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                           children: [
                             Icon(
                               Icons.calendar_today_outlined,
-                              size: 18,
+                              size: isTablet ? 22 : 18,
                               color: textColor.withValues(alpha: 0.7),
                             ),
                             const SizedBox(width: 8),
                             Text(
                               dateStr,
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: isTablet ? 17 : 14,
                                 fontWeight: FontWeight.bold,
                                 color: textColor,
                               ),
@@ -1134,7 +1199,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isTablet ? 16 : 12),
               Expanded(
                 child: InkWell(
                   enableFeedback: false,
@@ -1145,6 +1210,14 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                         hour: itemDate.hour,
                         minute: itemDate.minute,
                       ),
+                      builder: (context, child) {
+                        return MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            alwaysUse24HourFormat: false,
+                          ),
+                          child: child!,
+                        );
+                      },
                     );
                     if (picked != null) {
                       setState(() {
@@ -1158,15 +1231,15 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                       });
                     }
                   },
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 18 : 14,
+                      vertical: isTablet ? 16 : 12,
                     ),
                     decoration: BoxDecoration(
                       color: cardBgColor,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
                       border: Border.all(color: boxBorderColor),
                       boxShadow: isDark
                           ? null
@@ -1184,7 +1257,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                         Text(
                           'เวลาทำซ้ำ',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: isTablet ? 14 : 12,
                             color: textColor.withValues(alpha: 0.6),
                           ),
                         ),
@@ -1193,14 +1266,14 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                           children: [
                             Icon(
                               Icons.access_time_outlined,
-                              size: 18,
+                              size: isTablet ? 22 : 18,
                               color: textColor.withValues(alpha: 0.7),
                             ),
                             const SizedBox(width: 8),
                             Text(
                               timeStr,
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: isTablet ? 17 : 14,
                                 fontWeight: FontWeight.bold,
                                 color: textColor,
                               ),
@@ -1225,21 +1298,22 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
     required Color activeBlue,
     required Color unselectedBg,
     required Color textColor,
+    bool isTablet = false,
   }) {
     return GestureDetector(
       onTap: () => _toggleDay(day),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        height: 48,
+        height: isTablet ? 56 : 48,
         decoration: BoxDecoration(
           color: isSelected ? activeBlue : unselectedBg,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(isTablet ? 18 : 16),
         ),
         alignment: Alignment.center,
         child: Text(
           day,
           style: TextStyle(
-            fontSize: 15,
+            fontSize: isTablet ? 18 : 15,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             color: isSelected ? Colors.white : textColor.withValues(alpha: 0.7),
           ),

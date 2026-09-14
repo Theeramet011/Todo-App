@@ -22,6 +22,7 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     Color bg;
     Color iconColor;
@@ -60,10 +61,12 @@ class StatCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 18 : AppConstants.paddingMedium),
       decoration: BoxDecoration(
         color: isDark ? AppColors.stormyDarkSlate : Colors.white,
-        borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 22 : AppConstants.radiusLarge,
+        ),
         border: isDark ? null : Border.all(color: AppColors.stormyIceBlue),
         boxShadow: isDark
             ? null
@@ -79,27 +82,28 @@ class StatCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isTablet ? 16 : 12),
             decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 24),
+            child: Icon(icon, color: iconColor, size: isTablet ? 32 : 24),
           ),
-          const SizedBox(height: AppConstants.paddingSmall),
+          SizedBox(height: isTablet ? 12 : AppConstants.paddingSmall),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.headlineMedium?.copyWith(
-              fontSize: 22,
+              fontSize: isTablet ? 30 : 22,
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : AppColors.stormyDarkSlate,
             ),
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: isTablet ? 4 : 2),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: isTablet ? 15 : 12,
               color: isDark
                   ? Colors.white70
                   : AppColors.stormyDarkSlate.withValues(alpha: 0.8),

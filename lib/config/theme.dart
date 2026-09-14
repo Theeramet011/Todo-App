@@ -183,9 +183,16 @@ class AppTheme {
           fontWeight: FontWeight.normal,
           color: AppColors.stormyMutedBlueGrey, // #6A89A7
         ),
+        constraints: const BoxConstraints(maxWidth: 440),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
         ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        modalBackgroundColor: Colors.transparent,
+        constraints: BoxConstraints(maxWidth: 600),
       ),
 
       // ── Divider Theme ─────────────────────────────────────────
@@ -403,6 +410,8 @@ class AppTheme {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.stormyDarkSlate,
+        constraints: const BoxConstraints(maxWidth: 440),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         titleTextStyle: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.bold,
@@ -416,6 +425,11 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
         ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        modalBackgroundColor: Colors.transparent,
+        constraints: BoxConstraints(maxWidth: 600),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

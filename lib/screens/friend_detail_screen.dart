@@ -147,6 +147,7 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final friend = widget.friendUser;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: theme.brightness == Brightness.dark
@@ -157,23 +158,31 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
           children: [
             Column(
               children: [
-                _buildHeader(theme),
+                _buildHeader(theme, isTablet),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                    padding: EdgeInsets.all(
+                      isTablet ? 24 : AppConstants.paddingMedium,
+                    ),
                     child: Column(
                       children: [
-                        _buildProfileSection(friend),
-                        const SizedBox(height: AppConstants.paddingLarge),
-                        _buildStatsGrid(friend, theme),
-                        const SizedBox(height: AppConstants.paddingLarge),
+                        _buildProfileSection(friend, isTablet),
+                        SizedBox(
+                          height: isTablet ? 24 : AppConstants.paddingLarge,
+                        ),
+                        _buildStatsGrid(friend, theme, isTablet),
+                        SizedBox(
+                          height: isTablet ? 24 : AppConstants.paddingLarge,
+                        ),
                         AchievementSummaryCard(user: friend),
-                        const SizedBox(height: AppConstants.paddingXLarge),
+                        SizedBox(
+                          height: isTablet ? 32 : AppConstants.paddingXLarge,
+                        ),
                       ],
                     ),
                   ),
                 ),
-                _buildRemoveButton(),
+                _buildRemoveButton(isTablet),
               ],
             ),
             if (_isRemoving)
@@ -191,23 +200,25 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, bool isTablet) {
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 24 : AppConstants.paddingMedium),
       child: Row(
         children: [
           IconButton(
             onPressed: _isRemoving ? null : () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back),
+            icon: Icon(Icons.arrow_back, size: isTablet ? 28 : 24),
           ),
-          const SizedBox(width: AppConstants.paddingSmall),
+          SizedBox(width: isTablet ? 12 : AppConstants.paddingSmall),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isTablet ? 16 : 12),
             decoration: BoxDecoration(
               color: theme.brightness == Brightness.light
                   ? AppColors.stormySkyBlue
                   : AppColors.primaryPurple.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+              borderRadius: BorderRadius.circular(
+                isTablet ? 16 : AppConstants.radiusMedium,
+              ),
               border: theme.brightness == Brightness.dark
                   ? Border.all(color: AppColors.primaryPurple, width: 2)
                   : null,
@@ -217,10 +228,10 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
               color: theme.brightness == Brightness.light
                   ? AppColors.textWhite
                   : AppColors.primaryPurple,
-              size: 24,
+              size: isTablet ? 30 : 24,
             ),
           ),
-          const SizedBox(width: AppConstants.paddingMedium),
+          SizedBox(width: isTablet ? 18 : AppConstants.paddingMedium),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,7 +239,7 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                 Text(
                   'รายละเอียดเพื่อน',
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: isTablet ? 26 : 22,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
@@ -236,7 +247,7 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                 Text(
                   'โปรไฟล์และสถิติเกม',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: isTablet ? 16 : 14,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
@@ -248,9 +259,9 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
     );
   }
 
-  Widget _buildProfileSection(User friend) {
+  Widget _buildProfileSection(User friend, bool isTablet) {
     return Container(
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      padding: EdgeInsets.all(isTablet ? 24 : AppConstants.paddingLarge),
       decoration: BoxDecoration(
         gradient: Theme.of(context).brightness == Brightness.light
             ? const LinearGradient(
@@ -263,7 +274,9 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                 end: Alignment.bottomRight,
                 colors: [Color(0xFF101720), AppColors.stormyDarkSlate],
               ),
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 28 : AppConstants.radiusXLarge,
+        ),
       ),
       child: Row(
         children: [
@@ -271,17 +284,17 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
             avatarUrl: friend.avatarUrl,
             frameId: friend.equippedFrame,
             fallbackName: friend.name,
-            size: AppConstants.avatarXLarge,
+            size: isTablet ? 100 : AppConstants.avatarXLarge,
           ),
-          const SizedBox(width: AppConstants.paddingLarge),
+          SizedBox(width: isTablet ? 24 : AppConstants.paddingLarge),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   friend.name,
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style: TextStyle(
+                    fontSize: isTablet ? 26 : 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textWhite,
                   ),
@@ -290,16 +303,16 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                 Text(
                   friend.email,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: isTablet ? 16 : 14,
                     color: AppColors.textWhite.withValues(alpha: 0.8),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: isTablet ? 14 : 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 16 : 12,
+                    vertical: isTablet ? 6 : 4,
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.backgroundWhite.withValues(alpha: 0.2),
@@ -310,16 +323,16 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.star,
-                        size: 14,
+                        size: isTablet ? 18 : 14,
                         color: AppColors.accentYellow,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Level ${friend.currentLevel}',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: isTablet ? 15 : 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textWhite,
                         ),
@@ -327,11 +340,11 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: isTablet ? 8 : 6),
                 Text(
                   thaiLevelTitle(friend.currentLevel),
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isTablet ? 15 : 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textWhite.withValues(alpha: 0.86),
                   ),
@@ -344,12 +357,12 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
     );
   }
 
-  Widget _buildStatsGrid(User friend, ThemeData theme) {
+  Widget _buildStatsGrid(User friend, ThemeData theme, bool isTablet) {
     return GridView.count(
       crossAxisCount: 2,
-      crossAxisSpacing: AppConstants.paddingMedium,
-      mainAxisSpacing: AppConstants.paddingMedium,
-      childAspectRatio: 1.28,
+      crossAxisSpacing: isTablet ? 20 : AppConstants.paddingMedium,
+      mainAxisSpacing: isTablet ? 20 : AppConstants.paddingMedium,
+      childAspectRatio: isTablet ? 1.35 : 1.28,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
@@ -387,11 +400,11 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
     );
   }
 
-  Widget _buildRemoveButton() {
+  Widget _buildRemoveButton(bool isTablet) {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+        padding: EdgeInsets.all(isTablet ? 24 : AppConstants.paddingMedium),
         child: SizedBox(
           width: double.infinity,
           child: OutlinedButton(
@@ -407,19 +420,27 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                 width: 1.5,
               ),
               backgroundColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(
-                vertical: AppConstants.paddingMedium,
+              padding: EdgeInsets.symmetric(
+                vertical: isTablet ? 18 : AppConstants.paddingMedium,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                borderRadius: BorderRadius.circular(
+                  isTablet ? 16 : AppConstants.radiusMedium,
+                ),
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.person_remove_alt_1),
-                SizedBox(width: 8),
-                Text('ลบเพื่อน'),
+                Icon(Icons.person_remove_alt_1, size: isTablet ? 24 : 20),
+                const SizedBox(width: 8),
+                Text(
+                  'ลบเพื่อน',
+                  style: TextStyle(
+                    fontSize: isTablet ? 18 : 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),

@@ -48,11 +48,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = context.watch<AuthProvider>().currentUser;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.stormyNightBackground : null,
       appBar: AppBar(
-        title: const Text('แก้ไขโปรไฟล์'),
+        title: Text(
+          'แก้ไขโปรไฟล์',
+          style: TextStyle(
+            fontSize: isTablet ? 26 : null,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, size: isTablet ? 28 : 24),
+          onPressed: () => Navigator.pop(context),
+        ),
         backgroundColor: isDark ? AppColors.stormyNightBackground : null,
         scrolledUnderElevation: 0,
       ),
@@ -60,25 +71,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ? const Center(child: Text('No user data'))
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppConstants.paddingLarge),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 32 : AppConstants.paddingLarge,
+                  vertical: isTablet ? 32 : AppConstants.paddingLarge,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildAvatarSection(user),
-                    const SizedBox(height: AppConstants.paddingXLarge),
+                    _buildAvatarSection(user, isTablet),
+                    SizedBox(height: isTablet ? 32 : AppConstants.paddingXLarge),
                     TextField(
                       controller: _nameController,
                       textInputAction: TextInputAction.done,
-                      style: TextStyle(color: isDark ? Colors.white : null),
+                      style: TextStyle(
+                        fontSize: isTablet ? 18 : 16,
+                        color: isDark ? Colors.white : null,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'ชื่อที่แสดง',
                         labelStyle: TextStyle(
+                          fontSize: isTablet ? 17 : 14,
                           color: isDark ? AppColors.stormyMutedBlueGrey : null,
                         ),
                         prefixIcon: Icon(
                           Icons.person_outline,
+                          size: isTablet ? 26 : 22,
                           color: isDark ? AppColors.stormyMutedBlueGrey : null,
                         ),
+                        contentPadding: isTablet
+                            ? const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 20,
+                              )
+                            : null,
                         fillColor: isDark ? AppColors.stormyDarkSlate : null,
                         filled: isDark ? true : false,
                         border: OutlineInputBorder(
@@ -91,7 +116,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppConstants.paddingLarge),
+                    SizedBox(height: isTablet ? 20 : AppConstants.paddingLarge),
                     Container(
                       decoration: BoxDecoration(
                         color: isDark
@@ -109,13 +134,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ),
                       ),
                       child: ListTile(
+                        contentPadding: isTablet
+                            ? const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 8,
+                              )
+                            : null,
                         leading: Icon(
                           Icons.filter_frames_outlined,
+                          size: isTablet ? 28 : 24,
                           color: isDark ? AppColors.stormyMutedBlueGrey : null,
                         ),
                         title: Text(
                           'เลือกกรอบโปรไฟล์',
-                          style: TextStyle(color: isDark ? Colors.white : null),
+                          style: TextStyle(
+                            fontSize: isTablet ? 18 : 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : null,
+                          ),
                         ),
                         subtitle: Text(
                           user.equippedFrame.isEmpty
@@ -124,6 +160,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   user.equippedFrame,
                                 ).label,
                           style: TextStyle(
+                            fontSize: isTablet ? 15 : 13,
                             color: isDark
                                 ? AppColors.stormyMutedBlueGrey
                                 : null,
@@ -131,12 +168,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                         trailing: Icon(
                           Icons.chevron_right,
+                          size: isTablet ? 28 : 24,
                           color: isDark ? AppColors.stormyMutedBlueGrey : null,
                         ),
                         onTap: () => _openFramePicker(user),
                       ),
                     ),
-                    const SizedBox(height: AppConstants.paddingXLarge),
+                    SizedBox(height: isTablet ? 32 : AppConstants.paddingXLarge),
                     ElevatedButton(
                       onPressed: _isSaving ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
@@ -144,7 +182,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         foregroundColor: isDark
                             ? AppColors.stormyNightBackground
                             : AppColors.textWhite,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: EdgeInsets.symmetric(
+                          vertical: isTablet ? 18 : 14,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
                             AppConstants.radiusMedium,
@@ -160,7 +200,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 color: AppColors.textWhite,
                               ),
                             )
-                          : const Text('บันทึก'),
+                          : Text(
+                              'บันทึก',
+                              style: TextStyle(
+                                fontSize: isTablet ? 18 : 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -169,7 +215,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildAvatarSection(User user) {
+  Widget _buildAvatarSection(User user, bool isTablet) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Center(
@@ -180,7 +226,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             avatarUrl: user.avatarUrl,
             frameId: user.equippedFrame,
             fallbackName: user.name,
-            size: 128,
+            size: isTablet ? 160 : 128,
           ),
           if (_isUploadingImage)
             Positioned.fill(
@@ -212,13 +258,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 customBorder: const CircleBorder(),
                 onTap: _isUploadingImage ? null : _pickProfileImage,
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(isTablet ? 14 : 10),
                   child: Icon(
                     Icons.camera_alt,
                     color: isDark
                         ? AppColors.stormyNightBackground
                         : AppColors.textWhite,
-                    size: 20,
+                    size: isTablet ? 24 : 20,
                   ),
                 ),
               ),

@@ -75,7 +75,7 @@ class Responsive {
       case ScreenType.mobile:
         return screenWidth(context);
       case ScreenType.tablet:
-        return 600.0;
+        return double.infinity;
       case ScreenType.desktop:
         return 900.0;
     }
@@ -127,7 +127,7 @@ class Responsive {
 
   // Should use Drawer
   static bool useDrawer(BuildContext context) {
-    return isMobile(context);
+    return true;
   }
 
   // Responsive Builder
@@ -151,7 +151,7 @@ class Responsive {
   // Center Content for Large Screens
   static Widget centerContent(BuildContext context, Widget child) {
     final type = getScreenType(context);
-    if (type == ScreenType.mobile) {
+    if (type == ScreenType.mobile || type == ScreenType.tablet) {
       return child;
     }
     return Center(

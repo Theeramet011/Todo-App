@@ -177,7 +177,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ? AppColors.stormyNightBackground
           : null,
       extendBody: false,
-      appBar: useRail ? _buildAppBar() : null,
       body: Column(
         children: [
           Consumer<ConnectivityProvider>(
@@ -227,16 +226,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      // FAB for Mobile (shown in bottom nav)
-      floatingActionButton: (!useRail && _currentIndex != 2)
-          ? FloatingActionButton(
-              key: TutorialService.fabKey,
-              onPressed: () => _showCreateTaskModal(),
-              backgroundColor: AppColors.stormySkyBlue,
-              child: const Icon(Icons.add),
+      // FAB for Mobile and Tablet (shown at bottom right)
+      floatingActionButton: (!Responsive.isDesktop(context) && _currentIndex != 2)
+          ? SizedBox(
+              width: Responsive.isTablet(context) ? 76 : 64,
+              height: Responsive.isTablet(context) ? 76 : 64,
+              child: FloatingActionButton(
+                key: TutorialService.fabKey,
+                onPressed: () => _showCreateTaskModal(),
+                backgroundColor: AppColors.stormySkyBlue,
+                elevation: 4,
+                shape: const CircleBorder(),
+                child: Icon(
+                  Icons.add,
+                  size: Responsive.isTablet(context) ? 38 : 32,
+                  color: AppColors.stormyDarkSlate,
+                ),
+              ),
             )
           : null,
-      // Drawer for Mobile only
+      // Drawer for Mobile and Tablet
       drawer: useDrawer ? const CustomDrawer() : null,
       bottomNavigationBar: useRail
           ? null
@@ -250,36 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? () => _showCreateTaskModal()
                   : null,
             ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: const Text('ตัวช่วยจัดการภารกิจในรูปแบบเกม'),
-      centerTitle: true,
-      elevation: 0,
-      backgroundColor: AppColors.backgroundWhite,
-      leading: Builder(
-        builder: (context) => IconButton(
-          icon: Icon(
-            Icons.menu,
-            color: (Theme.of(context).brightness == Brightness.light
-                ? AppColors.stormyDarkSlate
-                : AppColors.textPrimary),
-          ),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
-          },
-        ),
-      ),
-      actions: [
-        _NotificationBellButton(
-          color: (Theme.of(context).brightness == Brightness.light
-              ? AppColors.stormyDarkSlate
-              : AppColors.textPrimary),
-        ),
-        const SizedBox(width: 8),
-      ],
     );
   }
 
@@ -397,9 +376,12 @@ class _TasksTabState extends State<_TasksTab>
     final greeting = _getGreeting();
     final formattedDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
 
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: EdgeInsets.all(
+        isTablet ? 24.0 : AppConstants.paddingMedium,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -415,7 +397,7 @@ class _TasksTabState extends State<_TasksTab>
                       TextSpan(
                         text: greeting,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: isTablet ? 17 : 14,
                           color: theme.brightness == Brightness.dark
                               ? Colors.white
                               : theme.colorScheme.onSurface.withValues(
@@ -427,7 +409,7 @@ class _TasksTabState extends State<_TasksTab>
                       TextSpan(
                         text: firstName,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: isTablet ? 17 : 14,
                           fontWeight: FontWeight.w500,
                           color: theme.brightness == Brightness.dark
                               ? Colors.white
@@ -442,7 +424,7 @@ class _TasksTabState extends State<_TasksTab>
                 Text(
                   'วันนี้',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: isTablet ? 34 : 28,
                     fontWeight: FontWeight.bold,
                     color: theme.brightness == Brightness.dark
                         ? Colors.white
@@ -452,7 +434,7 @@ class _TasksTabState extends State<_TasksTab>
                 Text(
                   formattedDate,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: isTablet ? 16 : 14,
                     color: theme.brightness == Brightness.dark
                         ? Colors.white
                         : theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -467,12 +449,12 @@ class _TasksTabState extends State<_TasksTab>
             key: TutorialService.streakKey,
             child: Row(
               children: [
-                const Text('🔥', style: TextStyle(fontSize: 24)),
+                Text('🔥', style: TextStyle(fontSize: isTablet ? 28 : 24)),
                 const SizedBox(width: 4),
                 Text(
                   '${user?.currentStreak ?? 0}',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: isTablet ? 28 : 24,
                     fontWeight: FontWeight.bold,
                     color: theme.brightness == Brightness.light
                         ? theme.colorScheme.onSurface
@@ -498,7 +480,7 @@ class _TasksTabState extends State<_TasksTab>
                     color: theme.brightness == Brightness.light
                         ? Colors.teal
                         : AppColors.stormySkyBlue,
-                    size: 32,
+                    size: isTablet ? 36 : 32,
                   ),
                   onPressed: () {
                     showSearch(
@@ -507,13 +489,13 @@ class _TasksTabState extends State<_TasksTab>
                     );
                   },
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: isTablet ? 20 : 16),
                 // Notification Icon
                 _NotificationBellButton(
                   color: theme.brightness == Brightness.light
                       ? theme.colorScheme.onSurface
                       : Colors.white,
-                  size: 32,
+                  size: isTablet ? 36 : 32,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -545,16 +527,20 @@ class _TasksTabState extends State<_TasksTab>
 
   Widget _buildTabBar() {
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
+
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
+      margin: EdgeInsets.symmetric(
+        horizontal: isTablet ? 24.0 : AppConstants.paddingMedium,
       ),
-      padding: const EdgeInsets.all(4),
+      padding: EdgeInsets.all(isTablet ? 6 : 4),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.light
             ? AppColors.stormyIceBlue
             : AppColors.stormyNightBackground,
-        borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? AppConstants.radiusLarge + 4 : AppConstants.radiusLarge,
+        ),
         border: theme.brightness == Brightness.dark
             ? Border.all(color: AppColors.stormyDarkSlate, width: 2)
             : null,
@@ -578,7 +564,9 @@ class _TasksTabState extends State<_TasksTab>
           color: theme.brightness == Brightness.light
               ? AppColors.backgroundWhite
               : AppColors.stormyDarkSlate,
-          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          borderRadius: BorderRadius.circular(
+            isTablet ? AppConstants.radiusMedium + 2 : AppConstants.radiusMedium,
+          ),
           boxShadow: [
             BoxShadow(
               color: theme.brightness == Brightness.light
@@ -596,14 +584,23 @@ class _TasksTabState extends State<_TasksTab>
         unselectedLabelColor: theme.brightness == Brightness.light
             ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
             : AppColors.stormyMutedBlueGrey,
-        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 14,
+        labelStyle: TextStyle(
+          fontSize: isTablet ? 17 : 14,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: isTablet ? 17 : 14,
           fontWeight: FontWeight.w500,
         ),
-        tabs: const [
-          Tab(text: 'ภารกิจส่วนตัว'),
-          Tab(text: 'ภารกิจกลุ่ม'),
+        tabs: [
+          Tab(
+            height: isTablet ? 46 : null,
+            text: 'ภารกิจส่วนตัว',
+          ),
+          Tab(
+            height: isTablet ? 46 : null,
+            text: 'ภารกิจกลุ่ม',
+          ),
         ],
       ),
     );
@@ -2279,14 +2276,15 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
     final showOverdueOnlyHeader = !hasTodayTasks && overdueEntries.isNotEmpty;
 
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
 
     return Responsive.centerContent(
       context,
       Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppConstants.paddingMedium,
-          AppConstants.paddingMedium,
-          AppConstants.paddingMedium,
+        padding: EdgeInsets.fromLTRB(
+          isTablet ? 24.0 : AppConstants.paddingMedium,
+          isTablet ? 20.0 : AppConstants.paddingMedium,
+          isTablet ? 24.0 : AppConstants.paddingMedium,
           0,
         ),
         child: Column(
@@ -2319,6 +2317,7 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
                                 ? 'ภารกิจที่ยังไม่เสร็จ'
                                 : 'สิ่งที่ต้องทำวันนี้',
                             style: theme.textTheme.headlineMedium?.copyWith(
+                              fontSize: isTablet ? 24 : null,
                               color: showOverdueOnlyHeader
                                   ? Colors.redAccent
                                   : theme.colorScheme.onSurface,
@@ -2343,6 +2342,7 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
                                 ? 'ภารกิจที่ยังไม่เสร็จ'
                                 : 'สิ่งที่ต้องทำวันนี้',
                             style: theme.textTheme.headlineMedium?.copyWith(
+                              fontSize: isTablet ? 24 : null,
                               color: showOverdueOnlyHeader
                                   ? Colors.redAccent
                                   : theme.colorScheme.onSurface,
@@ -2380,10 +2380,12 @@ class _OverdueSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
 
     return Text(
       'ภารกิจที่ยังไม่เสร็จ',
       style: theme.textTheme.headlineMedium?.copyWith(
+        fontSize: isTablet ? 24 : null,
         color: Colors.redAccent,
         fontWeight: FontWeight.w700,
       ),
@@ -2573,6 +2575,7 @@ class _TodayTaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final taskProvider = context.read<TaskProvider>();
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
     final mutedColor = theme.colorScheme.onSurface.withValues(alpha: 0.62);
     final tagColor = theme.colorScheme.tertiary;
 
@@ -2589,7 +2592,9 @@ class _TodayTaskCard extends StatelessWidget {
           await Navigator.pushNamed(context, '/task-detail');
         },
         child: Container(
-          padding: const EdgeInsets.all(AppConstants.paddingMedium),
+          padding: EdgeInsets.all(
+            isTablet ? 20.0 : AppConstants.paddingMedium,
+          ),
           decoration: BoxDecoration(
             color: theme.brightness == Brightness.dark
                 ? AppColors.stormyDarkSlate
@@ -2621,7 +2626,9 @@ class _TodayTaskCard extends StatelessWidget {
                       onToggle: () => onToggleComplete(task),
                       isCompleted: isCompleted,
                     ),
-                    const SizedBox(width: AppConstants.paddingMedium),
+                    SizedBox(
+                      width: isTablet ? 18.0 : AppConstants.paddingMedium,
+                    ),
                   ],
                   Expanded(
                     child: Column(
@@ -2630,7 +2637,7 @@ class _TodayTaskCard extends StatelessWidget {
                         Text(
                           task.title,
                           style: theme.textTheme.titleMedium?.copyWith(
-                            fontSize: 18,
+                            fontSize: isTablet ? 22 : 18,
                             color: isCompleted
                                 ? theme.colorScheme.onSurface.withValues(
                                     alpha: 0.45,
@@ -2649,6 +2656,7 @@ class _TodayTaskCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: isTablet ? 15 : null,
                               color: isCompleted
                                   ? mutedColor.withValues(alpha: 0.55)
                                   : mutedColor,
@@ -2699,7 +2707,7 @@ class _TodayTaskCard extends StatelessWidget {
                         },
                         icon: Icon(
                           Icons.more_vert,
-                          size: 20,
+                          size: isTablet ? 24 : 20,
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.6,
                           ),
@@ -2753,7 +2761,7 @@ class _TodayTaskCard extends StatelessWidget {
                           Text(
                             '${task.completedCount}/${task.subtasks.length} ภารกิจ',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: isTablet ? 14 : 12,
                               fontWeight: FontWeight.w600,
                               color: theme.colorScheme.onSurface.withValues(
                                 alpha: 0.6,
@@ -2772,7 +2780,7 @@ class _TodayTaskCard extends StatelessWidget {
                           valueColor: AlwaysStoppedAnimation<Color>(
                             AppColors.stormySkyBlue,
                           ),
-                          minHeight: 6,
+                          minHeight: isTablet ? 8 : 6,
                         ),
                       ),
                     ],
@@ -2782,7 +2790,7 @@ class _TodayTaskCard extends StatelessWidget {
               const SizedBox(height: AppConstants.paddingMedium),
               Padding(
                 padding: EdgeInsets.only(
-                  left: task.subtasks.isNotEmpty ? 0 : 40,
+                  left: task.subtasks.isNotEmpty ? 0 : (isTablet ? 46 : 40),
                 ),
                 child: Wrap(
                   spacing: AppConstants.paddingSmall,
@@ -2791,21 +2799,24 @@ class _TodayTaskCard extends StatelessWidget {
                   children: [
                     if (task.category != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 14 : 10,
+                          vertical: isTablet ? 7 : 5,
                         ),
                         decoration: BoxDecoration(
                           color: theme.brightness == Brightness.dark
                               ? AppColors.stormyNightBackground
                               : tagColor.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(
-                            AppConstants.radiusSmall,
+                            isTablet
+                                ? AppConstants.radiusMedium
+                                : AppConstants.radiusSmall,
                           ),
                         ),
                         child: Text(
                           thaiCategoryLabel(task.category!),
                           style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: isTablet ? 14 : null,
                             color: theme.brightness == Brightness.dark
                                 ? AppColors.stormyIceBlue
                                 : tagColor,
@@ -2819,7 +2830,9 @@ class _TodayTaskCard extends StatelessWidget {
               if (!task.isPersonal && task.assigneeIds.isNotEmpty) ...[
                 const SizedBox(height: AppConstants.paddingMedium),
                 Padding(
-                  padding: const EdgeInsets.only(left: 40),
+                  padding: EdgeInsets.only(
+                    left: isTablet ? 46 : 40,
+                  ),
                   child: _AssigneeAvatars(task: task),
                 ),
               ],
@@ -2840,21 +2853,28 @@ class _TimeLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accentColor = theme.colorScheme.tertiary;
+    final isTablet = Responsive.isTablet(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 14 : 10,
+        vertical: isTablet ? 8 : 6,
+      ),
       decoration: BoxDecoration(
         color: accentColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+        borderRadius: BorderRadius.circular(
+          isTablet ? AppConstants.radiusMedium : AppConstants.radiusSmall,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.schedule, size: 14, color: accentColor),
-          const SizedBox(width: 4),
+          Icon(Icons.schedule, size: isTablet ? 16 : 14, color: accentColor),
+          SizedBox(width: isTablet ? 6 : 4),
           Text(
             DateFormat('HH:mm น.').format(dateTime),
             style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: isTablet ? 14 : null,
               color: accentColor,
               fontWeight: FontWeight.w700,
             ),
@@ -2879,24 +2899,27 @@ class _TodayCompletionCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
+    final boxSize = isTablet ? 28.0 : 24.0;
+    final iconSize = isTablet ? 19.0 : 16.0;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         enableFeedback: false,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(isTablet ? 8 : 6),
         onTap: onToggle,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          width: 24,
-          height: 24,
+          width: boxSize,
+          height: boxSize,
           decoration: BoxDecoration(
             color: isCompleted
                 ? (theme.brightness == Brightness.dark
                       ? AppColors.stormySkyBlue
                       : theme.colorScheme.primary)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(isTablet ? 8 : 6),
             border: Border.all(
               color: isCompleted
                   ? (theme.brightness == Brightness.dark
@@ -2909,7 +2932,7 @@ class _TodayCompletionCheckbox extends StatelessWidget {
           child: isCompleted
               ? Icon(
                   Icons.check,
-                  size: 16,
+                  size: iconSize,
                   color: theme.brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : theme.colorScheme.onPrimary,
@@ -2938,6 +2961,7 @@ class _TodaySubtasksState extends State<_TodaySubtasks> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
     final taskProvider = context.read<TaskProvider>();
     const maxInitial = 3;
     final subtasks = widget.task.subtasks;
@@ -2988,13 +3012,16 @@ class _TodaySubtasksState extends State<_TodaySubtasks> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _TodaySubtaskCheckbox(isDone: entry.value.isDone),
-                  const SizedBox(width: AppConstants.paddingSmall),
+                  SizedBox(
+                    width: isTablet ? 12 : AppConstants.paddingSmall,
+                  ),
                   Flexible(
                     child: Text(
                       entry.value.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: isTablet ? 15 : null,
                         color: entry.value.isDone
                             ? theme.colorScheme.onSurface.withValues(alpha: 0.4)
                             : theme.colorScheme.onSurface.withValues(
@@ -3025,7 +3052,7 @@ class _TodaySubtasksState extends State<_TodaySubtasks> {
                     ? 'ย่อภารกิจย่อย'
                     : '+ อีก ${subtasks.length - maxInitial} ภารกิจย่อย',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: isTablet ? 13 : 11,
                   fontWeight: FontWeight.w600,
                   color: (theme.brightness == Brightness.dark
                       ? AppColors.stormySkyBlue
@@ -3047,18 +3074,21 @@ class _TodaySubtaskCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
+    final boxSize = isTablet ? 22.0 : 18.0;
+    final iconSize = isTablet ? 15.0 : 12.0;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      width: 18,
-      height: 18,
+      width: boxSize,
+      height: boxSize,
       decoration: BoxDecoration(
         color: isDone
             ? (theme.brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : theme.colorScheme.primary)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(isTablet ? 6 : 4),
         border: Border.all(
           color: isDone
               ? (theme.brightness == Brightness.dark
@@ -3071,7 +3101,7 @@ class _TodaySubtaskCheckbox extends StatelessWidget {
       child: isDone
           ? Icon(
               Icons.check,
-              size: 12,
+              size: iconSize,
               color: theme.brightness == Brightness.dark
                   ? AppColors.stormyNightBackground
                   : theme.colorScheme.onPrimary,
@@ -3640,14 +3670,15 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
     final hasTodayTasks = todayEntries.isNotEmpty;
     final showOverdueOnlyHeader = !hasTodayTasks && overdueEntries.isNotEmpty;
     final theme = Theme.of(context);
+    final isTablet = Responsive.isTablet(context);
 
     return Responsive.centerContent(
       context,
       Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppConstants.paddingMedium,
-          AppConstants.paddingMedium,
-          AppConstants.paddingMedium,
+        padding: EdgeInsets.fromLTRB(
+          isTablet ? 24.0 : AppConstants.paddingMedium,
+          isTablet ? 20.0 : AppConstants.paddingMedium,
+          isTablet ? 24.0 : AppConstants.paddingMedium,
           0,
         ),
         child: Column(
@@ -3680,6 +3711,7 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
                                 ? 'ภารกิจที่ยังไม่เสร็จ'
                                 : 'สิ่งที่ต้องทำวันนี้',
                             style: theme.textTheme.headlineMedium?.copyWith(
+                              fontSize: isTablet ? 24 : null,
                               color: showOverdueOnlyHeader
                                   ? Colors.redAccent
                                   : theme.colorScheme.onSurface,
@@ -3704,6 +3736,7 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
                                 ? 'ภารกิจที่ยังไม่เสร็จ'
                                 : 'สิ่งที่ต้องทำวันนี้',
                             style: theme.textTheme.headlineMedium?.copyWith(
+                              fontSize: isTablet ? 24 : null,
                               color: showOverdueOnlyHeader
                                   ? Colors.redAccent
                                   : theme.colorScheme.onSurface,

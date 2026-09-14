@@ -14,6 +14,7 @@ import '../utils/snack_bar_utils.dart';
 import '../screens/bin_screen.dart';
 import '../providers/connectivity_provider.dart';
 import '../config/constants.dart';
+import '../utils/responsive.dart';
 
 class GroupProjectCard extends StatelessWidget {
   final Task project;
@@ -44,6 +45,7 @@ class GroupProjectCard extends StatelessWidget {
     final areAllCompleted = taskProvider.areAllGroupMembersCompleted(project);
     final canMemberDelete = !isLeader && (isCompleted || areAllCompleted);
     final canShowCompleteToggle = isLeader && (isCompleted || areAllCompleted);
+    final isTablet = Responsive.isTablet(context);
 
     return GestureDetector(
       onTap: () async {
@@ -55,7 +57,7 @@ class GroupProjectCard extends StatelessWidget {
       },
       child: Container(
         margin: EdgeInsets.zero,
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(isTablet ? 24 : 20),
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
               ? AppColors.stormyDarkSlate
@@ -100,7 +102,7 @@ class GroupProjectCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: isTablet ? 22 : 18,
                             fontWeight: FontWeight.bold,
                             color: theme.colorScheme.onSurface,
                           ),
@@ -368,7 +370,7 @@ class GroupProjectCard extends StatelessWidget {
               Text(
                 project.description,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: isTablet ? 15 : 14,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
                 maxLines: 2,

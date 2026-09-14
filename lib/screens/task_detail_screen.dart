@@ -3293,10 +3293,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final canAddComments =
         !task.isDeleted && !(task.isGroup && task.isCompleted);
 
-    if (!_didInitialMainScroll || _lastMainCommentsCount != task.comments.length) {
+    if (!_didInitialMainScroll || task.comments.length > _lastMainCommentsCount) {
       _didInitialMainScroll = true;
       _lastMainCommentsCount = task.comments.length;
       _scrollMainCommentsToLatest(animated: true);
+    } else {
+      _lastMainCommentsCount = task.comments.length;
     }
 
     return Container(
@@ -3384,6 +3386,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     task.comments[index],
                     task,
                     taskProvider,
+                    scrollController: _mainCommentsScrollController,
                   );
                 },
               ),
@@ -3580,6 +3583,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                                   currentTask.comments[index],
                                                   currentTask,
                                                   taskProvider,
+                                                  scrollController:
+                                                      scrollController,
                                                 ),
                                           ),
                                   ),
@@ -3634,8 +3639,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }) {
     final theme = Theme.of(context);
     final targetFocusNode = focusNode ?? _mainCommentFocusNode;
-    return Column(
-      children: [
+    return TextFieldTapRegion(
+      child: Column(
+        children: [
         if (_commentAttachments.isNotEmpty) ...[
           SizedBox(
             height: 60,
@@ -3845,6 +3851,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               onTap: () => _addComment(
                 task,
                 taskProvider,
+                focusNode: targetFocusNode,
                 onCommentSent: onCommentSent,
                 onComposerChanged: onComposerChanged,
               ),
@@ -3864,7 +3871,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ],
         ),
       ],
-    );
+    ),
+  );
   }
 
   bool _isImageAttachment(TaskAttachment attachment) {
@@ -4039,8 +4047,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     BuildContext context,
     Task task,
     Comment comment,
-    TaskProvider taskProvider,
-  ) async {
+    TaskProvider taskProvider, {
+    ScrollController? scrollController,
+  }) async {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -4117,16 +4126,49 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
 
     if (confirmed == true) {
+      final comments = task.comments;
+      final commentIndex = comments.indexWhere((c) => c.id == comment.id);
+      final isLastComment =
+          commentIndex != -1 && commentIndex == comments.length - 1;
+
+      // Update _lastMainCommentsCount so _buildCommentsSection doesn't trigger scroll
+      _lastMainCommentsCount = comments.length - 1;
+
       await taskProvider.deleteComment(task.id, comment.id);
       _showCopyToast('ลบความคิดเห็นแล้ว');
+
+      if (scrollController != null && scrollController.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!scrollController.hasClients) return;
+          final position = scrollController.position;
+          if (isLastComment) {
+            // Smoothly glide the messages above down to bottom
+            scrollController.animateTo(
+              position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+            );
+          } else {
+            // Items below will naturally shift up. Only clamp if current offset exceeds new max
+            if (scrollController.offset > position.maxScrollExtent) {
+              scrollController.animateTo(
+                position.maxScrollExtent,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+              );
+            }
+          }
+        });
+      }
     }
   }
 
   Widget _buildCommentItem(
     Comment comment,
     Task task,
-    TaskProvider taskProvider,
-  ) {
+    TaskProvider taskProvider, {
+    ScrollController? scrollController,
+  }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final leaderId = taskProvider.leaderIdForTask(task);
@@ -4262,6 +4304,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               task,
                               comment,
                               taskProvider,
+                              scrollController: scrollController,
                             ),
                             child: Tooltip(
                               message: 'ลบความคิดเห็น',
@@ -4402,6 +4445,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void _addComment(
     Task task,
     TaskProvider taskProvider, {
+    FocusNode? focusNode,
     VoidCallback? onCommentSent,
     VoidCallback? onComposerChanged,
   }) {
@@ -4484,6 +4528,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     setState(() {
       _commentAttachments.clear();
     });
+    if (focusNode != null && !focusNode.hasFocus) {
+      focusNode.requestFocus();
+    }
     onComposerChanged?.call();
     onCommentSent?.call();
   }

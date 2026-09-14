@@ -68,18 +68,54 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   final _subtaskController = TextEditingController();
   double _lastBottomInset = 0.0;
 
-  void _scrollToSubtask({int delayMs = 100}) {
+  void _scrollToSubtask({BuildContext? targetContext, int delayMs = 100}) {
     if (!mounted) return;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(Duration(milliseconds: delayMs), () {
-        if (mounted && _subtaskKey.currentContext != null) {
+        if (!mounted) return;
+        final target = targetContext ?? _subtaskKey.currentContext;
+        if (target == null || !target.mounted) return;
+        final renderObject = target.findRenderObject();
+        final renderBox = renderObject is RenderBox ? renderObject : null;
+        if (renderBox == null || !renderBox.attached) {
           Scrollable.ensureVisible(
-            _subtaskKey.currentContext!,
+            target,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
-            alignment: 0.95,
+            alignment: 0.5,
           );
+          return;
         }
+
+        final scrollableState = Scrollable.maybeOf(target);
+        if (scrollableState == null) return;
+
+        final viewportHeight = scrollableState.position.viewportDimension;
+        final targetHeight = renderBox.size.height;
+
+        final double alignment;
+        if (viewportHeight > targetHeight) {
+          final visibleHeight = bottomInset > 0
+              ? (viewportHeight - bottomInset)
+              : viewportHeight;
+          final targetBottom = bottomInset > 0
+              ? (visibleHeight - 16)
+              : (viewportHeight - 100);
+          final targetY = (targetBottom - targetHeight)
+              .clamp(0.0, viewportHeight - targetHeight);
+          alignment =
+              (targetY / (viewportHeight - targetHeight)).clamp(0.0, 1.0);
+        } else {
+          alignment = 0.0;
+        }
+
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          alignment: alignment,
+        );
       });
     });
   }
@@ -1188,7 +1224,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _subtasks.length,
                       itemBuilder: (context, index) {
-                        final isEditingThis = _editingSubtaskIndex == index;
+                        return Builder(
+                          builder: (itemCtx) {
+                            final isEditingThis = _editingSubtaskIndex == index;
 
                         if (isEditingThis) {
                           return Container(
@@ -1230,7 +1268,10 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                     scrollPadding:
                                         const EdgeInsets.only(bottom: 24),
                                     onTap: () {
-                                      _scrollToSubtask(delayMs: 150);
+                                      _scrollToSubtask(
+                                        targetContext: itemCtx,
+                                        delayMs: 150,
+                                      );
                                       if (_inlineSubtaskController
                                               .selection.baseOffset !=
                                           _inlineSubtaskController
@@ -1375,6 +1416,10 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                           TextSelection.collapsed(
                                         offset: targetTitle.length,
                                       );
+                                      _scrollToSubtask(
+                                        targetContext: itemCtx,
+                                        delayMs: 150,
+                                      );
                                     }
                                   });
                                 },
@@ -1423,7 +1468,9 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                           ),
                         );
                       },
-                    ),
+                    );
+                  },
+                ),
                   Row(
                     key: _subtaskKey,
                     children: [
@@ -1494,12 +1541,14 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   }
 
   void _addSubtask() {
-    if (_subtaskController.text.isNotEmpty) {
+    final text = _subtaskController.text.trim();
+    if (text.isNotEmpty) {
       setState(() {
-        _subtasks.add(SubTask(title: _subtaskController.text));
+        _subtasks.add(SubTask(title: text));
         _subtaskController.clear();
         _isSubtasksExpanded = true;
       });
+      _subtaskFocusNode.requestFocus();
       _scrollToSubtask(delayMs: 80);
     }
   }
@@ -2947,6 +2996,12 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             final picked = await showTimePicker(
               context: context,
               initialTime: currentTime,
+              builder: (context, child) {
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+                  child: child!,
+                );
+              },
             );
             if (picked == null) {
               break;
@@ -3175,6 +3230,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                                             CustomRecurringModal(
                                               initialConfig:
                                                   _customRecurringConfig,
+                                              initialDate: _selectedDate,
                                             ),
                                       ),
                                     );
@@ -4318,6 +4374,12 @@ class _CustomReminderSheetContentState
             final picked = await showTimePicker(
               context: context,
               initialTime: currentTime,
+              builder: (context, child) {
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+                  child: child!,
+                );
+              },
             );
             if (picked != null) {
               final now = DateTime.now();

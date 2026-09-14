@@ -65,6 +65,7 @@ class BinScreen extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: theme.brightness == Brightness.dark
@@ -75,11 +76,16 @@ class BinScreen extends StatelessWidget {
           'ถังขยะ',
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 26 : null,
             color: theme.colorScheme.onSurface,
           ),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
+          icon: Icon(
+            Icons.arrow_back,
+            color: theme.colorScheme.onSurface,
+            size: isTablet ? 28 : 24,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -101,9 +107,12 @@ class BinScreen extends StatelessWidget {
                               ? AppColors.stormySkyBlue
                               : AppColors.primaryPink),
                   ),
-                  child: const Text(
+                  child: Text(
                     'คืนค่า',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isTablet ? 16 : 13,
+                    ),
                   ),
                 ),
                 TextButton(
@@ -115,9 +124,12 @@ class BinScreen extends StatelessWidget {
                         ? const Color(0xFFEF9A9A)
                         : AppColors.error,
                   ),
-                  child: const Text(
+                  child: Text(
                     'ล้างถังขยะ',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isTablet ? 16 : 13,
+                    ),
                   ),
                 ),
               ],
@@ -130,12 +142,15 @@ class BinScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildInfoBanner(context),
+            _buildInfoBanner(context, isTablet),
             Expanded(
               child: deletedTasks.isEmpty
-                  ? _buildEmptyState(context)
+                  ? _buildEmptyState(context, isTablet)
                   : ListView.builder(
-                      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isTablet ? 24 : AppConstants.paddingMedium,
+                        vertical: isTablet ? 16 : AppConstants.paddingMedium,
+                      ),
                       itemCount: groupedTasks.length,
                       itemBuilder: (context, index) {
                         final groupedTask = groupedTasks[index];
@@ -149,7 +164,7 @@ class BinScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoBanner(BuildContext context) {
+  Widget _buildInfoBanner(BuildContext context, bool isTablet) {
     final theme = Theme.of(context);
     final warningColor = theme.brightness == Brightness.dark
         ? const Color(0xFFFFCC80)
@@ -157,9 +172,9 @@ class BinScreen extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        vertical: AppConstants.paddingSmall,
-        horizontal: AppConstants.paddingMedium,
+      padding: EdgeInsets.symmetric(
+        vertical: isTablet ? 12 : AppConstants.paddingSmall,
+        horizontal: isTablet ? 24 : AppConstants.paddingMedium,
       ),
       color: theme.brightness == Brightness.dark
           ? AppColors.stormyDarkSlate
@@ -168,7 +183,7 @@ class BinScreen extends StatelessWidget {
         'ภารกิจในถังขยะจะถูกลบถาวรโดยอัตโนมัติหลังจาก 30 วัน',
         style: TextStyle(
           color: warningColor,
-          fontSize: 12,
+          fontSize: isTablet ? 15 : 12,
           fontWeight: FontWeight.w500,
         ),
         textAlign: TextAlign.center,
@@ -176,7 +191,7 @@ class BinScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, bool isTablet) {
     final theme = Theme.of(context);
 
     return Center(
@@ -185,15 +200,15 @@ class BinScreen extends StatelessWidget {
         children: [
           Icon(
             Icons.delete_sweep_outlined,
-            size: 80,
+            size: isTablet ? 110 : 80,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.24),
           ),
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(height: isTablet ? 20 : AppConstants.paddingMedium),
           Text(
             'ถังขยะว่างเปล่า',
             style: TextStyle(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.68),
-              fontSize: 16,
+              fontSize: isTablet ? 20 : 16,
             ),
           ),
         ],
@@ -343,6 +358,7 @@ class _DeletedTaskCard extends StatelessWidget {
     final taskProvider = context.read<TaskProvider>();
     final titleOpacity = theme.brightness == Brightness.dark ? 0.78 : 0.68;
     final subtitleOpacity = theme.brightness == Brightness.dark ? 0.62 : 0.52;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return GestureDetector(
       onTap: () {
@@ -355,13 +371,20 @@ class _DeletedTaskCard extends StatelessWidget {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppConstants.paddingSmall),
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+        margin: EdgeInsets.only(
+          bottom: isTablet ? 14 : AppConstants.paddingSmall,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : AppConstants.paddingMedium,
+          vertical: isTablet ? 16 : AppConstants.paddingMedium,
+        ),
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
               ? AppColors.stormyDarkSlate
               : theme.cardColor,
-          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          borderRadius: BorderRadius.circular(
+            isTablet ? 18 : AppConstants.radiusMedium,
+          ),
           border: Border.all(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
           ),
@@ -371,6 +394,7 @@ class _DeletedTaskCard extends StatelessWidget {
             IconButton(
               icon: Icon(
                 Icons.restore,
+                size: isTablet ? 26 : 24,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? AppColors.stormyMutedBlueGrey
                     : (Theme.of(context).brightness == Brightness.light
@@ -381,7 +405,7 @@ class _DeletedTaskCard extends StatelessWidget {
                 taskProvider.restoreTasks(groupedTask.allIds);
               },
             ),
-            const SizedBox(width: AppConstants.paddingSmall),
+            SizedBox(width: isTablet ? 12 : AppConstants.paddingSmall),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,6 +413,7 @@ class _DeletedTaskCard extends StatelessWidget {
                   Text(
                     groupedTask.displayTask.title,
                     style: theme.textTheme.titleMedium?.copyWith(
+                      fontSize: isTablet ? 18 : null,
                       color: theme.brightness == Brightness.dark
                           ? AppColors.textWhite
                           : theme.colorScheme.onSurface.withValues(
@@ -401,6 +426,7 @@ class _DeletedTaskCard extends StatelessWidget {
                     Text(
                       thaiCategoryLabel(groupedTask.displayTask.category!),
                       style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: isTablet ? 14 : null,
                         color: theme.brightness == Brightness.dark
                             ? AppColors.stormyMutedBlueGrey
                             : theme.colorScheme.onSurface.withValues(
@@ -421,6 +447,7 @@ class _DeletedTaskCard extends StatelessWidget {
               },
               icon: Icon(
                 Icons.more_vert,
+                size: isTablet ? 26 : 24,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
               ),
               itemBuilder: (context) => const [

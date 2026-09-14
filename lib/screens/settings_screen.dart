@@ -34,6 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final taskProvider = Provider.of<TaskProvider>(context);
     final user = authProvider.currentUser;
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: theme.brightness == Brightness.dark
@@ -43,34 +44,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           children: [
             // Header
-            _buildHeader(theme),
+            _buildHeader(theme, isTablet),
 
             // Settings Content
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                padding: EdgeInsets.all(
+                  isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Profile Section
-                    _buildProfileSection(user, taskProvider),
+                    _buildProfileSection(user, taskProvider, isTablet),
 
-                    const SizedBox(height: AppConstants.paddingLarge),
+                    SizedBox(
+                      height: isTablet
+                          ? AppConstants.paddingXLarge
+                          : AppConstants.paddingLarge,
+                    ),
 
                     // Stats Section
-                    _buildStatsSection(user, taskProvider, theme),
+                    _buildStatsSection(user, taskProvider, theme, isTablet),
 
-                    const SizedBox(height: AppConstants.paddingLarge),
+                    SizedBox(
+                      height: isTablet
+                          ? AppConstants.paddingXLarge
+                          : AppConstants.paddingLarge,
+                    ),
 
                     if (user != null) ...[
                       AchievementSummaryCard(user: user),
-                      const SizedBox(height: AppConstants.paddingLarge),
+                      SizedBox(
+                        height: isTablet
+                            ? AppConstants.paddingXLarge
+                            : AppConstants.paddingLarge,
+                      ),
                     ],
 
                     // Settings Sections
                     _buildSettingsSection(
                       theme: theme,
                       title: 'การตั้งค่า',
+                      isTablet: isTablet,
                       children: [
                         _buildSwitchTile(
                           theme: theme,
@@ -78,6 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: 'การแจ้งเตือน',
                           subtitle: 'รับการแจ้งเตือนภารกิจ',
                           value: user?.isNotificationEnabled ?? true,
+                          isTablet: isTablet,
                           onChanged: (value) {
                             authProvider.toggleNotification(value);
                           },
@@ -88,6 +105,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: 'โหมดมืด',
                           subtitle: 'เปลี่ยนเป็นธีมมืด',
                           value: themeProvider.isDarkMode,
+                          isTablet: isTablet,
                           onChanged: (value) {
                             themeProvider.toggleTheme(value);
                           },
@@ -98,6 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: 'เสียง',
                           subtitle: 'เปิดเสียงเอฟเฟกต์',
                           value: user?.isSoundEnabled ?? true,
+                          isTablet: isTablet,
                           onChanged: (value) {
                             authProvider.toggleSound(value);
                           },
@@ -106,6 +125,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           theme: theme,
                           icon: Icons.info_outline,
                           title: 'เกี่ยวกับแอป',
+                          isTablet: isTablet,
                           onTap: () {
                             showModalBottomSheet(
                               context: context,
@@ -118,21 +138,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
 
-                    const SizedBox(height: AppConstants.paddingLarge),
-
-                    const SizedBox(height: AppConstants.paddingLarge),
+                    SizedBox(
+                      height: isTablet
+                          ? AppConstants.paddingXLarge
+                          : AppConstants.paddingLarge,
+                    ),
 
                     // Logout Button
-                    _buildLogoutButton(authProvider),
+                    _buildLogoutButton(authProvider, isTablet),
 
-                    const SizedBox(height: AppConstants.paddingXLarge),
+                    SizedBox(
+                      height: isTablet
+                          ? AppConstants.paddingXLarge * 1.5
+                          : AppConstants.paddingXLarge,
+                    ),
 
                     // App Version
                     Center(
                       child: Text(
                         'เวอร์ชัน 1.0.0',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: isTablet ? 14 : 12,
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.5,
                           ),
@@ -150,18 +176,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, bool isTablet) {
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: EdgeInsets.all(
+        isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium,
+      ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isTablet ? 16 : 12),
             decoration: BoxDecoration(
               color: theme.brightness == Brightness.light
                   ? AppColors.stormySkyBlue
                   : AppColors.stormySkyBlue,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+              borderRadius: BorderRadius.circular(
+                isTablet ? 18 : AppConstants.radiusMedium,
+              ),
               border: theme.brightness == Brightness.dark
                   ? Border.all(color: AppColors.stormySkyBlue, width: 2)
                   : null,
@@ -171,17 +201,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: theme.brightness == Brightness.light
                   ? AppColors.textWhite
                   : AppColors.stormyNightBackground,
-              size: 24,
+              size: isTablet ? 30 : 24,
             ),
           ),
-          const SizedBox(width: AppConstants.paddingMedium),
+          SizedBox(
+            width: isTablet
+                ? AppConstants.paddingLarge
+                : AppConstants.paddingMedium,
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'ตั้งค่า',
                 style: TextStyle(
-                  fontSize: 22,
+                  fontSize: isTablet ? 28 : 22,
                   fontWeight: FontWeight.bold,
                   color: theme.brightness == Brightness.dark
                       ? Colors.white
@@ -191,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Text(
                 'จัดการการตั้งค่าของคุณ',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: isTablet ? 16 : 14,
                   fontWeight: FontWeight.normal,
                   color: theme.brightness == Brightness.dark
                       ? AppColors.stormyMutedBlueGrey
@@ -205,7 +239,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildProfileSection(User? user, TaskProvider taskProvider) {
+  Widget _buildProfileSection(
+    User? user,
+    TaskProvider taskProvider,
+    bool isTablet,
+  ) {
     final displayLevel = user?.currentLevel ?? taskProvider.currentLevel;
     final displayLevelTitle = user?.levelTitle ?? _levelTitleFor(displayLevel);
     final xpProgress = user == null || user.nextLevelPoints == 0
@@ -215,7 +253,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Stack(
       children: [
         Container(
-          padding: const EdgeInsets.all(AppConstants.paddingLarge),
+          padding: EdgeInsets.all(
+            isTablet ? 26 : AppConstants.paddingLarge,
+          ),
           decoration: BoxDecoration(
             gradient: Theme.of(context).brightness == Brightness.light
                 ? const LinearGradient(
@@ -231,7 +271,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     end: Alignment.bottomRight,
                     colors: [Color(0xFF101720), Color(0xFF384959)],
                   ),
-            borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+            borderRadius: BorderRadius.circular(
+              isTablet ? 24 : AppConstants.radiusXLarge,
+            ),
           ),
           child: Row(
             children: [
@@ -239,18 +281,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 avatarUrl: user?.avatarUrl ?? '',
                 frameId: user?.equippedFrame ?? '',
                 fallbackName: user?.name ?? '',
-                size: AppConstants.avatarXLarge,
+                size: isTablet ? 96 : AppConstants.avatarXLarge,
                 showShadow: false,
               ),
-              const SizedBox(width: AppConstants.paddingLarge),
+              SizedBox(
+                width: isTablet
+                    ? AppConstants.paddingXLarge
+                    : AppConstants.paddingLarge,
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       user?.name ?? 'ผู้ใช้',
-                      style: const TextStyle(
-                        fontSize: 20,
+                      style: TextStyle(
+                        fontSize: isTablet ? 26 : 20,
                         fontWeight: FontWeight.bold,
                         color: AppColors.textWhite,
                       ),
@@ -259,13 +305,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Text(
                       user?.email ?? '',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: isTablet ? 16 : 14,
                         color: Theme.of(context).brightness == Brightness.dark
                             ? AppColors.stormyIceBlue
                             : AppColors.textWhite.withValues(alpha: 0.8),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: isTablet ? 14 : 10),
                     // XP Progress Bar with Animation — กดเพื่อเปิดเส้นทางรางวัล
                     InkWell(
                       enableFeedback: false,
@@ -279,7 +325,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                       borderRadius: BorderRadius.circular(
-                        AppConstants.radiusSmall,
+                        isTablet
+                            ? AppConstants.radiusMedium
+                            : AppConstants.radiusSmall,
                       ),
                       splashColor: Colors.white24,
                       highlightColor: Colors.white10,
@@ -300,7 +348,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       style: TextStyle(
                                         color: Colors.amberAccent.shade100,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 15,
+                                        fontSize: isTablet ? 18 : 15,
                                         letterSpacing: 1.5,
                                         shadows: const [
                                           Shadow(
@@ -332,44 +380,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                 ? AppColors.stormySkyBlue
                                                 : AppColors.stormyDeepBlue,
                                           ),
-                                          minHeight: 6,
+                                          minHeight: isTablet ? 9 : 6,
                                         ),
                                       );
                                     },
                                   ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: isTablet ? 14 : 12),
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isTablet ? 16 : 12,
+                                    vertical: isTablet ? 6 : 4,
                                   ),
                                   decoration: BoxDecoration(
                                     color:
                                         Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withValues(alpha: 0.15)
-                                        : AppColors.backgroundWhite.withValues(
-                                            alpha: 0.2,
-                                          ),
+                                                Brightness.dark
+                                            ? Colors.white.withValues(alpha: 0.15)
+                                            : AppColors.backgroundWhite.withValues(
+                                                alpha: 0.2,
+                                              ),
                                     borderRadius: BorderRadius.circular(
-                                      AppConstants.radiusSmall,
+                                      isTablet
+                                          ? AppConstants.radiusMedium
+                                          : AppConstants.radiusSmall,
                                     ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.star,
-                                        size: 14,
+                                        size: isTablet ? 18 : 14,
                                         color: AppColors.accentYellow,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Level $displayLevel',
-                                        style: const TextStyle(
-                                          fontSize: 12,
+                                        style: TextStyle(
+                                          fontSize: isTablet ? 15 : 12,
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.textWhite,
                                         ),
@@ -380,26 +430,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 const SizedBox(width: 6),
                                 Icon(
                                   Icons.chevron_right_rounded,
-                                  size: 18,
+                                  size: isTablet ? 22 : 18,
                                   color: AppColors.textWhite.withValues(
                                     alpha: 0.6,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 6),
+                            SizedBox(height: isTablet ? 8 : 6),
                             Text(
                               displayLevelTitle,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: isTablet ? 15 : 12,
                                 fontWeight: FontWeight.w600,
                                 color:
                                     Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? AppColors.stormyIceBlue
-                                    : AppColors.textWhite.withValues(
-                                        alpha: 0.86,
-                                      ),
+                                            Brightness.dark
+                                        ? AppColors.stormyIceBlue
+                                        : AppColors.textWhite.withValues(
+                                            alpha: 0.86,
+                                          ),
                               ),
                             ),
                           ],
@@ -417,11 +467,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           right: 12,
           child: IconButton(
             tooltip: 'Edit profile',
-            icon: const Icon(Icons.edit, color: AppColors.textWhite),
+            icon: Icon(
+              Icons.edit,
+              color: AppColors.textWhite,
+              size: isTablet ? 24 : 20,
+            ),
             style: IconButton.styleFrom(
               backgroundColor: AppColors.backgroundWhite.withValues(
                 alpha: 0.18,
               ),
+              padding: EdgeInsets.all(isTablet ? 12 : 8),
             ),
             onPressed: user == null
                 ? null
@@ -442,14 +497,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     User? user,
     TaskProvider taskProvider,
     ThemeData theme,
+    bool isTablet,
   ) {
     return Container(
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      padding: EdgeInsets.all(
+        isTablet ? 26 : AppConstants.paddingLarge,
+      ),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 24 : AppConstants.radiusXLarge,
+        ),
         boxShadow: [
           BoxShadow(
             color: theme.brightness == Brightness.light
@@ -471,6 +531,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: theme.brightness == Brightness.light
                 ? AppColors.stormyMutedBlueGrey
                 : AppColors.stormySkyBlue,
+            isTablet: isTablet,
           ),
           _buildStatItem(
             theme: theme,
@@ -478,6 +539,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: '${user?.streak ?? 0}',
             label: 'วันที่ต่อเนื่อง',
             color: AppColors.accentOrange,
+            isTablet: isTablet,
           ),
           _buildStatItem(
             theme: theme,
@@ -487,6 +549,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: theme.brightness == Brightness.light
                 ? AppColors.stormySkyBlue
                 : AppColors.stormySkyBlue,
+            isTablet: isTablet,
           ),
         ],
       ),
@@ -499,21 +562,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String value,
     required String label,
     required Color color,
+    required bool isTablet,
   }) {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(isTablet ? 16 : 12),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+            borderRadius: BorderRadius.circular(
+              isTablet ? 16 : AppConstants.radiusMedium,
+            ),
           ),
-          child: Icon(icon, color: color, size: 24),
+          child: Icon(icon, color: color, size: isTablet ? 30 : 24),
         ),
-        const SizedBox(height: AppConstants.paddingSmall),
+        SizedBox(height: isTablet ? 10 : AppConstants.paddingSmall),
         Text(
           value,
-          style: theme.textTheme.headlineMedium?.copyWith(
+          style: (theme.textTheme.headlineMedium ?? const TextStyle()).copyWith(
+            fontSize: isTablet ? 32 : null,
             fontWeight: FontWeight.bold,
             color: theme.brightness == Brightness.dark ? Colors.white : null,
           ),
@@ -521,7 +588,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 2),
         Text(
           label,
-          style: theme.textTheme.bodySmall?.copyWith(
+          style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+            fontSize: isTablet ? 15 : null,
             color: theme.brightness == Brightness.dark
                 ? AppColors.stormyMutedBlueGrey
                 : null,
@@ -535,18 +603,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required ThemeData theme,
     required String title,
     required List<Widget> children,
+    required bool isTablet,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: theme.textTheme.titleLarge),
-        const SizedBox(height: AppConstants.paddingSmall),
+        Text(
+          title,
+          style: (theme.textTheme.titleLarge ?? const TextStyle()).copyWith(
+            fontSize: isTablet ? 22 : null,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: isTablet ? 12 : AppConstants.paddingSmall),
         Container(
           decoration: BoxDecoration(
             color: theme.brightness == Brightness.dark
                 ? AppColors.stormyDarkSlate
                 : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+            borderRadius: BorderRadius.circular(
+              isTablet ? 22 : AppConstants.radiusLarge,
+            ),
             boxShadow: [
               BoxShadow(
                 color: theme.brightness == Brightness.light
@@ -570,30 +647,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required bool value,
     required Function(bool) onChanged,
+    required bool isTablet,
   }) {
     return SwitchListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
-        vertical: AppConstants.paddingSmall / 2,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 20 : AppConstants.paddingMedium,
+        vertical: isTablet ? 8 : AppConstants.paddingSmall / 2,
       ),
       secondary: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(isTablet ? 12 : 8),
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.light
               ? AppColors.backgroundLightGrey
               : AppColors.stormyNightBackground,
-          borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+          borderRadius: BorderRadius.circular(
+            isTablet ? AppConstants.radiusMedium : AppConstants.radiusSmall,
+          ),
         ),
         child: Icon(
           icon,
-          size: 20,
+          size: isTablet ? 26 : 20,
           color: theme.brightness == Brightness.dark
               ? AppColors.stormyIceBlue
               : theme.colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
-      title: Text(title, style: theme.textTheme.titleMedium),
-      subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
+      title: Text(
+        title,
+        style: (theme.textTheme.titleMedium ?? const TextStyle()).copyWith(
+          fontSize: isTablet ? 18 : null,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+          fontSize: isTablet ? 14 : null,
+        ),
+      ),
       value: value,
       onChanged: onChanged,
       activeThumbColor: theme.brightness == Brightness.light
@@ -619,31 +710,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    required bool isTablet,
   }) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
-        vertical: AppConstants.paddingSmall / 2,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 20 : AppConstants.paddingMedium,
+        vertical: isTablet ? 8 : AppConstants.paddingSmall / 2,
       ),
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(isTablet ? 12 : 8),
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.light
               ? AppColors.backgroundLightGrey
               : AppColors.stormyNightBackground,
-          borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+          borderRadius: BorderRadius.circular(
+            isTablet ? AppConstants.radiusMedium : AppConstants.radiusSmall,
+          ),
         ),
         child: Icon(
           icon,
-          size: 20,
+          size: isTablet ? 26 : 20,
           color: theme.brightness == Brightness.dark
               ? AppColors.stormyIceBlue
               : theme.colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
-      title: Text(title, style: theme.textTheme.titleMedium),
+      title: Text(
+        title,
+        style: (theme.textTheme.titleMedium ?? const TextStyle()).copyWith(
+          fontSize: isTablet ? 18 : null,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       trailing: Icon(
         Icons.chevron_right,
+        size: isTablet ? 26 : 20,
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyMutedBlueGrey
             : theme.colorScheme.onSurface.withValues(alpha: 0.3),
@@ -731,7 +832,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildLogoutButton(AuthProvider authProvider) {
+  Widget _buildLogoutButton(AuthProvider authProvider, bool isTablet) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -751,12 +852,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onPressed: () {
           _showLogoutConfirmationDialog(context, authProvider);
         },
-        icon: Icon(Icons.logout_rounded, size: 20, color: primaryColor),
+        icon: Icon(
+          Icons.logout_rounded,
+          size: isTablet ? 24 : 20,
+          color: primaryColor,
+        ),
         label: Text(
           'ออกจากระบบ',
           style: TextStyle(
             color: primaryColor,
-            fontSize: 15,
+            fontSize: isTablet ? 18 : 15,
             fontWeight: FontWeight.w600,
           ),
         ),

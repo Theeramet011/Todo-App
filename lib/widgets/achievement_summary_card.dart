@@ -18,12 +18,15 @@ class AchievementSummaryCard extends StatelessWidget {
     final evaluation = evaluateAchievements(user);
     final unlockedCount = evaluation.unlockedCount;
     final totalCount = evaluation.totalCount;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         enableFeedback: false,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 24 : AppConstants.radiusXLarge,
+        ),
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -32,12 +35,16 @@ class AchievementSummaryCard extends StatelessWidget {
           );
         },
         child: Ink(
-          padding: const EdgeInsets.all(AppConstants.paddingMedium),
+          padding: EdgeInsets.all(
+            isTablet ? 22 : AppConstants.paddingMedium,
+          ),
           decoration: BoxDecoration(
             color: theme.brightness == Brightness.dark
                 ? AppColors.stormyDarkSlate
                 : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+            borderRadius: BorderRadius.circular(
+              isTablet ? 24 : AppConstants.radiusXLarge,
+            ),
             boxShadow: [
               BoxShadow(
                 color: theme.brightness == Brightness.light
@@ -56,7 +63,8 @@ class AchievementSummaryCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       '🏅 ตราความสำเร็จ',
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: (theme.textTheme.titleMedium ?? const TextStyle()).copyWith(
+                        fontSize: isTablet ? 20 : 16,
                         fontWeight: FontWeight.bold,
                         color: theme.brightness == Brightness.dark
                             ? Colors.white
@@ -66,7 +74,8 @@ class AchievementSummaryCard extends StatelessWidget {
                   ),
                   Text(
                     '$unlockedCount/$totalCount',
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style: (theme.textTheme.titleMedium ?? const TextStyle()).copyWith(
+                      fontSize: isTablet ? 20 : 16,
                       fontWeight: FontWeight.bold,
                       color: theme.brightness == Brightness.dark
                           ? AppColors.stormySkyBlue
@@ -76,23 +85,30 @@ class AchievementSummaryCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Icon(
                     Icons.chevron_right,
+                    size: isTablet ? 26 : 20,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
                   ),
                 ],
               ),
-              const SizedBox(height: AppConstants.paddingMedium),
+              SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
               if (evaluation.unlocked.isEmpty)
-                Text('ยังไม่มีตราที่ปลดล็อก', style: theme.textTheme.bodySmall)
+                Text(
+                  'ยังไม่มีตราที่ปลดล็อก',
+                  style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                    fontSize: isTablet ? 15 : null,
+                  ),
+                )
               else
                 Row(
                   children: evaluation.unlocked.take(4).map((item) {
                     return Padding(
-                      padding: const EdgeInsets.only(
-                        right: AppConstants.paddingSmall,
+                      padding: EdgeInsets.only(
+                        right: isTablet ? 12 : AppConstants.paddingSmall,
                       ),
                       child: _AchievementPreviewIcon(
                         achievement: item.achievement,
                         isUnlocked: true,
+                        size: isTablet ? 54 : 42,
                       ),
                     );
                   }).toList(),
@@ -108,10 +124,12 @@ class AchievementSummaryCard extends StatelessWidget {
 class _AchievementPreviewIcon extends StatelessWidget {
   final Achievement achievement;
   final bool isUnlocked;
+  final double size;
 
   const _AchievementPreviewIcon({
     required this.achievement,
     required this.isUnlocked,
+    this.size = 42,
   });
 
   @override
@@ -123,8 +141,8 @@ class _AchievementPreviewIcon extends StatelessWidget {
         : theme.colorScheme.onSurface.withValues(alpha: 0.34);
 
     return Container(
-      width: 42,
-      height: 42,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color:
             (isUnlocked && achievement.unlockedImagePath != null) ||
@@ -133,7 +151,9 @@ class _AchievementPreviewIcon extends StatelessWidget {
             : isUnlocked
             ? achievement.color.withValues(alpha: 0.12)
             : theme.colorScheme.onSurface.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        borderRadius: BorderRadius.circular(
+          size > 45 ? 14 : AppConstants.radiusMedium,
+        ),
       ),
       child: _buildPreviewImageOrIcon(foregroundColor),
     );

@@ -37,6 +37,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final taskProvider = Provider.of<TaskProvider>(context);
     final tasksByDate = _getTasksByDate(taskProvider.tasks);
     final selectedTasks = taskProvider.getTasksForDate(_selectedDay);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
@@ -46,7 +47,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Column(
           children: [
             // Header
-            _buildHeader(context),
+            _buildHeader(context, isTablet),
 
             // Calendar
             CalendarWidget(
@@ -80,19 +81,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
               child: Container(
                 width: double.infinity,
                 alignment: Alignment.center,
-                padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
+                padding: EdgeInsets.only(
+                  bottom: isTablet ? 12.0 : 8.0,
+                  top: isTablet ? 6.0 : 4.0,
+                ),
                 child: Icon(
                   _calendarFormat == CalendarFormat.month
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
                   color: Colors.grey,
-                  size: 28,
+                  size: isTablet ? 34 : 28,
                 ),
               ),
             ),
 
             // Selected Date Info
-            _buildSelectedDateInfo(),
+            _buildSelectedDateInfo(isTablet),
 
             // Daily Timeline
             Expanded(
@@ -123,34 +127,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isTablet) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      padding: EdgeInsets.all(
+        isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium,
+      ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isTablet ? 16 : 12),
             decoration: BoxDecoration(
               color: theme.brightness == Brightness.light
                   ? AppColors.stormySkyBlue
                   : AppColors.stormySkyBlue,
-              borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+              borderRadius: BorderRadius.circular(
+                isTablet ? 18 : AppConstants.radiusMedium,
+              ),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.calendar_month,
               color: AppColors.textWhite,
-              size: 24,
+              size: isTablet ? 30 : 24,
             ),
           ),
-          const SizedBox(width: AppConstants.paddingMedium),
+          SizedBox(
+            width: isTablet
+                ? AppConstants.paddingLarge
+                : AppConstants.paddingMedium,
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'ปฏิทิน',
                 style: TextStyle(
-                  fontSize: 22,
+                  fontSize: isTablet ? 28 : 22,
                   fontWeight: FontWeight.bold,
                   color: theme.brightness == Brightness.dark
                       ? Colors.white
@@ -160,7 +172,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Text(
                 'จัดการตารางเวลาของคุณ',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: isTablet ? 16 : 14,
                   color: theme.brightness == Brightness.dark
                       ? AppColors.stormyMutedBlueGrey
                       : AppColors.textSecondary,
@@ -173,40 +185,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildSelectedDateInfo() {
+  Widget _buildSelectedDateInfo(bool isTablet) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppConstants.paddingLarge,
-        vertical: AppConstants.paddingSmall,
+        vertical: isTablet ? 12 : AppConstants.paddingSmall,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.paddingMedium,
-              vertical: AppConstants.paddingSmall / 2,
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 18 : AppConstants.paddingMedium,
+              vertical: isTablet ? 8 : AppConstants.paddingSmall / 2,
             ),
             decoration: BoxDecoration(
               // ignore: deprecated_member_use
               color: Theme.of(context).brightness == Brightness.light
                   ? AppColors.stormyIceBlue
                   : AppColors.stormySkyBlue,
-              borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+              borderRadius: BorderRadius.circular(
+                isTablet ? AppConstants.radiusMedium : AppConstants.radiusSmall,
+              ),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.event,
-                  size: 16,
+                  size: isTablet ? 20 : 16,
                   color: Theme.of(context).brightness == Brightness.light
                       ? AppColors.stormyDarkSlate
                       : AppColors.stormyNightBackground,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: isTablet ? 10 : 8),
                 Text(
                   _formatSelectedDate(_selectedDay),
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: isTablet ? 16 : 14,
                     fontWeight: FontWeight.w600,
                     color: Theme.of(context).brightness == Brightness.light
                         ? AppColors.stormyDarkSlate
