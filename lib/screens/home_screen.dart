@@ -29,6 +29,7 @@ import 'settings_screen.dart';
 import 'task_detail_screen.dart';
 import 'task_search_delegate.dart';
 import '../widgets/group_project_card.dart';
+import '../widgets/priority_tag.dart';
 import '../utils/snack_bar_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -46,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   void _showXPLimitDialog(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -53,50 +56,50 @@ class _HomeScreenState extends State<HomeScreen> {
         final theme = Theme.of(context);
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(isTablet ? 28 : 24),
           ),
           elevation: 10,
           backgroundColor: theme.colorScheme.surface,
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: EdgeInsets.all(isTablet ? 30.0 : 24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(isTablet ? 18 : 16),
                   decoration: BoxDecoration(
                     color: AppColors.accentOrange.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.warning_amber_rounded,
                     color: AppColors.accentOrange,
-                    size: 48,
+                    size: isTablet ? 54 : 48,
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: isTablet ? 24 : 20),
                 Text(
                   'Daily XP Cap Reached',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: isTablet ? 22 : 20,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: isTablet ? 14 : 12),
                 Text(
                   'ขณะนี้ท่านมีคะแนนที่ได้จากภารกิจกลุ่มต่อเนื่องถึง 270 แต้มแล้วการสร้างภารกิจหลังจากนี้ท่านจะไม่ได้รับแต้มอีก',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: isTablet ? 16 : 14.5,
                     height: 1.5,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: isTablet ? 28 : 24),
                 SizedBox(
                   width: double.infinity,
-                  height: 54,
+                  height: isTablet ? 58 : 54,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
@@ -106,14 +109,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               ? AppColors.stormyNightBackground
                               : Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(isTablet ? 16 : 14),
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
+                    child: Text(
                       'รับทราบ',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: isTablet ? 20 : 18,
                         height: 1.1,
                         fontWeight: FontWeight.w800,
                       ),
@@ -226,11 +229,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      // FAB for Mobile and Tablet (shown at bottom right)
-      floatingActionButton: (!Responsive.isDesktop(context) && _currentIndex != 2)
+      // FAB for Mobile, Tablet, and Desktop (always shown at bottom right)
+      floatingActionButton: (_currentIndex != 2)
           ? SizedBox(
-              width: Responsive.isTablet(context) ? 76 : 64,
-              height: Responsive.isTablet(context) ? 76 : 64,
+              width: (Responsive.isTablet(context) ||
+                      Responsive.isDesktop(context))
+                  ? 76
+                  : 64,
+              height: (Responsive.isTablet(context) ||
+                      Responsive.isDesktop(context))
+                  ? 76
+                  : 64,
               child: FloatingActionButton(
                 key: TutorialService.fabKey,
                 onPressed: () => _showCreateTaskModal(),
@@ -239,7 +248,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 shape: const CircleBorder(),
                 child: Icon(
                   Icons.add,
-                  size: Responsive.isTablet(context) ? 38 : 32,
+                  size: (Responsive.isTablet(context) ||
+                          Responsive.isDesktop(context))
+                      ? 38
+                      : 32,
                   color: AppColors.stormyDarkSlate,
                 ),
               ),
@@ -271,11 +283,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showOfflineDialog(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต'),
-        content: const Text('กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อดำเนินการนี้'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          'ไม่มีการเชื่อมต่ออินเทอร์เน็ต',
+          style: TextStyle(
+            fontSize: isTablet ? 22 : 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อดำเนินการนี้',
+          style: TextStyle(fontSize: isTablet ? 16 : 14.5),
+        ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
@@ -284,11 +307,21 @@ class _HomeScreenState extends State<HomeScreen> {
               foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? AppColors.stormyNightBackground
                   : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 22 : 18,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(10.0),
               ),
             ),
-            child: const Text('ตกลง'),
+            child: Text(
+              'ตกลง',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -528,8 +561,9 @@ class _TasksTabState extends State<_TasksTab>
   Widget _buildTabBar() {
     final theme = Theme.of(context);
     final isTablet = Responsive.isTablet(context);
+    final isLandscape = Responsive.isLandscape(context);
 
-    return Container(
+    final tabBarWidget = Container(
       margin: EdgeInsets.symmetric(
         horizontal: isTablet ? 24.0 : AppConstants.paddingMedium,
       ),
@@ -554,9 +588,7 @@ class _TasksTabState extends State<_TasksTab>
           if (states.contains(WidgetState.pressed) ||
               states.contains(WidgetState.hovered) ||
               states.contains(WidgetState.focused)) {
-            return theme.brightness == Brightness.dark
-                ? AppColors.stormySkyBlue.withValues(alpha: 0.1)
-                : AppColors.stormySkyBlue.withValues(alpha: 0.1);
+            return AppColors.stormySkyBlue.withValues(alpha: 0.1);
           }
           return Colors.transparent;
         }),
@@ -604,6 +636,17 @@ class _TasksTabState extends State<_TasksTab>
         ],
       ),
     );
+
+    if (isLandscape && (isTablet || Responsive.isDesktop(context))) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: tabBarWidget,
+        ),
+      );
+    }
+
+    return tabBarWidget;
   }
 }
 
@@ -691,6 +734,8 @@ class NotificationItem {
   final String? friendRequestId;
   final String? actorAvatarUrl;
   final String? actorName;
+  final String? notificationKey;
+  final List<String> duplicateDocIds;
   bool isRemoving;
 
   NotificationItem({
@@ -705,9 +750,12 @@ class NotificationItem {
     this.friendRequestId,
     this.actorAvatarUrl,
     this.actorName,
+    this.notificationKey,
+    List<String>? duplicateDocIds,
     this.isUnread = false,
     this.isRemoving = false,
-  }) : createdAt = createdAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now(),
+        duplicateDocIds = duplicateDocIds ?? [];
 
   bool get showsAvatar {
     final normalizedTag = tag.toLowerCase();
@@ -749,6 +797,7 @@ class NotificationItem {
       friendRequestId: data['friendRequestId']?.toString(),
       actorAvatarUrl: data['actorAvatarUrl']?.toString(),
       actorName: data['actorName']?.toString(),
+      notificationKey: data['notificationKey']?.toString(),
       isUnread: data['isRead'] != true,
       isRemoving: removingIds.contains(doc.id),
     );
@@ -931,46 +980,73 @@ class _NotificationPanelState extends State<NotificationPanel> {
       builder: (dialogContext) {
         final theme = Theme.of(dialogContext);
         final isDark = theme.brightness == Brightness.dark;
+        final isTablet = MediaQuery.of(dialogContext).size.width >= 600;
         return AlertDialog(
           backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
           ),
           title: Text(
             'ลบการแจ้งเตือนทั้งหมด?',
             style: TextStyle(
               color: AppColors.error,
               fontWeight: FontWeight.w800,
+              fontSize: isTablet ? 22 : 18,
             ),
           ),
           content: Text(
             'คุณต้องการลบการแจ้งเตือนทั้งหมดไหม',
             style: TextStyle(
+              fontSize: isTablet ? 16 : 14.5,
               color: isDark
                   ? AppColors.stormyIceBlue
                   : theme.colorScheme.onSurface.withValues(alpha: 0.72),
             ),
           ),
+          actionsPadding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20 : 16,
+            vertical: isTablet ? 16 : 12,
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
               style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 18 : 14,
+                  vertical: isTablet ? 12 : 10,
+                ),
                 foregroundColor: isDark
                     ? AppColors.stormySkyBlue
                     : AppColors.stormyMutedBlueGrey,
               ),
-              child: const Text('ยกเลิก'),
+              child: Text(
+                'ยกเลิก',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
               style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
                 foregroundColor: AppColors.error,
                 backgroundColor: AppColors.error.withValues(alpha: 0.15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('ลบทั้งหมด'),
+              child: Text(
+                'ลบทั้งหมด',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         );
@@ -1045,11 +1121,14 @@ class _NotificationPanelState extends State<NotificationPanel> {
       DateTime.now().add(const Duration(days: 7)),
     );
     for (final item in items.take(500)) {
-      batch.set(ref.doc(item.id), {
-        'isRead': true,
-        'deletedAt': deletedAt,
-        'expireAt': expireAt,
-      }, SetOptions(merge: true));
+      final allIds = [item.id, ...item.duplicateDocIds];
+      for (final docId in allIds) {
+        batch.set(ref.doc(docId), {
+          'isRead': true,
+          'deletedAt': deletedAt,
+          'expireAt': expireAt,
+        }, SetOptions(merge: true));
+      }
     }
 
     try {
@@ -1105,7 +1184,28 @@ class _NotificationPanelState extends State<NotificationPanel> {
         )
         .toList();
     items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return items;
+
+    final deduped = <NotificationItem>[];
+    for (final item in items) {
+      final existingIndex = deduped.indexWhere((existing) {
+        if (item.notificationKey != null &&
+            existing.notificationKey != null &&
+            item.notificationKey == existing.notificationKey) {
+          return true;
+        }
+        return existing.sender == item.sender &&
+            existing.message == item.message &&
+            existing.createdAt.difference(item.createdAt).abs().inMinutes < 15;
+      });
+
+      if (existingIndex != -1) {
+        deduped[existingIndex].duplicateDocIds.add(item.id);
+      } else {
+        deduped.add(item);
+      }
+    }
+
+    return deduped;
   }
 
   void _undoClearAll() {
@@ -1154,30 +1254,37 @@ class _NotificationPanelState extends State<NotificationPanel> {
       );
       return;
     }
+    final allIds = [item.id, ...item.duplicateDocIds];
     if (_removingNotificationIds.contains(item.id)) return;
 
     setState(() {
-      _removingNotificationIds.add(item.id);
+      _removingNotificationIds.addAll(allIds);
     });
 
     _removeTimers[item.id] = Timer(const Duration(seconds: 5), () async {
       final ref = _notificationsRef();
       if (ref != null) {
         try {
-          await ref.doc(item.id).set({
-            'isRead': true,
-            'deletedAt': FieldValue.serverTimestamp(),
-            'expireAt': Timestamp.fromDate(
-              DateTime.now().add(const Duration(days: 7)),
-            ),
-          }, SetOptions(merge: true));
+          final batch = FirebaseFirestore.instance.batch();
+          final deletedAt = FieldValue.serverTimestamp();
+          final expireAt = Timestamp.fromDate(
+            DateTime.now().add(const Duration(days: 7)),
+          );
+          for (final docId in allIds) {
+            batch.set(ref.doc(docId), {
+              'isRead': true,
+              'deletedAt': deletedAt,
+              'expireAt': expireAt,
+            }, SetOptions(merge: true));
+          }
+          await batch.commit();
         } catch (error) {
           debugPrint('Failed to remove notification ${item.id}: $error');
         }
       }
       if (!mounted) return;
       setState(() {
-        _removingNotificationIds.remove(item.id);
+        _removingNotificationIds.removeAll(allIds);
         _removeTimers.remove(item.id);
       });
     });
@@ -1185,8 +1292,9 @@ class _NotificationPanelState extends State<NotificationPanel> {
 
   void _undoRemoveItem(NotificationItem item) {
     _removeTimers.remove(item.id)?.cancel();
+    final allIds = [item.id, ...item.duplicateDocIds];
     setState(() {
-      _removingNotificationIds.remove(item.id);
+      _removingNotificationIds.removeAll(allIds);
     });
   }
 
@@ -1194,19 +1302,31 @@ class _NotificationPanelState extends State<NotificationPanel> {
     final currentUserId = context.read<AuthProvider>().currentUser?.id;
     if (currentUserId == null) return;
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserId)
-        .collection('notifications')
-        .doc(item.id)
-        .update({
+    final allIds = [item.id, ...item.duplicateDocIds];
+    final batch = FirebaseFirestore.instance.batch();
+    for (final docId in allIds) {
+      batch.set(
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUserId)
+            .collection('notifications')
+            .doc(docId),
+        {
           'isRead': true,
           'readAt': FieldValue.serverTimestamp(),
           'deletedAt': FieldValue.serverTimestamp(),
           'expireAt': Timestamp.fromDate(
             DateTime.now().add(const Duration(days: 7)),
           ),
-        });
+        },
+        SetOptions(merge: true),
+      );
+    }
+    try {
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Failed to mark notification read: $e');
+    }
   }
 
   Future<void> _acceptFriendRequestNotification(NotificationItem item) async {
@@ -1361,6 +1481,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final stream = _notificationsStream();
 
     return Container(
@@ -1402,8 +1523,8 @@ class _NotificationPanelState extends State<NotificationPanel> {
                       Center(
                         child: Container(
                           margin: const EdgeInsets.only(top: 12),
-                          width: 40,
-                          height: 4,
+                          width: isTablet ? 56 : 40,
+                          height: isTablet ? 5 : 4,
                           decoration: BoxDecoration(
                             color: theme.brightness == Brightness.light
                                 ? (Theme.of(context).brightness ==
@@ -1424,14 +1545,14 @@ class _NotificationPanelState extends State<NotificationPanel> {
                             Text(
                               'การแจ้งเตือน',
                               style: TextStyle(
-                                fontSize: 22,
+                                fontSize: isTablet ? 26 : 22,
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.onSurface,
                               ),
                             ),
                             if (notifications.isNotEmpty && !_isClearingAll)
                               Padding(
-                                padding: const EdgeInsets.only(right: 32),
+                                padding: EdgeInsets.only(right: isTablet ? 40 : 32),
                                 child: TextButton(
                                   onPressed: () =>
                                       _confirmClearAll(notifications),
@@ -1439,6 +1560,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                                     'ลบทั้งหมด',
                                     style: TextStyle(
                                       color: AppColors.stormySkyBlue,
+                                      fontSize: isTablet ? 17 : 15,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -1455,7 +1577,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                             'ข้อความแจ้งเตือนจะถูกลบถาวรโดยอัตโนมัติหลังจาก 30 วัน',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: isTablet ? 14 : 12.5,
                               color: theme.brightness == Brightness.dark
                                   ? AppColors.stormyMutedBlueGrey
                                   : AppColors.textSecondary.withValues(alpha: 0.75),
@@ -1467,11 +1589,12 @@ class _NotificationPanelState extends State<NotificationPanel> {
                     ],
                   ),
                   Positioned(
-                    top: 15,
-                    right: 15,
+                    top: isTablet ? 18 : 15,
+                    right: isTablet ? 18 : 15,
                     child: IconButton(
                       icon: Icon(
                         Icons.close,
+                        size: isTablet ? 26 : 22,
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.5,
                         ),
@@ -1510,6 +1633,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
 
   Widget _buildEmptyStateView(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -1517,7 +1641,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(25),
+            padding: EdgeInsets.all(isTablet ? 30 : 25),
             decoration: BoxDecoration(
               color: theme.brightness == Brightness.dark
                   ? AppColors.stormyDarkSlate
@@ -1526,7 +1650,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
             ),
             child: Icon(
               Icons.notifications_none_outlined,
-              size: 80,
+              size: isTablet ? 96 : 80,
               color: AppColors.stormySkyBlue,
             ),
           ),
@@ -1534,7 +1658,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
           Text(
             "คุณตามทันทุกการแจ้งเตือนแล้ว",
             style: TextStyle(
-              fontSize: 20,
+              fontSize: isTablet ? 24 : 20,
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
             ),
@@ -1543,13 +1667,13 @@ class _NotificationPanelState extends State<NotificationPanel> {
           Text(
             "ไม่มีการแจ้งเตือนใหม่ในขณะนี้",
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isTablet ? 16 : 14,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 40),
           SizedBox(
-            width: 140,
+            width: isTablet ? 160 : 140,
             child: ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
@@ -1558,14 +1682,17 @@ class _NotificationPanelState extends State<NotificationPanel> {
                     ? AppColors.stormyNightBackground
                     : Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: EdgeInsets.symmetric(vertical: isTablet ? 18 : 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'ตกลง',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 18 : 16,
+                ),
               ),
             ),
           ),
@@ -1630,10 +1757,14 @@ class _NotificationPanelState extends State<NotificationPanel> {
   Widget _buildClearAllUndoBanner() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 24 : 20,
+        vertical: isTablet ? 14 : 12,
+      ),
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.1)
@@ -1649,6 +1780,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
           Text(
             'ลบการแจ้งเตือนทั้งหมดแล้ว',
             style: TextStyle(
+              fontSize: isTablet ? 16 : 14,
               color: isDark
                   ? Colors.white
                   : (Theme.of(context).brightness == Brightness.light
@@ -1662,6 +1794,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
             child: Text(
               'เลิกทำ',
               style: TextStyle(
+                fontSize: isTablet ? 16 : 14,
                 color: isDark
                     ? AppColors.stormySkyBlue
                     : AppColors.stormyDarkSlate,
@@ -1677,11 +1810,12 @@ class _NotificationPanelState extends State<NotificationPanel> {
   Widget _buildUndoPlaceholderCard(NotificationItem item) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Container(
-      height: 90, // Roughly the same height as a normal card
+      height: isTablet ? 100 : 90, // Roughly the same height as a normal card
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 20),
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.1)
@@ -1697,6 +1831,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
           Text(
             'ลบการแจ้งเตือนแล้ว',
             style: TextStyle(
+              fontSize: isTablet ? 16 : 14,
               color: isDark
                   ? Colors.white70
                   : (Theme.of(context).brightness == Brightness.light
@@ -1710,6 +1845,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
             child: Text(
               'เลิกทำ',
               style: TextStyle(
+                fontSize: isTablet ? 16 : 14,
                 color: isDark
                     ? AppColors.stormySkyBlue
                     : AppColors.stormyDarkSlate,
@@ -1724,6 +1860,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
 
   Widget _buildNotificationCard(NotificationItem item) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final avatarUrl = item.actorAvatarUrl ?? '';
     final avatarName = (item.actorName?.isNotEmpty ?? false)
         ? item.actorName!
@@ -1744,7 +1881,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isTablet ? 20 : 16),
         decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
               ? AppColors.stormyDarkSlate
@@ -1768,8 +1905,8 @@ class _NotificationPanelState extends State<NotificationPanel> {
           children: [
             if (item.showsAvatar) ...[
               Container(
-                width: 50,
-                height: 50,
+                width: isTablet ? 54 : 50,
+                height: isTablet ? 54 : 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.stormySkyBlue.withValues(alpha: 0.12),
@@ -1783,8 +1920,9 @@ class _NotificationPanelState extends State<NotificationPanel> {
                             return Center(
                               child: Text(
                                 avatarName.isEmpty ? '?' : avatarName[0],
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.stormySkyBlue,
+                                  fontSize: isTablet ? 20 : 16,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -1794,15 +1932,16 @@ class _NotificationPanelState extends State<NotificationPanel> {
                       : Center(
                           child: Text(
                             avatarName.isEmpty ? '?' : avatarName[0],
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.stormySkyBlue,
+                              fontSize: isTablet ? 20 : 16,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
                 ),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: isTablet ? 16 : 14),
             ],
             Expanded(
               child: Column(
@@ -1815,7 +1954,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                           item.sender,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: isTablet ? 18 : 16,
                             color: theme.colorScheme.onSurface,
                           ),
                           maxLines: 2,
@@ -1825,9 +1964,9 @@ class _NotificationPanelState extends State<NotificationPanel> {
                       if (item.isUnread) ...[
                         const SizedBox(width: 6),
                         Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
+                          width: isTablet ? 10 : 8,
+                          height: isTablet ? 10 : 8,
+                          decoration: const BoxDecoration(
                             color: AppColors.stormySkyBlue,
                             shape: BoxShape.circle,
                           ),
@@ -1839,7 +1978,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                   Text(
                     item.message,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: isTablet ? 15 : 13.5,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       height: 1.4,
                     ),
@@ -1878,18 +2017,18 @@ class _NotificationPanelState extends State<NotificationPanel> {
                                         ? AppColors.stormyNightBackground
                                         : Colors.white,
                                 elevation: 0,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
+                                padding: EdgeInsets.symmetric(
+                                  vertical: isTablet ? 10 : 8,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'ยอมรับ',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 12,
+                                  fontSize: isTablet ? 15 : 13,
                                 ),
                               ),
                             ),
@@ -1910,18 +2049,18 @@ class _NotificationPanelState extends State<NotificationPanel> {
                                     alpha: 0.14,
                                   ),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
+                                padding: EdgeInsets.symmetric(
+                                  vertical: isTablet ? 10 : 8,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'ปฏิเสธ',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 12,
+                                  fontSize: isTablet ? 15 : 13,
                                 ),
                               ),
                             ),
@@ -1939,15 +2078,15 @@ class _NotificationPanelState extends State<NotificationPanel> {
                 Text(
                   _formatRelativeTime(item.createdAt),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: isTablet ? 13 : 11.5,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                 ),
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 10 : 8,
+                    vertical: isTablet ? 5 : 4,
                   ),
                   decoration: BoxDecoration(
                     color: item.tagColor.withValues(
@@ -1959,7 +2098,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                     thaiNotificationTag(item.tag),
                     style: TextStyle(
                       color: item.tagColor,
-                      fontSize: 10.5,
+                      fontSize: isTablet ? 13 : 11.5,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1968,7 +2107,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                   const SizedBox(height: 10),
                   Icon(
                     Icons.chevron_right_rounded,
-                    size: 18,
+                    size: isTablet ? 22 : 18,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
                   ),
                 ],
@@ -2030,15 +2169,23 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
       if (pendingResult == null &&
           latestTask.subtasks.isNotEmpty &&
           latestTask.subtasks.any((s) => !s.isDone)) {
+        final isTablet = MediaQuery.of(context).size.width >= 600;
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('ไม่สามารถเสร็จสิ้นภารกิจได้'),
-            content: const Text(
+            title: Text(
+              'ไม่สามารถเสร็จสิ้นภารกิจได้',
+              style: TextStyle(
+                fontSize: isTablet ? 22 : 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
               'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
+              style: TextStyle(fontSize: isTablet ? 16 : 14.5),
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: BorderRadius.circular(18.0),
             ),
             actions: [
               ElevatedButton(
@@ -2049,11 +2196,21 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
                       Theme.of(context).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 22 : 18,
+                    vertical: isTablet ? 12 : 10,
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
+                    borderRadius: BorderRadius.circular(10.0),
                   ),
                 ),
-                child: const Text('ตกลง'),
+                child: Text(
+                  'ตกลง',
+                  style: TextStyle(
+                    fontSize: isTablet ? 16 : 14.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -2207,6 +2364,29 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
     return entries;
   }
 
+  Widget _buildTaskItemWidget(
+    _TodayTaskListEntry entry, {
+    double bottomSpacing = AppConstants.paddingMedium,
+  }) {
+    return _CompletingTaskListItem(
+      key: ValueKey(
+        'personal-${entry.task.id}-${entry.isExiting}-${entry.isOverdue}',
+      ),
+      isExiting: entry.isExiting,
+      bottomSpacing: bottomSpacing,
+      child: _TodayTaskCard(
+        task: entry.task,
+        onToggleComplete: (task, {pendingResult}) => _handleToggleComplete(
+          task,
+          isOverdue: entry.isOverdue,
+          pendingResult: pendingResult,
+        ),
+        isCompleted: entry.task.isCompleted,
+        isOverdue: entry.isOverdue,
+      ),
+    );
+  }
+
   List<Widget> _buildDashboardItems({
     required List<_TodayTaskListEntry> todayEntries,
     required List<_TodayTaskListEntry> overdueEntries,
@@ -2216,22 +2396,9 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
 
     void addTaskEntry(_TodayTaskListEntry entry, bool isLast) {
       items.add(
-        _CompletingTaskListItem(
-          key: ValueKey(
-            'personal-${entry.task.id}-${entry.isExiting}-${entry.isOverdue}',
-          ),
-          isExiting: entry.isExiting,
+        _buildTaskItemWidget(
+          entry,
           bottomSpacing: isLast ? 0 : AppConstants.paddingMedium,
-          child: _TodayTaskCard(
-            task: entry.task,
-            onToggleComplete: (task, {pendingResult}) => _handleToggleComplete(
-              task,
-              isOverdue: entry.isOverdue,
-              pendingResult: pendingResult,
-            ),
-            isCompleted: entry.task.isCompleted,
-            isOverdue: entry.isOverdue,
-          ),
         ),
       );
     }
@@ -2252,6 +2419,269 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
     }
 
     return items;
+  }
+
+  Widget _buildLandscapeLayout({
+    required BuildContext context,
+    required List<_TodayTaskListEntry> todayEntries,
+    required List<_TodayTaskListEntry> overdueEntries,
+    required ThemeData theme,
+  }) {
+    final hasToday = todayEntries.isNotEmpty;
+    final hasOverdue = overdueEntries.isNotEmpty;
+
+    if (!hasToday && !hasOverdue) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Text(
+            'สิ่งที่ต้องทำวันนี้',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontSize: 24,
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          const SizedBox(
+            height: 300,
+            child: _TodayEmptyState(),
+          ),
+        ],
+      );
+    }
+
+    // กรณีมีทั้งงานวันนี้และงานค้าง -> แบ่งซ้ายขวา 50:50
+    if (hasToday && hasOverdue) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ฝั่งซ้าย: สิ่งที่ต้องทำวันนี้
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'สิ่งที่ต้องทำวันนี้',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontSize: 22,
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.stormySkyBlue.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${todayEntries.length}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.stormySkyBlue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.paddingMedium),
+                Expanded(
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(
+                      bottom: AppConstants.paddingXLarge,
+                    ),
+                    itemCount: todayEntries.length,
+                    itemBuilder: (context, index) => _buildTaskItemWidget(
+                      todayEntries[index],
+                      bottomSpacing: index == todayEntries.length - 1
+                          ? 0
+                          : AppConstants.paddingMedium,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 20),
+          // ฝั่งขวา: ภารกิจที่ยังไม่เสร็จ
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'ภารกิจที่ยังไม่เสร็จ',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontSize: 22,
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${overdueEntries.length}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.paddingMedium),
+                Expanded(
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(
+                      bottom: AppConstants.paddingXLarge,
+                    ),
+                    itemCount: overdueEntries.length,
+                    itemBuilder: (context, index) => _buildTaskItemWidget(
+                      overdueEntries[index],
+                      bottomSpacing: index == overdueEntries.length - 1
+                          ? 0
+                          : AppConstants.paddingMedium,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // กรณีมีแต่งานวันนี้ (ไม่มีงานค้าง) -> แสดงการ์ดงานวันนี้เป็น 2 คอลัมน์คู่
+    if (hasToday) {
+      final rowCount = (todayEntries.length / 2).ceil();
+      return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(
+          bottom: AppConstants.paddingXLarge,
+        ),
+        itemCount: rowCount + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(
+                bottom: AppConstants.paddingMedium,
+              ),
+              child: Text(
+                'สิ่งที่ต้องทำวันนี้',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontSize: 24,
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            );
+          }
+
+          final rowIndex = index - 1;
+          final leftIndex = rowIndex * 2;
+          final rightIndex = leftIndex + 1;
+          final leftEntry = todayEntries[leftIndex];
+          final rightEntry = rightIndex < todayEntries.length
+              ? todayEntries[rightIndex]
+              : null;
+
+          return Padding(
+            padding: const EdgeInsets.only(
+              bottom: AppConstants.paddingMedium,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildTaskItemWidget(leftEntry, bottomSpacing: 0),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: rightEntry != null
+                      ? _buildTaskItemWidget(rightEntry, bottomSpacing: 0)
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    // กรณีมีแต่งานค้าง (ไม่มีงานวันนี้) -> แสดงการ์ดงานค้างเป็น 2 คอลัมน์คู่
+    final rowCount = (overdueEntries.length / 2).ceil();
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(
+        bottom: AppConstants.paddingXLarge,
+      ),
+      itemCount: rowCount + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(
+              bottom: AppConstants.paddingMedium,
+            ),
+            child: Text(
+              'ภารกิจที่ยังไม่เสร็จ',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontSize: 24,
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+        }
+
+        final rowIndex = index - 1;
+        final leftIndex = rowIndex * 2;
+        final rightIndex = leftIndex + 1;
+        final leftEntry = overdueEntries[leftIndex];
+        final rightEntry = rightIndex < overdueEntries.length
+            ? overdueEntries[rightIndex]
+            : null;
+
+        return Padding(
+          padding: const EdgeInsets.only(
+            bottom: AppConstants.paddingMedium,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildTaskItemWidget(leftEntry, bottomSpacing: 0),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: rightEntry != null
+                    ? _buildTaskItemWidget(rightEntry, bottomSpacing: 0)
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -2277,86 +2707,97 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
 
     final theme = Theme.of(context);
     final isTablet = Responsive.isTablet(context);
+    final isLandscape = Responsive.isLandscape(context);
+    final isTabletOrLarge = isTablet || Responsive.isDesktop(context);
 
-    return Responsive.centerContent(
-      context,
-      Padding(
-        padding: EdgeInsets.fromLTRB(
-          isTablet ? 24.0 : AppConstants.paddingMedium,
-          isTablet ? 20.0 : AppConstants.paddingMedium,
-          isTablet ? 24.0 : AppConstants.paddingMedium,
-          0,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.stormySkyBlue,
-                backgroundColor: theme.brightness == Brightness.dark
-                    ? AppColors.stormyNightBackground
-                    : AppColors.backgroundWhite,
-                onRefresh: () async {
-                  final connectivity = context.read<ConnectivityProvider>();
-                  if (connectivity.isOffline) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('ไม่ได้เชื่อมต่ออินเทอร์เน็ต'),
-                      ),
-                    );
-                    return;
-                  }
-                  await Future.delayed(const Duration(seconds: 1));
-                },
-                child: dashboardItems.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          Text(
-                            showOverdueOnlyHeader
-                                ? 'ภารกิจที่ยังไม่เสร็จ'
-                                : 'สิ่งที่ต้องทำวันนี้',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontSize: isTablet ? 24 : null,
-                              color: showOverdueOnlyHeader
-                                  ? Colors.redAccent
-                                  : theme.colorScheme.onSurface,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: AppConstants.paddingMedium),
-                          const SizedBox(
-                            height: 300,
-                            child: _TodayEmptyState(),
-                          ),
-                        ],
-                      )
-                    : ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.only(
-                          bottom: AppConstants.paddingXLarge,
-                        ),
-                        children: [
-                          Text(
-                            showOverdueOnlyHeader
-                                ? 'ภารกิจที่ยังไม่เสร็จ'
-                                : 'สิ่งที่ต้องทำวันนี้',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontSize: isTablet ? 24 : null,
-                              color: showOverdueOnlyHeader
-                                  ? Colors.redAccent
-                                  : theme.colorScheme.onSurface,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: AppConstants.paddingMedium),
-                          ...dashboardItems,
-                        ],
-                      ),
+    Widget content;
+    if (isLandscape && isTabletOrLarge) {
+      content = _buildLandscapeLayout(
+        context: context,
+        todayEntries: todayEntries,
+        overdueEntries: overdueEntries,
+        theme: theme,
+      );
+    } else {
+      content = dashboardItems.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Text(
+                  showOverdueOnlyHeader
+                      ? 'ภารกิจที่ยังไม่เสร็จ'
+                      : 'สิ่งที่ต้องทำวันนี้',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontSize: isTablet ? 24 : null,
+                    color: showOverdueOnlyHeader
+                        ? Colors.redAccent
+                        : theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.paddingMedium),
+                const SizedBox(
+                  height: 300,
+                  child: _TodayEmptyState(),
+                ),
+              ],
+            )
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(
+                bottom: AppConstants.paddingXLarge,
               ),
+              children: [
+                Text(
+                  showOverdueOnlyHeader
+                      ? 'ภารกิจที่ยังไม่เสร็จ'
+                      : 'สิ่งที่ต้องทำวันนี้',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontSize: isTablet ? 24 : null,
+                    color: showOverdueOnlyHeader
+                        ? Colors.redAccent
+                        : theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.paddingMedium),
+                ...dashboardItems,
+              ],
+            );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        isTablet ? 24.0 : AppConstants.paddingMedium,
+        isTablet ? 20.0 : AppConstants.paddingMedium,
+        isTablet ? 24.0 : AppConstants.paddingMedium,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              color: AppColors.stormySkyBlue,
+              backgroundColor: theme.brightness == Brightness.dark
+                  ? AppColors.stormyNightBackground
+                  : AppColors.backgroundWhite,
+              onRefresh: () async {
+                final connectivity = context.read<ConnectivityProvider>();
+                if (connectivity.isOffline) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('ไม่ได้เชื่อมต่ออินเทอร์เน็ต'),
+                    ),
+                  );
+                  return;
+                }
+                await Future.delayed(const Duration(seconds: 1));
+              },
+              child: content,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -2483,23 +2924,26 @@ class _TodayTaskCard extends StatelessWidget {
     TaskProvider taskProvider,
     Task task,
   ) {
+    final isTablet = MediaQuery.of(parentContext).size.width >= 600;
     showDialog(
       context: parentContext,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Theme.of(parentContext).brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : Theme.of(parentContext).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
           'ยืนยันการลบภารกิจ',
           style: TextStyle(
             color: AppColors.accentRed,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
           ),
         ),
         content: Text(
           'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจนี้โดยส่งไปที่ถังขยะ?',
           style: TextStyle(
+            fontSize: isTablet ? 16 : 14.5,
             color: Theme.of(parentContext).brightness == Brightness.dark
                 ? AppColors.stormyIceBlue
                 : Theme.of(
@@ -2507,16 +2951,30 @@ class _TodayTaskCard extends StatelessWidget {
                   ).colorScheme.onSurface.withValues(alpha: 0.82),
           ),
         ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 18 : 14,
+                vertical: isTablet ? 12 : 10,
+              ),
               foregroundColor:
                   Theme.of(parentContext).brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -2557,13 +3015,20 @@ class _TodayTaskCard extends StatelessWidget {
                   Theme.of(parentContext).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันการลบ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -2707,7 +3172,7 @@ class _TodayTaskCard extends StatelessWidget {
                         },
                         icon: Icon(
                           Icons.more_vert,
-                          size: isTablet ? 24 : 20,
+                          size: isTablet ? 28 : 22,
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.6,
                           ),
@@ -2722,24 +3187,38 @@ class _TodayTaskCard extends StatelessWidget {
                                 Icon(
                                   Icons.edit_outlined,
                                   color: AppColors.stormySkyBlue,
-                                  size: 20,
+                                  size: isTablet ? 24 : 22,
                                 ),
-                                SizedBox(width: 10),
-                                Text('แก้ไข'),
+                                SizedBox(width: isTablet ? 12 : 10),
+                                Text(
+                                  'แก้ไข',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onSurface,
+                                    fontSize: isTablet ? 18 : 16,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'delete',
                             child: Row(
                               children: [
                                 Icon(
                                   Icons.delete_outline,
                                   color: Colors.red,
-                                  size: 20,
+                                  size: isTablet ? 24 : 22,
                                 ),
-                                SizedBox(width: 10),
-                                Text('ลบ', style: TextStyle(color: Colors.red)),
+                                SizedBox(width: isTablet ? 12 : 10),
+                                Text(
+                                  'ลบ',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontSize: isTablet ? 18 : 16,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -2797,6 +3276,7 @@ class _TodayTaskCard extends StatelessWidget {
                   runSpacing: AppConstants.paddingSmall,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    PriorityTag(priority: task.priorityLabel),
                     if (task.category != null)
                       Container(
                         padding: EdgeInsets.symmetric(
@@ -3366,6 +3846,7 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
                 'สมาชิกในกลุ่มยังส่งงานไม่ครบถ้วน (เหลืออีก $incompleteCount คน) กรุณารอให้สมาชิกทุกคนส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
           }
 
+          final isTablet = MediaQuery.of(context).size.width >= 600;
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
@@ -3379,19 +3860,23 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
                 'ไม่สามารถเสร็จสิ้นภารกิจได้',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               content: Text(
                 message,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: isTablet ? 16 : 14.5,
                   height: 1.5,
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.85)
                       : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
                 ),
+              ),
+              actionsPadding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 16 : 12,
               ),
               actions: [
                 ElevatedButton(
@@ -3404,17 +3889,20 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
                         ? AppColors.stormyNightBackground
                         : Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 24 : 20,
+                      vertical: isTablet ? 12 : 10,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'ตกลง',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isTablet ? 16 : 14.5,
+                    ),
                   ),
                 ),
               ],
@@ -3426,15 +3914,31 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
 
       if (latestProject.subtasks.isNotEmpty &&
           latestProject.subtasks.any((s) => !s.isDone)) {
+        final isTablet = MediaQuery.of(context).size.width >= 600;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('ไม่สามารถเสร็จสิ้นภารกิจได้'),
-            content: const Text(
-              'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
-            ),
+            backgroundColor: isDark
+                ? AppColors.stormyDarkSlate
+                : Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: BorderRadius.circular(18.0),
+            ),
+            title: Text(
+              'ไม่สามารถเสร็จสิ้นภารกิจได้',
+              style: TextStyle(
+                fontSize: isTablet ? 22 : 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
+              style: TextStyle(fontSize: isTablet ? 16 : 14.5),
+            ),
+            actionsPadding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 20 : 16,
+              vertical: isTablet ? 16 : 12,
             ),
             actions: [
               ElevatedButton(
@@ -3445,11 +3949,21 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
                       Theme.of(context).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 24 : 20,
+                    vertical: isTablet ? 12 : 10,
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
+                    borderRadius: BorderRadius.circular(10.0),
                   ),
                 ),
-                child: const Text('ตกลง'),
+                child: Text(
+                  'ตกลง',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTablet ? 16 : 14.5,
+                  ),
+                ),
               ),
             ],
           ),
@@ -3599,6 +4113,28 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
     return entries;
   }
 
+  Widget _buildProjectItemWidget(
+    _TodayTaskListEntry entry,
+    TaskProvider taskProvider, {
+    double bottomSpacing = 20,
+  }) {
+    return _CompletingTaskListItem(
+      key: ValueKey(
+        'group-${entry.task.id}-${entry.isExiting}-${entry.isOverdue}',
+      ),
+      isExiting: entry.isExiting,
+      bottomSpacing: bottomSpacing,
+      child: GroupProjectCard(
+        project: entry.task,
+        onDelete: (id) => taskProvider.deleteGroupProjectTask(id),
+        onToggleComplete: (project) =>
+            _handleToggleComplete(project, isOverdue: entry.isOverdue),
+        isCompletedOverride: entry.task.isCompleted,
+        isOverdue: entry.isOverdue,
+      ),
+    );
+  }
+
   List<Widget> _buildDashboardItems({
     required List<_TodayTaskListEntry> todayEntries,
     required List<_TodayTaskListEntry> overdueEntries,
@@ -3609,20 +4145,10 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
 
     void addProjectEntry(_TodayTaskListEntry entry, bool isLast) {
       items.add(
-        _CompletingTaskListItem(
-          key: ValueKey(
-            'group-${entry.task.id}-${entry.isExiting}-${entry.isOverdue}',
-          ),
-          isExiting: entry.isExiting,
+        _buildProjectItemWidget(
+          entry,
+          taskProvider,
           bottomSpacing: isLast ? 0 : 20,
-          child: GroupProjectCard(
-            project: entry.task,
-            onDelete: (id) => taskProvider.deleteGroupProjectTask(id),
-            onToggleComplete: (project) =>
-                _handleToggleComplete(project, isOverdue: entry.isOverdue),
-            isCompletedOverride: entry.task.isCompleted,
-            isOverdue: entry.isOverdue,
-          ),
         ),
       );
     }
@@ -3643,6 +4169,280 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
     }
 
     return items;
+  }
+
+  Widget _buildLandscapeLayout({
+    required BuildContext context,
+    required List<_TodayTaskListEntry> todayEntries,
+    required List<_TodayTaskListEntry> overdueEntries,
+    required TaskProvider taskProvider,
+    required ThemeData theme,
+  }) {
+    final hasToday = todayEntries.isNotEmpty;
+    final hasOverdue = overdueEntries.isNotEmpty;
+
+    if (!hasToday && !hasOverdue) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Text(
+            'สิ่งที่ต้องทำวันนี้',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontSize: 24,
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppConstants.paddingMedium),
+          const SizedBox(
+            height: 300,
+            child: _TodayGroupEmptyState(),
+          ),
+        ],
+      );
+    }
+
+    // กรณีมีทั้งงานวันนี้และงานค้าง -> แบ่งซ้ายขวา 50:50
+    if (hasToday && hasOverdue) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ฝั่งซ้าย: สิ่งที่ต้องทำวันนี้
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'สิ่งที่ต้องทำวันนี้',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontSize: 22,
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.stormySkyBlue.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${todayEntries.length}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.stormySkyBlue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.paddingMedium),
+                Expanded(
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(
+                      bottom: AppConstants.paddingXLarge,
+                    ),
+                    itemCount: todayEntries.length,
+                    itemBuilder: (context, index) => _buildProjectItemWidget(
+                      todayEntries[index],
+                      taskProvider,
+                      bottomSpacing: index == todayEntries.length - 1 ? 0 : 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 20),
+          // ฝั่งขวา: ภารกิจที่ยังไม่เสร็จ
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'ภารกิจที่ยังไม่เสร็จ',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontSize: 22,
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${overdueEntries.length}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.paddingMedium),
+                Expanded(
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(
+                      bottom: AppConstants.paddingXLarge,
+                    ),
+                    itemCount: overdueEntries.length,
+                    itemBuilder: (context, index) => _buildProjectItemWidget(
+                      overdueEntries[index],
+                      taskProvider,
+                      bottomSpacing: index == overdueEntries.length - 1 ? 0 : 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // กรณีมีแต่งานวันนี้ (ไม่มีงานค้าง) -> แสดงการ์ดงานวันนี้เป็น 2 คอลัมน์คู่
+    if (hasToday) {
+      final rowCount = (todayEntries.length / 2).ceil();
+      return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(
+          bottom: AppConstants.paddingXLarge,
+        ),
+        itemCount: rowCount + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(
+                bottom: AppConstants.paddingMedium,
+              ),
+              child: Text(
+                'สิ่งที่ต้องทำวันนี้',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontSize: 24,
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            );
+          }
+
+          final rowIndex = index - 1;
+          final leftIndex = rowIndex * 2;
+          final rightIndex = leftIndex + 1;
+          final leftEntry = todayEntries[leftIndex];
+          final rightEntry = rightIndex < todayEntries.length
+              ? todayEntries[rightIndex]
+              : null;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildProjectItemWidget(
+                    leftEntry,
+                    taskProvider,
+                    bottomSpacing: 0,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: rightEntry != null
+                      ? _buildProjectItemWidget(
+                          rightEntry,
+                          taskProvider,
+                          bottomSpacing: 0,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    // กรณีมีแต่งานค้าง (ไม่มีงานวันนี้) -> แสดงการ์ดงานค้างเป็น 2 คอลัมน์คู่
+    final rowCount = (overdueEntries.length / 2).ceil();
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(
+        bottom: AppConstants.paddingXLarge,
+      ),
+      itemCount: rowCount + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(
+              bottom: AppConstants.paddingMedium,
+            ),
+            child: Text(
+              'ภารกิจที่ยังไม่เสร็จ',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontSize: 24,
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+        }
+
+        final rowIndex = index - 1;
+        final leftIndex = rowIndex * 2;
+        final rightIndex = leftIndex + 1;
+        final leftEntry = overdueEntries[leftIndex];
+        final rightEntry = rightIndex < overdueEntries.length
+            ? overdueEntries[rightIndex]
+            : null;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildProjectItemWidget(
+                  leftEntry,
+                  taskProvider,
+                  bottomSpacing: 0,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: rightEntry != null
+                    ? _buildProjectItemWidget(
+                        rightEntry,
+                        taskProvider,
+                        bottomSpacing: 0,
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -3671,86 +4471,98 @@ class _GroupProjectsListState extends State<_GroupProjectsList> {
     final showOverdueOnlyHeader = !hasTodayTasks && overdueEntries.isNotEmpty;
     final theme = Theme.of(context);
     final isTablet = Responsive.isTablet(context);
+    final isLandscape = Responsive.isLandscape(context);
+    final isTabletOrLarge = isTablet || Responsive.isDesktop(context);
 
-    return Responsive.centerContent(
-      context,
-      Padding(
-        padding: EdgeInsets.fromLTRB(
-          isTablet ? 24.0 : AppConstants.paddingMedium,
-          isTablet ? 20.0 : AppConstants.paddingMedium,
-          isTablet ? 24.0 : AppConstants.paddingMedium,
-          0,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.stormySkyBlue,
-                backgroundColor: theme.brightness == Brightness.dark
-                    ? AppColors.stormyNightBackground
-                    : AppColors.backgroundWhite,
-                onRefresh: () async {
-                  final connectivity = context.read<ConnectivityProvider>();
-                  if (connectivity.isOffline) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('ไม่ได้เชื่อมต่ออินเทอร์เน็ต'),
-                      ),
-                    );
-                    return;
-                  }
-                  await Future.delayed(const Duration(seconds: 1));
-                },
-                child: dashboardItems.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          Text(
-                            showOverdueOnlyHeader
-                                ? 'ภารกิจที่ยังไม่เสร็จ'
-                                : 'สิ่งที่ต้องทำวันนี้',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontSize: isTablet ? 24 : null,
-                              color: showOverdueOnlyHeader
-                                  ? Colors.redAccent
-                                  : theme.colorScheme.onSurface,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: AppConstants.paddingMedium),
-                          const SizedBox(
-                            height: 300,
-                            child: _TodayGroupEmptyState(),
-                          ),
-                        ],
-                      )
-                    : ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.only(
-                          bottom: AppConstants.paddingXLarge,
-                        ),
-                        children: [
-                          Text(
-                            showOverdueOnlyHeader
-                                ? 'ภารกิจที่ยังไม่เสร็จ'
-                                : 'สิ่งที่ต้องทำวันนี้',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontSize: isTablet ? 24 : null,
-                              color: showOverdueOnlyHeader
-                                  ? Colors.redAccent
-                                  : theme.colorScheme.onSurface,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: AppConstants.paddingMedium),
-                          ...dashboardItems,
-                        ],
-                      ),
+    Widget content;
+    if (isLandscape && isTabletOrLarge) {
+      content = _buildLandscapeLayout(
+        context: context,
+        todayEntries: todayEntries,
+        overdueEntries: overdueEntries,
+        taskProvider: taskProvider,
+        theme: theme,
+      );
+    } else {
+      content = dashboardItems.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Text(
+                  showOverdueOnlyHeader
+                      ? 'ภารกิจที่ยังไม่เสร็จ'
+                      : 'สิ่งที่ต้องทำวันนี้',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontSize: isTablet ? 24 : null,
+                    color: showOverdueOnlyHeader
+                        ? Colors.redAccent
+                        : theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.paddingMedium),
+                const SizedBox(
+                  height: 300,
+                  child: _TodayGroupEmptyState(),
+                ),
+              ],
+            )
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(
+                bottom: AppConstants.paddingXLarge,
               ),
+              children: [
+                Text(
+                  showOverdueOnlyHeader
+                      ? 'ภารกิจที่ยังไม่เสร็จ'
+                      : 'สิ่งที่ต้องทำวันนี้',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontSize: isTablet ? 24 : null,
+                    color: showOverdueOnlyHeader
+                        ? Colors.redAccent
+                        : theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.paddingMedium),
+                ...dashboardItems,
+              ],
+            );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        isTablet ? 24.0 : AppConstants.paddingMedium,
+        isTablet ? 20.0 : AppConstants.paddingMedium,
+        isTablet ? 24.0 : AppConstants.paddingMedium,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              color: AppColors.stormySkyBlue,
+              backgroundColor: theme.brightness == Brightness.dark
+                  ? AppColors.stormyNightBackground
+                  : AppColors.backgroundWhite,
+              onRefresh: () async {
+                final connectivity = context.read<ConnectivityProvider>();
+                if (connectivity.isOffline) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('ไม่ได้เชื่อมต่ออินเทอร์เน็ต'),
+                    ),
+                  );
+                  return;
+                }
+                await Future.delayed(const Duration(seconds: 1));
+              },
+              child: content,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -38,6 +38,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final tasksByDate = _getTasksByDate(taskProvider.tasks);
     final selectedTasks = taskProvider.getTasksForDate(_selectedDay);
     final isTablet = MediaQuery.of(context).size.width >= 600;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
@@ -47,7 +49,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Column(
           children: [
             // Header
-            _buildHeader(context, isTablet),
+            _buildHeader(context, isTablet, isLandscape),
 
             // Calendar
             CalendarWidget(
@@ -82,21 +84,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 width: double.infinity,
                 alignment: Alignment.center,
                 padding: EdgeInsets.only(
-                  bottom: isTablet ? 12.0 : 8.0,
-                  top: isTablet ? 6.0 : 4.0,
+                  bottom: isLandscape ? 4.0 : (isTablet ? 12.0 : 8.0),
+                  top: isLandscape ? 2.0 : (isTablet ? 6.0 : 4.0),
                 ),
                 child: Icon(
                   _calendarFormat == CalendarFormat.month
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
                   color: Colors.grey,
-                  size: isTablet ? 34 : 28,
+                  size: isLandscape ? 24 : (isTablet ? 34 : 28),
                 ),
               ),
             ),
 
             // Selected Date Info
-            _buildSelectedDateInfo(isTablet),
+            _buildSelectedDateInfo(isTablet, isLandscape),
 
             // Daily Timeline
             Expanded(
@@ -127,34 +129,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, bool isTablet) {
+  Widget _buildHeader(BuildContext context, bool isTablet, bool isLandscape) {
     final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.all(
-        isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium,
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium,
+        vertical: isLandscape
+            ? 8.0
+            : (isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium),
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(isTablet ? 16 : 12),
+            padding: EdgeInsets.all(isLandscape ? 10 : (isTablet ? 16 : 12)),
             decoration: BoxDecoration(
-              color: theme.brightness == Brightness.light
-                  ? AppColors.stormySkyBlue
-                  : AppColors.stormySkyBlue,
+              color: AppColors.stormySkyBlue,
               borderRadius: BorderRadius.circular(
-                isTablet ? 18 : AppConstants.radiusMedium,
+                isLandscape ? 14 : (isTablet ? 18 : AppConstants.radiusMedium),
               ),
             ),
             child: Icon(
               Icons.calendar_month,
               color: AppColors.textWhite,
-              size: isTablet ? 30 : 24,
+              size: isLandscape ? 22 : (isTablet ? 30 : 24),
             ),
           ),
           SizedBox(
-            width: isTablet
-                ? AppConstants.paddingLarge
-                : AppConstants.paddingMedium,
+            width: isLandscape
+                ? 12
+                : (isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,7 +165,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Text(
                 'ปฏิทิน',
                 style: TextStyle(
-                  fontSize: isTablet ? 28 : 22,
+                  fontSize: isLandscape ? 22 : (isTablet ? 28 : 22),
                   fontWeight: FontWeight.bold,
                   color: theme.brightness == Brightness.dark
                       ? Colors.white
@@ -172,7 +175,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Text(
                 'จัดการตารางเวลาของคุณ',
                 style: TextStyle(
-                  fontSize: isTablet ? 16 : 14,
+                  fontSize: isLandscape ? 13 : (isTablet ? 16 : 14),
                   color: theme.brightness == Brightness.dark
                       ? AppColors.stormyMutedBlueGrey
                       : AppColors.textSecondary,
@@ -185,18 +188,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildSelectedDateInfo(bool isTablet) {
+  Widget _buildSelectedDateInfo(bool isTablet, bool isLandscape) {
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: AppConstants.paddingLarge,
-        vertical: isTablet ? 12 : AppConstants.paddingSmall,
+        vertical: isLandscape
+            ? 4.0
+            : (isTablet ? 12.0 : AppConstants.paddingSmall),
       ),
       child: Row(
         children: [
           Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isTablet ? 18 : AppConstants.paddingMedium,
-              vertical: isTablet ? 8 : AppConstants.paddingSmall / 2,
+              horizontal: isLandscape
+                  ? 14
+                  : (isTablet ? 18 : AppConstants.paddingMedium),
+              vertical: isLandscape
+                  ? 4
+                  : (isTablet ? 8 : AppConstants.paddingSmall / 2),
             ),
             decoration: BoxDecoration(
               // ignore: deprecated_member_use
@@ -204,23 +213,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ? AppColors.stormyIceBlue
                   : AppColors.stormySkyBlue,
               borderRadius: BorderRadius.circular(
-                isTablet ? AppConstants.radiusMedium : AppConstants.radiusSmall,
+                isLandscape
+                    ? 10
+                    : (isTablet ? AppConstants.radiusMedium : AppConstants.radiusSmall),
               ),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.event,
-                  size: isTablet ? 20 : 16,
+                  size: isLandscape ? 16 : (isTablet ? 20 : 16),
                   color: Theme.of(context).brightness == Brightness.light
                       ? AppColors.stormyDarkSlate
                       : AppColors.stormyNightBackground,
                 ),
-                SizedBox(width: isTablet ? 10 : 8),
+                SizedBox(width: isLandscape ? 6 : (isTablet ? 10 : 8)),
                 Text(
                   _formatSelectedDate(_selectedDay),
                   style: TextStyle(
-                    fontSize: isTablet ? 16 : 14,
+                    fontSize: isLandscape ? 13 : (isTablet ? 16 : 14),
                     fontWeight: FontWeight.w600,
                     color: Theme.of(context).brightness == Brightness.light
                         ? AppColors.stormyDarkSlate

@@ -43,14 +43,32 @@ class LatePenaltyDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     return AlertDialog(
-      title: Text(isGroupSubmission ? 'ส่งงานเกินกำหนด' : 'เสร็จงานเกินกำหนด'),
+      title: Text(
+        isGroupSubmission ? 'ส่งงานเกินกำหนด' : 'เสร็จงานเกินกำหนด',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: isTablet ? 22 : 18,
+        ),
+      ),
       content: Text(
         isGroupSubmission
             ? 'คุณส่งงานเกินกำหนดไป 24 ชั่วโมงแล้ว คุณจะถูกหักคะแนนส่วนนึงออก'
             : 'คุณเสร็จงานเกินกำหนดไป 24 ชั่วโมงแล้ว คุณจะถูกหักคะแนนส่วนนึงออก',
+        style: TextStyle(
+          fontSize: isTablet ? 16 : 14.5,
+          height: 1.5,
+        ),
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isTablet ? 22 : 16.0),
+      ),
+      actionsPadding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 20 : 16,
+        vertical: isTablet ? 16 : 12,
+      ),
       actions: [
         TextButton(
           onPressed: () async {
@@ -64,8 +82,18 @@ class LatePenaltyDialog extends StatelessWidget {
             foregroundColor: Theme.of(context).brightness == Brightness.dark
                 ? AppColors.stormySkyBlue
                 : AppColors.stormyMutedBlueGrey,
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 20 : 16,
+              vertical: isTablet ? 12 : 10,
+            ),
           ),
-          child: const Text('ไม่ต้องแสดงอีก'),
+          child: Text(
+            'ไม่ต้องแสดงอีก',
+            style: TextStyle(
+              fontSize: isTablet ? 16 : 14.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         ElevatedButton(
           onPressed: () => Navigator.of(context).pop(true),
@@ -74,11 +102,21 @@ class LatePenaltyDialog extends StatelessWidget {
             foregroundColor: Theme.of(context).brightness == Brightness.dark
                 ? AppColors.stormyNightBackground
                 : Colors.white,
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 20 : 16,
+              vertical: isTablet ? 12 : 10,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8.0),
             ),
           ),
-          child: const Text('ตกลง'),
+          child: Text(
+            'ตกลง',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: isTablet ? 16 : 14.5,
+            ),
+          ),
         ),
       ],
     );

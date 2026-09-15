@@ -209,6 +209,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
 
   void _showChangeAssigneeDialog() {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
 
     showDialog(
@@ -217,14 +218,16 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
         title: Text(
           'เปลี่ยนผู้รับผิดชอบ',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: isTablet ? 22 : 18,
             fontWeight: FontWeight.bold,
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.white.withValues(alpha: 0.9)
                 : theme.colorScheme.onSurface,
           ),
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20),
+        ),
         content: SizedBox(
           width: double.maxFinite,
           child: FutureBuilder<List<User>>(
@@ -339,6 +342,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
 
   void _showCoAssigneeDialog() {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
 
     showDialog(
@@ -350,7 +354,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
               title: Text(
                 'เพิ่มผู้รับผิดชอบร่วมกัน',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Colors.white.withValues(alpha: 0.9)
@@ -358,7 +362,11 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                 ),
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(isTablet ? 22 : 20),
+              ),
+              actionsPadding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 16 : 12,
               ),
               content: SizedBox(
                 width: double.maxFinite,
@@ -520,11 +528,21 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                         Theme.of(context).brightness == Brightness.dark
                         ? AppColors.stormyNightBackground
                         : Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 20 : 16,
+                      vertical: isTablet ? 12 : 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
-                  child: const Text('ตกลง'),
+                  child: Text(
+                    'ตกลง',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isTablet ? 16 : 14.5,
+                    ),
+                  ),
                 ),
               ],
             );
@@ -651,13 +669,15 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
 
   void _showDeleteMemberConfirmation() {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
           'ยืนยันการลบสมาชิก',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: isTablet ? 22 : 18,
             fontWeight: FontWeight.bold,
             color: AppColors.accentRed,
           ),
@@ -665,17 +685,32 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
         content: Text(
           'ต้องการลบสมาชิก ${_currentAssignee.name} ออกหรือไม่?',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: isTablet ? 16 : 15,
+            height: 1.5,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
           ),
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
             child: Text(
               'ยกเลิก',
               style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
@@ -691,13 +726,20 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                   Theme.of(context).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยัน',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -707,13 +749,15 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
 
   void _showDeleteTaskConfirmation() {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
           'ยืนยันการลบภารกิจ',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: isTablet ? 22 : 18,
             fontWeight: FontWeight.bold,
             color: AppColors.accentRed,
           ),
@@ -721,17 +765,32 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
         content: Text(
           'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจนี้และกลับไปเป็นผู้ตรวจงานอย่างเดียว?',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: isTablet ? 16 : 15,
+            height: 1.5,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
           ),
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
             child: Text(
               'ยกเลิก',
               style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
@@ -802,13 +861,20 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                   Theme.of(context).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันการลบ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],

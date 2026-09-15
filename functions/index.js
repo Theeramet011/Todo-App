@@ -65,13 +65,18 @@ function memberRecords(taskData) {
 
 function notificationRecipients(taskData, isPersonalTask, projectData = null) {
   const recipientRoles = new Map();
+  const deletedForUserIds = new Set(
+    Array.isArray(taskData.deletedForUserIds) ? taskData.deletedForUserIds : []
+  );
 
   if (isPersonalTask) {
     setRecipientRole(recipientRoles, taskData.assigneeId, "personal");
     setRecipientRoles(recipientRoles, taskData.assigneeIds, "personal");
     setRecipientRole(recipientRoles, taskData.creatorId, "personal");
     setRecipientRole(recipientRoles, taskData.userId, "personal");
-    return [...recipientRoles].map(([userId, role]) => ({userId, role}));
+    return [...recipientRoles]
+      .filter(([userId]) => !deletedForUserIds.has(userId))
+      .map(([userId, role]) => ({userId, role}));
   }
 
   setRecipientRole(recipientRoles, taskData.assigneeId, "member");
@@ -93,7 +98,9 @@ function notificationRecipients(taskData, isPersonalTask, projectData = null) {
     setRecipientRole(recipientRoles, projectData.creatorId, "leader");
   }
 
-  return [...recipientRoles].map(([userId, role]) => ({userId, role}));
+  return [...recipientRoles]
+    .filter(([userId]) => !deletedForUserIds.has(userId))
+    .map(([userId, role]) => ({userId, role}));
 }
 
 function sanitizeForDisplay(text) {
@@ -613,6 +620,7 @@ function getUpcomingRecurringDate(taskData, nowMs) {
 }
 
 async function ensureNextRecurringTaskInstance(db, taskData, taskId, nowMs) {
+  if (taskData.isDeleted === true || taskData.deletedAt != null) return;
   const nextDate = getUpcomingRecurringDate(taskData, nowMs);
   if (!nextDate) return;
 
@@ -629,7 +637,7 @@ async function ensureNextRecurringTaskInstance(db, taskData, taskId, nowMs) {
 
   const hasActiveClone = existingCloneSnap.docs.some((doc) => {
     const d = doc.data();
-    return d.isDeleted !== true;
+    return d.isDeleted !== true && d.deletedAt == null;
   });
 
   if (hasActiveClone) {
@@ -667,6 +675,8 @@ async function ensureNextRecurringTaskInstance(db, taskData, taskId, nowMs) {
     completedAt: null,
     clearCompletedAt: true,
     isDeleted: false,
+    deletedAt: null,
+    expireAt: null,
     deletedForUserIds: [],
     hiddenForUserIds: [],
     notified1Week: nextDate.getTime() - 7 * 24 * 60 * 60 * 1000 < nowMs,
@@ -719,7 +729,7 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
       const taskData = doc.data();
       const taskId = doc.id;
 
-      if (taskData.isDeleted === true) {
+      if (taskData.isDeleted === true || taskData.deletedAt != null) {
         continue;
       }
 
@@ -896,7 +906,8 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
               .collection("users")
               .doc(userId)
               .collection("notifications")
-              .add({
+              .doc(notificationKey)
+              .set({
                 title: sanitizeForDisplay(copy.title),
                 body: sanitizeForDisplay(copy.body),
                 type: notificationType,
@@ -909,7 +920,7 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
                 notificationStage: flagToUpdateTag,
                 notificationKey: notificationKey,
                 suppressPush: true,
-              });
+              }, { merge: true });
             console.log(
               `💾 บันทึก In-App Notification สำเร็จ! [${flagToUpdateTag}] ` +
               `-> User: ${recipient.userId} (${recipient.role})`
@@ -988,6 +999,8 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
       // 🔁 Auto-spawn recurring task instance for the next cycle
       if (
         taskData.isRecurring === true &&
+        taskData.isDeleted !== true &&
+        taskData.deletedAt == null &&
         (taskData.notifiedFollowUp === true ||
           updatePayload["notifiedFollowUp"] === true ||
           timeRemaining <= -(30 * 60 * 1000))

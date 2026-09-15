@@ -2982,6 +2982,7 @@ class TaskProvider with ChangeNotifier {
 
       final updatedTask = task.copyWith(
         isDeleted: false,
+        clearDeletedAt: true,
       );
       _tasks[index] = updatedTask;
       _calculateInitialXP();
@@ -2990,6 +2991,8 @@ class TaskProvider with ChangeNotifier {
 
     await _firestore.collection('tasks').doc(taskId).set({
       'isDeleted': false,
+      'deletedAt': FieldValue.delete(),
+      'expireAt': FieldValue.delete(),
     }, SetOptions(merge: true));
   }
 

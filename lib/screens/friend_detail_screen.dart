@@ -29,6 +29,8 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
   bool _isRemoving = false;
 
   Future<void> _confirmRemoveFriend() async {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     final shouldRemove = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -37,13 +39,18 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
               ? AppColors.stormyDarkSlate
               : Theme.of(context).colorScheme.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(isTablet ? 22 : 16),
+          ),
+          actionsPadding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20 : 16,
+            vertical: isTablet ? 16 : 12,
           ),
           title: Text(
             'ลบเพื่อน',
             style: TextStyle(
               color: AppColors.accentRed,
               fontWeight: FontWeight.bold,
+              fontSize: isTablet ? 22 : 18,
             ),
           ),
           content: Text(
@@ -54,6 +61,8 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                   : Theme.of(
                       context,
                     ).colorScheme.onSurface.withValues(alpha: 0.82),
+              fontSize: isTablet ? 16 : 14.5,
+              height: 1.5,
             ),
           ),
           actions: [
@@ -63,8 +72,18 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                 foregroundColor: Theme.of(context).brightness == Brightness.dark
                     ? AppColors.stormySkyBlue
                     : AppColors.textSecondary,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
               ),
-              child: const Text('ยกเลิก'),
+              child: Text(
+                'ยกเลิก',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -74,10 +93,20 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                     Theme.of(context).brightness == Brightness.dark
                         ? AppColors.stormyNightBackground
                         : Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text(
+              child: Text(
                 'ลบ',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 16 : 14.5,
+                ),
               ),
             ),
           ],

@@ -758,6 +758,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     AuthProvider authProvider,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     showDialog(
       context: context,
@@ -767,13 +768,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? AppColors.stormyDarkSlate
               : Theme.of(context).colorScheme.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(isTablet ? 22 : 16),
+          ),
+          actionsPadding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20 : 16,
+            vertical: isTablet ? 16 : 12,
           ),
           title: Text(
             'ออกจากระบบ?',
             style: TextStyle(
               color: isDark ? AppColors.textWhite : AppColors.stormyDarkSlate,
               fontWeight: FontWeight.bold,
+              fontSize: isTablet ? 22 : 18,
             ),
           ),
           content: Text(
@@ -782,6 +788,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: isDark
                   ? AppColors.stormyIceBlue
                   : AppColors.textSecondary,
+              fontSize: isTablet ? 16 : 14.5,
+              height: 1.5,
             ),
           ),
           actions: [
@@ -793,8 +801,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 foregroundColor: isDark
                     ? AppColors.stormySkyBlue
                     : AppColors.textSecondary,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
               ),
-              child: const Text('ยกเลิก'),
+              child: Text(
+                'ยกเลิก',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
@@ -805,9 +823,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
                 ),
               ),
               onPressed: () async {
@@ -821,9 +839,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   );
                 }
               },
-              child: const Text(
+              child: Text(
                 'ออกจากระบบ',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 16 : 14.5,
+                ),
               ),
             ),
           ],

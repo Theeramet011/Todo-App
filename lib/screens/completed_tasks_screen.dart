@@ -246,13 +246,21 @@ class CompletedTasksScreen extends StatelessWidget {
     TaskProvider taskProvider,
     List<Task> tasks,
   ) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 16),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Text(
           'คืนค่า',
           style: TextStyle(
@@ -260,6 +268,7 @@ class CompletedTasksScreen extends StatelessWidget {
                 ? AppColors.textWhite
                 : Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
           ),
         ),
         content: Text(
@@ -270,6 +279,8 @@ class CompletedTasksScreen extends StatelessWidget {
                 : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.82),
+            fontSize: isTablet ? 16 : 14.5,
+            height: 1.5,
           ),
         ),
         actions: [
@@ -279,8 +290,18 @@ class CompletedTasksScreen extends StatelessWidget {
               foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -307,13 +328,20 @@ class CompletedTasksScreen extends StatelessWidget {
                       ? AppColors.stormyNightBackground
                       : Colors.white,
               elevation: 0,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
+            child: Text(
               'คืนค่า',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -326,18 +354,27 @@ class CompletedTasksScreen extends StatelessWidget {
     TaskProvider taskProvider,
     List<Task> tasks,
   ) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 16),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Text(
           'ล้างทุกภารกิจ',
           style: TextStyle(
             color: AppColors.accentRed,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
           ),
         ),
         content: Text(
@@ -348,6 +385,8 @@ class CompletedTasksScreen extends StatelessWidget {
                 : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.82),
+            fontSize: isTablet ? 16 : 14.5,
+            height: 1.5,
           ),
         ),
         actions: [
@@ -357,8 +396,18 @@ class CompletedTasksScreen extends StatelessWidget {
               foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -612,29 +661,44 @@ class _CompletedTaskCard extends StatelessWidget {
               },
               icon: Icon(
                 Icons.more_vert,
-                size: isTablet ? 26 : 20,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                size: isTablet ? 28 : 22,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
               itemBuilder: (context) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'undo',
                   child: Row(
                     children: [
-                      Icon(Icons.undo, size: 20),
-                      SizedBox(width: 8),
-                      Text('เลิกทำเสร็จสิ้น'),
+                      Icon(Icons.undo, size: isTablet ? 24 : 22),
+                      SizedBox(width: isTablet ? 12 : 10),
+                      Text(
+                        'เลิกทำเสร็จสิ้น',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
+                          fontSize: isTablet ? 18 : 16,
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'delete',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                      SizedBox(width: 8),
+                      Icon(
+                        Icons.delete_outline,
+                        size: isTablet ? 24 : 22,
+                        color: Colors.red,
+                      ),
+                      SizedBox(width: isTablet ? 12 : 10),
                       Text(
                         'ส่งไปที่ถังขยะ',
-                        style: TextStyle(color: Colors.red),
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: isTablet ? 18 : 16,
+                          fontWeight: FontWeight.normal,
+                        ),
                       ),
                     ],
                   ),
@@ -648,13 +712,15 @@ class _CompletedTaskCard extends StatelessWidget {
   }
 
   void _showDeleteDialog(BuildContext context, TaskProvider taskProvider) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
           'ส่งไปที่ถังขยะ',
           style: TextStyle(
@@ -662,11 +728,13 @@ class _CompletedTaskCard extends StatelessWidget {
                 ? AppColors.textWhite
                 : AppColors.accentRed,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
           ),
         ),
         content: Text(
           'คุณแน่ใจหรือไม่ว่าต้องการส่งงานนี้ไปที่ถังขยะ?',
           style: TextStyle(
+            fontSize: isTablet ? 16 : 14.5,
             color: Theme.of(context).brightness == Brightness.dark
                 ? AppColors.stormyIceBlue
                 : Theme.of(
@@ -674,15 +742,29 @@ class _CompletedTaskCard extends StatelessWidget {
                   ).colorScheme.onSurface.withValues(alpha: 0.82),
           ),
         ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 18 : 14,
+                vertical: isTablet ? 12 : 10,
+              ),
               foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -725,13 +807,20 @@ class _CompletedTaskCard extends StatelessWidget {
               foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFFEF9A9A)
                   : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ส่งไปที่ถังขยะ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],

@@ -253,6 +253,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
   void _showRecurringInfoDialog(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     final dialogBgColor = isDark
         ? AppColors.stormyNightBackground
@@ -265,10 +266,10 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
         return Dialog(
           backgroundColor: dialogBgColor,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(isTablet ? 28 : 24),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isTablet ? 30 : 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,16 +277,16 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                 Text(
                   'เกี่ยวกับประเภทการทำซ้ำ',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: isTablet ? 22 : 18,
                     fontWeight: FontWeight.bold,
                     color: textColor,
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: isTablet ? 20 : 16),
                 RichText(
                   text: TextSpan(
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: isTablet ? 16 : 14.5,
                       height: 1.5,
                       color: textColor.withValues(alpha: 0.8),
                     ),
@@ -301,11 +302,11 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: isTablet ? 18 : 14),
                 RichText(
                   text: TextSpan(
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: isTablet ? 16 : 14.5,
                       height: 1.5,
                       color: textColor.withValues(alpha: 0.8),
                     ),
@@ -320,7 +321,7 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: isTablet ? 28 : 24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -331,16 +332,18 @@ class _CustomRecurringModalState extends State<CustomRecurringModal> {
                           Theme.of(context).brightness == Brightness.dark
                               ? AppColors.stormyNightBackground
                               : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: EdgeInsets.symmetric(
+                        vertical: isTablet ? 16 : 14,
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(isTablet ? 18 : 16),
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
+                    child: Text(
                       'เข้าใจแล้ว',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: isTablet ? 18 : 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

@@ -71,10 +71,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
       });
     }
 
-    // Sort friends by points (leaderboard style)
-    final sortedFriends = List<User>.from(friends)
+    // Combine current user with friends into leaderboard
+    final allLeaderboardUsers = <User>[
+      ?currentUser,
+      ...friends,
+    ];
+
+    // Sort all users by totalXP (leaderboard style)
+    final sortedUsers = List<User>.from(allLeaderboardUsers)
       ..sort((a, b) => b.totalXP.compareTo(a.totalXP));
-    final filteredFriends = sortedFriends.where(_matchesSearchQuery).toList();
+    final filteredUsers = sortedUsers.where(_matchesSearchQuery).toList();
 
     final isTablet = MediaQuery.of(context).size.width >= 600;
 
@@ -94,13 +100,37 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ),
       body: Column(
         children: [
-          // Header with Stats
-          _buildHeaderSection(context, friends, isTablet),
-
           // Search Bar
           _buildSearchBar(context, isTablet),
 
-          // Friends List
+          // Total Friends Count (Position 2)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              isTablet
+                  ? AppConstants.paddingLarge
+                  : AppConstants.paddingMedium,
+              isTablet ? 4.0 : 2.0,
+              isTablet
+                  ? AppConstants.paddingLarge
+                  : AppConstants.paddingMedium,
+              isTablet ? 4.0 : 2.0,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _searchQuery.trim().isNotEmpty
+                    ? 'ผลการค้นหา (${filteredUsers.length} คน)'
+                    : 'เพื่อนทั้งหมด ${friends.length} คน',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                ),
+              ),
+            ),
+          ),
+
+          // Friends & User Leaderboard List
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => context.read<TaskProvider>().loadFriends(),
@@ -108,7 +138,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               backgroundColor: theme.brightness == Brightness.dark
                   ? AppColors.stormyDarkSlate
                   : Colors.white,
-              child: filteredFriends.isEmpty
+              child: filteredUsers.isEmpty
                   ? SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: SizedBox(
@@ -118,28 +148,45 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     )
                   : ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.all(
+                      padding: EdgeInsets.fromLTRB(
+                        isTablet
+                            ? AppConstants.paddingLarge
+                            : AppConstants.paddingMedium,
+                        isTablet ? 10 : 8,
+                        isTablet
+                            ? AppConstants.paddingLarge
+                            : AppConstants.paddingMedium,
                         isTablet
                             ? AppConstants.paddingLarge
                             : AppConstants.paddingMedium,
                       ),
-                      itemCount: filteredFriends.length,
+                      itemCount: filteredUsers.length +
+                          (friends.isEmpty && _searchQuery.isEmpty ? 1 : 0),
                       separatorBuilder: (context, index) => SizedBox(
                         height: isTablet ? 14 : AppConstants.paddingSmall,
                       ),
                       itemBuilder: (context, index) {
-                        final friend = filteredFriends[index];
+                        if (friends.isEmpty &&
+                            _searchQuery.isEmpty &&
+                            index == 1) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 24.0),
+                            child: _buildEmptySearchState(context),
+                          );
+                        }
+                        final user = filteredUsers[index];
                         final rank =
-                            sortedFriends.indexWhere(
-                              (sortedFriend) => sortedFriend.id == friend.id,
+                            sortedUsers.indexWhere(
+                              (u) => u.id == user.id,
                             ) +
                             1;
 
                         return _buildFriendCard(
                           context,
-                          friend,
+                          user,
                           rank,
                           isTablet,
+                          currentUser: currentUser,
                         );
                       },
                     ),
@@ -166,217 +213,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return searchableText.contains(query);
   }
 
-  Widget _buildHeaderSection(
-    BuildContext context,
-    List<User> friends,
-    bool isTablet,
-  ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final currentUser = context.watch<AuthProvider>().currentUser;
-    if (currentUser == null) return const SizedBox.shrink();
-    final userRank = _getUserRank(currentUser, friends);
-    final isMaxLevel = currentUser.currentLevel >= AppConstants.maxLevel;
-
-    return Container(
-      margin: EdgeInsets.all(
-        isTablet ? AppConstants.paddingLarge : AppConstants.paddingMedium,
-      ),
-      padding: EdgeInsets.all(
-        isTablet ? 26 : AppConstants.paddingLarge,
-      ),
-      decoration: BoxDecoration(
-        gradient: theme.brightness == Brightness.light
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.stormyDarkSlate, AppColors.stormySkyBlue],
-              )
-            : const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF101720), AppColors.stormyDarkSlate],
-              ),
-        borderRadius: BorderRadius.circular(
-          isTablet ? 24 : AppConstants.radiusXLarge,
-        ),
-      ),
-      child: Column(
-        children: [
-          // Current User Stats
-          Row(
-            children: [
-              // Avatar
-              UserAvatarWithFrame(
-                avatarUrl: currentUser.avatarUrl,
-                frameId: currentUser.equippedFrame,
-                fallbackName: currentUser.name,
-                size: isTablet ? 96 : AppConstants.avatarXLarge,
-              ),
-              SizedBox(
-                width: isTablet
-                    ? AppConstants.paddingXLarge
-                    : AppConstants.paddingLarge,
-              ),
-
-              // User Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      currentUser.name,
-                      style: TextStyle(
-                        fontSize: isTablet ? 26 : 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textWhite,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.star,
-                          size: isTablet ? 18 : 16,
-                          color: AppColors.accentYellow,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Level ${currentUser.currentLevel}',
-                          style: TextStyle(
-                            fontSize: isTablet ? 16 : 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textWhite,
-                          ),
-                        ),
-                        SizedBox(
-                          width: isTablet
-                              ? AppConstants.paddingLarge
-                              : AppConstants.paddingMedium,
-                        ),
-                        Icon(
-                          Icons.check_circle_outline,
-                          size: isTablet ? 18 : 16,
-                          color: AppColors.textWhite.withValues(alpha: 0.8),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${currentUser.totalTasksCompleted} ภารกิจ',
-                          style: TextStyle(
-                            fontSize: isTablet ? 16 : 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textWhite,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.emoji_events,
-                          size: isTablet ? 18 : 16,
-                          color: AppColors.textWhite.withValues(alpha: 0.8),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'อันดับ #$userRank',
-                          style: TextStyle(
-                            fontSize: isTablet ? 16 : 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textWhite,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      currentUser.levelTitle,
-                      style: TextStyle(
-                        fontSize: isTablet ? 15 : 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textWhite.withValues(alpha: 0.82),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(
-            height: isTablet
-                ? AppConstants.paddingXLarge
-                : AppConstants.paddingLarge,
-          ),
-
-          // Progress to Next Level
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    isMaxLevel
-                        ? 'ระดับเลเวลสูงสุดแล้ว'
-                        : 'ความคืบหน้าไปยัง Level ${currentUser.currentLevel + 1}',
-                    style: TextStyle(
-                      fontSize: isTablet ? 15 : 12,
-                      fontWeight: FontWeight.w600,
-                      // ignore: deprecated_member_use
-                      color: AppColors.textWhite.withValues(alpha: 0.92),
-                    ),
-                  ),
-                  Text(
-                    isMaxLevel
-                        ? 'MAX LEVEL'
-                        : '${currentUser.progressToNextLevel} / ${currentUser.nextLevelPoints} XP',
-                    style: TextStyle(
-                      fontSize: isTablet ? 15 : 12,
-                      fontWeight: FontWeight.w600,
-                      // ignore: deprecated_member_use
-                      color: isMaxLevel
-                          ? Colors.amberAccent.shade100
-                          : AppColors.textWhite.withValues(alpha: 0.92),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
-                child: LinearProgressIndicator(
-                  value: isMaxLevel ? 1.0 : currentUser.progressToNextLevelValue,
-                  // ignore: deprecated_member_use
-                  backgroundColor: isDark
-                      ? Colors.white24
-                      : AppColors.backgroundWhite.withValues(alpha: 0.3),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    isMaxLevel
-                        ? Colors.amberAccent
-                        : (isDark ? AppColors.stormySkyBlue : AppColors.stormyDeepBlue),
-                  ),
-                  minHeight: isTablet ? 10 : 8,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSearchBar(BuildContext context, bool isTablet) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final currentUserId = context.watch<AuthProvider>().currentUser?.id;
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isTablet
+      padding: EdgeInsets.fromLTRB(
+        isTablet
             ? AppConstants.paddingLarge
             : AppConstants.paddingMedium,
+        isTablet ? 18 : 14,
+        isTablet
+            ? AppConstants.paddingLarge
+            : AppConstants.paddingMedium,
+        isTablet ? 12 : 8,
       ),
       child: Row(
         children: [
@@ -562,11 +413,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
     BuildContext context,
     User friend,
     int rank,
-    bool isTablet,
-  ) {
+    bool isTablet, {
+    User? currentUser,
+  }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final isTopThree = rank <= 3;
+    final isMe = currentUser != null && friend.id == currentUser.id;
 
     return Material(
       color: Colors.transparent,
@@ -575,13 +427,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
         borderRadius: BorderRadius.circular(
           isTablet ? 20 : AppConstants.radiusLarge,
         ),
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => FriendDetailScreen(friendUser: friend),
-            ),
-          );
-        },
+        onTap: isMe
+            ? null
+            : () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => FriendDetailScreen(friendUser: friend),
+                  ),
+                );
+              },
         child: Ink(
           padding: EdgeInsets.all(
             isTablet ? 20 : AppConstants.paddingMedium,
@@ -593,6 +447,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
             borderRadius: BorderRadius.circular(
               isTablet ? 20 : AppConstants.radiusLarge,
             ),
+            border: isMe
+                ? Border.all(
+                    color: AppColors.stormySkyBlue.withValues(alpha: 0.5),
+                    width: 1.5,
+                  )
+                : null,
             boxShadow: isDark
                 ? null
                 : [
@@ -609,32 +469,30 @@ class _FriendsScreenState extends State<FriendsScreen> {
               SizedBox(
                 width: isTablet ? 50 : 40,
                 child: Center(
-                  child: isTopThree
-                      ? Container(
-                          width: isTablet ? 42 : 32,
-                          height: isTablet ? 42 : 32,
-                          decoration: BoxDecoration(
-                            color: _getRankColor(rank),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Icon(
-                              Icons.emoji_events,
-                              size: isTablet ? 24 : 18,
-                              color: _getRankIconColor(rank),
-                            ),
-                          ),
-                        )
-                      : Text(
-                          '#$rank',
-                          style: (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
-                            fontSize: isTablet ? 20 : 16,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.75,
+                  child: Container(
+                    width: isTablet ? 42 : 32,
+                    height: isTablet ? 42 : 32,
+                    decoration: BoxDecoration(
+                      color: _getRankColor(rank, isDark),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Padding(
+                          padding: const EdgeInsets.all(2.0),
+                          child: Text(
+                            '$rank',
+                            style: TextStyle(
+                              fontSize: isTablet ? 20 : 16,
+                              fontWeight: FontWeight.bold,
+                              color: _getRankTextColor(rank, isDark),
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
 
@@ -661,7 +519,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       width: isTablet ? 18 : 14,
                       height: isTablet ? 18 : 14,
                       decoration: BoxDecoration(
-                        color: friend.isOnline
+                        color: (isMe || friend.isOnline)
                             ? AppColors.success
                             : (theme.brightness == Brightness.dark
                                   ? Colors.grey.shade600
@@ -690,7 +548,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   children: [
                     Row(
                       children: [
-                        Expanded(
+                        Flexible(
                           child: Text(
                             friend.name,
                             style: (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
@@ -703,19 +561,45 @@ class _FriendsScreenState extends State<FriendsScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          width: isTablet ? 10 : 8,
-                          height: isTablet ? 10 : 8,
-                          decoration: BoxDecoration(
-                            color: friend.isOnline
-                                ? AppColors.success
-                                : (theme.brightness == Brightness.dark
-                                      ? Colors.grey.shade600
-                                      : Colors.grey.shade400),
-                            shape: BoxShape.circle,
+                        if (isMe) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isTablet ? 10 : 8,
+                              vertical: isTablet ? 3 : 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.stormySkyBlue.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.stormySkyBlue.withValues(alpha: 0.5),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              'คุณ',
+                              style: TextStyle(
+                                fontSize: isTablet ? 13 : 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.stormySkyBlue,
+                              ),
+                            ),
                           ),
-                        ),
+                        ] else ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: isTablet ? 10 : 8,
+                            height: isTablet ? 10 : 8,
+                            decoration: BoxDecoration(
+                              color: friend.isOnline
+                                  ? AppColors.success
+                                  : (theme.brightness == Brightness.dark
+                                        ? Colors.grey.shade600
+                                        : Colors.grey.shade400),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -810,33 +694,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
-  Color _getRankColor(int rank) {
-    switch (rank) {
-      case 1:
-        return const Color(0xFFFFD700); // Gold
-      case 2:
-        return const Color(0xFFC0C0C0); // Silver
-      case 3:
-        return const Color(0xFFCD7F32); // Bronze
-      default:
-        return AppColors.backgroundGrey;
+  Color _getRankColor(int rank, bool isDark) {
+    if (rank == 1) {
+      return const Color(0xFFFFD700); // Yellow / Gold
     }
+    return isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1); // Grey
   }
 
-  Color _getRankIconColor(int rank) {
-    switch (rank) {
-      case 1:
-      case 2:
-        return Colors.black87;
-      default:
-        return AppColors.textWhite;
+  Color _getRankTextColor(int rank, bool isDark) {
+    if (rank == 1) {
+      return Colors.black87;
     }
-  }
-
-  int _getUserRank(User currentUser, List<User> friends) {
-    final allUsers = [currentUser, ...friends];
-    final sorted = List<User>.from(allUsers)
-      ..sort((a, b) => b.totalXP.compareTo(a.totalXP));
-    return sorted.indexWhere((user) => user.id == currentUser.id) + 1;
+    return isDark ? Colors.white : const Color(0xFF334155);
   }
 }
+

@@ -164,6 +164,7 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
 
         if (!isLeader) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
+          final isTablet = MediaQuery.of(context).size.width >= 600;
           if (!mounted) return;
           showDialog(
             context: context,
@@ -172,20 +173,24 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
                   ? AppColors.stormyDarkSlate
                   : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20.0),
+                borderRadius: BorderRadius.circular(isTablet ? 22 : 20.0),
+              ),
+              actionsPadding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 16 : 12,
               ),
               title: Text(
                 'ไม่สามารถเสร็จสิ้นภารกิจได้',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               content: Text(
                 'เฉพาะหัวหน้ากลุ่มเท่านั้นที่สามารถทำเครื่องหมายเสร็จสิ้นภารกิจได้',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: isTablet ? 16 : 14.5,
                   height: 1.5,
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.85)
@@ -201,17 +206,20 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
                         ? AppColors.stormyNightBackground
                         : Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 20 : 16,
+                      vertical: isTablet ? 12 : 10,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'ตกลง',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isTablet ? 16 : 14.5,
+                    ),
                   ),
                 ),
               ],
@@ -232,6 +240,7 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
 
         if (!areAllCompleted) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
+          final isTablet = MediaQuery.of(context).size.width >= 600;
           final incompleteCount = membersToCheck
               .where((m) => m.status != 'completed')
               .length;
@@ -262,20 +271,24 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
                   ? AppColors.stormyDarkSlate
                   : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20.0),
+                borderRadius: BorderRadius.circular(isTablet ? 22 : 20.0),
+              ),
+              actionsPadding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 16 : 12,
               ),
               title: Text(
                 'ไม่สามารถเสร็จสิ้นภารกิจได้',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               content: Text(
                 message,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: isTablet ? 16 : 14.5,
                   height: 1.5,
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.85)
@@ -291,17 +304,20 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
                         ? AppColors.stormyNightBackground
                         : Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 20 : 16,
+                      vertical: isTablet ? 12 : 10,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'ตกลง',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isTablet ? 16 : 14.5,
+                    ),
                   ),
                 ),
               ],
@@ -315,26 +331,31 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
       if (latestTask.subtasks.isNotEmpty &&
           latestTask.subtasks.any((s) => !s.isDone)) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
+        final isTablet = MediaQuery.of(context).size.width >= 600;
         if (!mounted) return;
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20.0),
+              borderRadius: BorderRadius.circular(isTablet ? 22 : 20.0),
+            ),
+            actionsPadding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 20 : 16,
+              vertical: isTablet ? 16 : 12,
             ),
             title: Text(
               'ไม่สามารถเสร็จสิ้นภารกิจได้',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
+                fontSize: isTablet ? 22 : 18,
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             content: Text(
               'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: isTablet ? 16 : 14.5,
                 height: 1.5,
                 color: isDark
                     ? Colors.white.withValues(alpha: 0.85)
@@ -350,17 +371,20 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
                       ? AppColors.stormyNightBackground
                       : Colors.white,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 20 : 16,
+                    vertical: isTablet ? 12 : 10,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.0),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'ตกลง',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTablet ? 16 : 14.5,
+                  ),
                 ),
               ),
             ],
@@ -1013,54 +1037,72 @@ class _UpcomingTaskCard extends StatelessWidget {
                           },
                           icon: Icon(
                             Icons.more_vert,
-                            size: isTablet ? 28 : null,
+                            size: isTablet ? 28 : 22,
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.55,
                             ),
                           ),
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'edit',
                               child: Row(
                                 children: [
                                   Icon(
                                     Icons.edit_outlined,
                                     color: AppColors.primaryBlue,
-                                    size: 20,
+                                    size: isTablet ? 24 : 22,
                                   ),
-                                  SizedBox(width: 10),
-                                  Text('แก้ไข'),
+                                  SizedBox(width: isTablet ? 12 : 10),
+                                  Text(
+                                    'แก้ไข',
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onSurface,
+                                      fontSize: isTablet ? 18 : 16,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                             if (canShowComplete)
-                              const PopupMenuItem(
+                              PopupMenuItem(
                                 value: 'toggle_complete',
                                 child: Row(
                                   children: [
                                     Icon(
                                       Icons.check_circle_outline,
                                       color: AppColors.success,
-                                      size: 20,
+                                      size: isTablet ? 24 : 22,
                                     ),
-                                    SizedBox(width: 10),
-                                    Text('ทำว่าเสร็จสิ้น'),
+                                    SizedBox(width: isTablet ? 12 : 10),
+                                    Text(
+                                      'ทำว่าเสร็จสิ้น',
+                                      style: TextStyle(
+                                        color: theme.colorScheme.onSurface,
+                                        fontSize: isTablet ? 18 : 16,
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'delete',
                               child: Row(
                                 children: [
                                   Icon(
                                     Icons.delete_outline,
                                     color: AppColors.error,
-                                    size: 20,
+                                    size: isTablet ? 24 : 22,
                                   ),
-                                  SizedBox(width: 10),
+                                  SizedBox(width: isTablet ? 12 : 10),
                                   Text(
                                     'ลบ',
-                                    style: TextStyle(color: AppColors.error),
+                                    style: TextStyle(
+                                      color: AppColors.error,
+                                      fontSize: isTablet ? 18 : 16,
+                                      fontWeight: FontWeight.normal,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1128,23 +1170,27 @@ class _UpcomingTaskCard extends StatelessWidget {
         );
     if (!isLeader) return;
 
+    final isTablet = MediaQuery.of(parentContext).size.width >= 600;
+
     showDialog(
       context: parentContext,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Theme.of(parentContext).brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : Theme.of(parentContext).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
           'ยืนยันการลบภารกิจ',
           style: TextStyle(
             color: AppColors.accentRed,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
           ),
         ),
         content: Text(
           'คุณแน่ใจหรือไม่ว่าต้องการลบ${task.isPersonal ? "ภารกิจส่วนตัว" : "ภารกิจกลุ่ม"}นี้โดยส่งไปที่ถังขยะ?',
           style: TextStyle(
+            fontSize: isTablet ? 16 : 14.5,
             color: Theme.of(parentContext).brightness == Brightness.dark
                 ? AppColors.stormyIceBlue
                 : Theme.of(
@@ -1152,16 +1198,30 @@ class _UpcomingTaskCard extends StatelessWidget {
                   ).colorScheme.onSurface.withValues(alpha: 0.82),
           ),
         ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 18 : 14,
+                vertical: isTablet ? 12 : 10,
+              ),
               foregroundColor:
                   Theme.of(parentContext).brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -1202,13 +1262,20 @@ class _UpcomingTaskCard extends StatelessWidget {
                   Theme.of(parentContext).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันการลบ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],

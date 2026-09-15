@@ -11,8 +11,11 @@ class Responsive {
   // Screen Type Classification
   static ScreenType getScreenType(BuildContext context) {
     final width = screenWidth(context);
-    if (width < 600) return ScreenType.mobile;
-    if (width < 1200) return ScreenType.tablet;
+    final shortest = MediaQuery.of(context).size.shortestSide;
+    if (shortest < 600 && width < 600) return ScreenType.mobile;
+    if (width < 1400 || (shortest >= 600 && width < 1600)) {
+      return ScreenType.tablet;
+    }
     return ScreenType.desktop;
   }
 
@@ -94,17 +97,15 @@ class Responsive {
     }
   }
 
+  static bool isLandscape(BuildContext context) =>
+      MediaQuery.of(context).orientation == Orientation.landscape;
+
   // Navigation Rail Width
   static double navigationRailWidth(BuildContext context) {
-    final type = getScreenType(context);
-    switch (type) {
-      case ScreenType.desktop:
-        return 200.0;
-      case ScreenType.tablet:
-        return 180.0;
-      default:
-        return 0.0;
+    if (useNavigationRail(context)) {
+      return 76.0;
     }
+    return 0.0;
   }
 
   // Cross Axis Count for Grids

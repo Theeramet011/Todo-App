@@ -151,8 +151,8 @@ class AdaptiveNavBar extends StatelessWidget {
     final topPadding = math.max(16.0, (screenHeight - 340) / 2);
 
     return NavigationRail(
-      extended: Responsive.isDesktop(context),
-      minWidth: 80,
+      extended: false,
+      minWidth: 76,
       groupAlignment: -1.0,
       backgroundColor: theme.colorScheme.surface,
       elevation: 2,
@@ -160,44 +160,13 @@ class AdaptiveNavBar extends StatelessWidget {
       onDestinationSelected: onTap,
       leading: Padding(
         padding: EdgeInsets.only(top: topPadding, bottom: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.menu, color: theme.colorScheme.onSurface),
-              tooltip: 'เมนู',
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-            if (Responsive.isDesktop(context)) ...[
-              const SizedBox(height: 8),
-              Text(
-                'ตัวจัดการ\nภารกิจ',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ],
+        child: IconButton(
+          icon: Icon(Icons.menu, color: theme.colorScheme.onSurface),
+          tooltip: 'เมนู',
+          onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
-      trailing: Responsive.isDesktop(context) && onFabPressed != null
-          ? Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: FloatingActionButton(
-                    onPressed: onFabPressed,
-                    backgroundColor: AppColors.primaryPink,
-                    child: const Icon(Icons.add),
-                  ),
-                ),
-              ),
-            )
-          : null,
+      trailing: null,
       destinations: [
         _buildNavDestination(
           icon: Icons.home_outlined,

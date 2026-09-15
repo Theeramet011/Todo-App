@@ -46,50 +46,63 @@ class FastCompletionWarningDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Dialog(
       backgroundColor: theme.brightness == Brightness.dark
           ? AppColors.stormyDarkSlate
           : theme.cardColor,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 36 : 28,
+        vertical: isTablet ? 32 : 24,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isTablet ? 28 : 24),
+      ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 18),
+        padding: EdgeInsets.fromLTRB(
+          isTablet ? 28 : 24,
+          isTablet ? 28 : 24,
+          isTablet ? 28 : 24,
+          isTablet ? 22 : 18,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: isTablet ? 64 : 56,
+              height: isTablet ? 64 : 56,
               decoration: BoxDecoration(
                 color: AppColors.warning.withValues(alpha: 0.14),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.warning_amber_rounded,
                 color: AppColors.warning,
-                size: 32,
+                size: isTablet ? 38 : 32,
               ),
             ),
-            const SizedBox(height: 18),
+            SizedBox(height: isTablet ? 20 : 18),
             Text(
               'ไม่ได้รับคะแนนภารกิจ',
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: isTablet ? 22 : 18,
                 fontWeight: FontWeight.w800,
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: isTablet ? 12 : 10),
             Text(
               message,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.45,
+                fontSize: isTablet ? 16 : 14.5,
+                height: 1.5,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
               ),
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: isTablet ? 26 : 22),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -100,14 +113,19 @@ class FastCompletionWarningDialog extends StatelessWidget {
                       Theme.of(context).brightness == Brightness.dark
                           ? AppColors.stormyNightBackground
                           : Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: EdgeInsets.symmetric(
+                    vertical: isTablet ? 16 : 14,
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(isTablet ? 16 : 14),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'เข้าใจแล้ว T_T',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontSize: isTablet ? 16 : 14.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

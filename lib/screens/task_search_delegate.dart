@@ -18,6 +18,8 @@ class TaskSearchDelegate extends SearchDelegate {
   ThemeData appBarTheme(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     return theme.copyWith(
       appBarTheme: theme.appBarTheme.copyWith(
         backgroundColor: isDark
@@ -31,13 +33,14 @@ class TaskSearchDelegate extends SearchDelegate {
         filled: true,
         fillColor: isDark ? AppColors.stormyDarkSlate : Colors.transparent,
         hintStyle: TextStyle(
+          fontSize: isTablet ? 20 : 16,
           color: isDark
               ? AppColors.stormyMutedBlueGrey
               : theme.colorScheme.onSurface.withValues(alpha: 0.5),
         ),
         border: isDark
             ? OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
                 borderSide: BorderSide.none,
               )
             : InputBorder.none,
@@ -55,6 +58,7 @@ class TaskSearchDelegate extends SearchDelegate {
       ),
       textTheme: theme.textTheme.copyWith(
         titleLarge: TextStyle(
+          fontSize: isTablet ? 20 : 16,
           color: isDark ? Colors.white : theme.colorScheme.onSurface,
         ),
       ),
@@ -63,10 +67,12 @@ class TaskSearchDelegate extends SearchDelegate {
 
   @override
   List<Widget>? buildActions(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     return [
       if (query.isNotEmpty)
         IconButton(
-          icon: const Icon(Icons.clear),
+          icon: Icon(Icons.clear, size: isTablet ? 28 : 24),
           onPressed: () {
             query = '';
           },
@@ -76,8 +82,10 @@ class TaskSearchDelegate extends SearchDelegate {
 
   @override
   Widget? buildLeading(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     return IconButton(
-      icon: const Icon(Icons.arrow_back),
+      icon: Icon(Icons.arrow_back, size: isTablet ? 28 : 24),
       onPressed: () {
         close(context, null);
       },
@@ -96,6 +104,7 @@ class TaskSearchDelegate extends SearchDelegate {
 
   Widget _buildSearchResults(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     // Capture the provider at the beginning of the build method for a stable reference
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final allTasks = taskProvider.tasks;
@@ -124,15 +133,15 @@ class TaskSearchDelegate extends SearchDelegate {
             children: [
               Icon(
                 Icons.search_off,
-                size: 80,
+                size: isTablet ? 110 : 80,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
               ),
-              const SizedBox(height: AppConstants.paddingMedium),
+              SizedBox(height: isTablet ? 20 : AppConstants.paddingMedium),
               Text(
                 'ไม่พบผลลัพธ์สำหรับ "$query"',
                 style: TextStyle(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                  fontSize: 16,
+                  fontSize: isTablet ? 20 : 16,
                 ),
               ),
             ],
@@ -146,7 +155,9 @@ class TaskSearchDelegate extends SearchDelegate {
           ? AppColors.stormyNightBackground
           : theme.scaffoldBackgroundColor,
       child: ListView.builder(
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+        padding: EdgeInsets.all(
+          isTablet ? 24.0 : AppConstants.paddingMedium,
+        ),
         itemCount: results.length,
         itemBuilder: (context, index) {
           final task = results[index];
@@ -178,20 +189,27 @@ class _SearchTaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: AppConstants.paddingSmall),
+      margin: EdgeInsets.only(
+        bottom: isTablet ? 14 : AppConstants.paddingSmall,
+      ),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        borderRadius: BorderRadius.circular(
+          isTablet ? AppConstants.radiusLarge : AppConstants.radiusMedium,
+        ),
         border: Border.all(
           color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
         ),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(AppConstants.paddingMedium),
+        contentPadding: EdgeInsets.all(
+          isTablet ? 20.0 : AppConstants.paddingMedium,
+        ),
         onTap: () async {
           // Use the stable taskProvider reference
           taskProvider.selectTask(task);
@@ -210,6 +228,7 @@ class _SearchTaskCard extends StatelessWidget {
               child: Text(
                 task.title,
                 style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: isTablet ? 22 : 18,
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,
                 ),
@@ -217,6 +236,7 @@ class _SearchTaskCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: 8),
             _buildTypeTag(context),
           ],
         ),
@@ -224,30 +244,32 @@ class _SearchTaskCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (task.description.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              SizedBox(height: isTablet ? 6 : 4),
               Text(
                 task.description,
                 style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: isTablet ? 16 : 14,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            const SizedBox(height: 8),
+            SizedBox(height: isTablet ? 12 : 8),
             Row(
               children: [
                 Icon(
                   Icons.calendar_today,
-                  size: 14,
+                  size: isTablet ? 18 : 14,
                   color: theme.brightness == Brightness.dark
                       ? AppColors.stormySkyBlue
                       : AppColors.stormyMutedBlueGrey,
                 ),
-                const SizedBox(width: 4),
+                SizedBox(width: isTablet ? 6 : 4),
                 Text(
                   _formatDate(task.dateTime),
                   style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: isTablet ? 15 : 12,
                     color: theme.brightness == Brightness.dark
                         ? AppColors.stormySkyBlue
                         : AppColors.stormyMutedBlueGrey,
@@ -265,18 +287,22 @@ class _SearchTaskCard extends StatelessWidget {
 
   Widget _buildTypeTag(BuildContext context) {
     final isPersonal = task.isPersonal;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 12 : 8,
+        vertical: isTablet ? 5 : 2,
+      ),
       decoration: BoxDecoration(
         color: (isPersonal ? AppColors.primaryBlue : AppColors.primaryPurple)
             .withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(isTablet ? 6 : 4),
       ),
       child: Text(
         isPersonal ? 'ส่วนตัว' : 'กลุ่ม',
         style: TextStyle(
-          fontSize: 10,
+          fontSize: isTablet ? 14 : 10,
           fontWeight: FontWeight.bold,
           color: (isPersonal ? AppColors.primaryBlue : AppColors.primaryPurple),
         ),

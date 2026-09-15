@@ -687,6 +687,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       ..selection = TextSelection.collapsed(offset: _selectedLocation.length);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     showDialog(
       context: context,
@@ -694,12 +695,19 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         backgroundColor: isDark
             ? AppColors.stormyDarkSlate
             : theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Text(
           'ระบุสถานที่',
           style: TextStyle(
             color: isDark ? Colors.white : AppColors.stormyDarkSlate,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
           ),
         ),
         content: TextField(
@@ -707,17 +715,20 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
           autofocus: true,
           style: TextStyle(
             color: isDark ? Colors.white : AppColors.stormyDarkSlate,
+            fontSize: isTablet ? 16 : 14.5,
           ),
           decoration: InputDecoration(
             hintText: 'กรอกชื่อสถานที่...',
             hintStyle: TextStyle(
               color: isDark ? Colors.white38 : AppColors.stormyMutedBlueGrey,
+              fontSize: isTablet ? 16 : 14.5,
             ),
             prefixIcon: Icon(
               Icons.location_on_outlined,
               color: isDark
                   ? AppColors.stormySkyBlue
                   : AppColors.stormyMutedBlueGrey,
+              size: isTablet ? 24 : 20,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -742,11 +753,18 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               setState(() => _selectedLocation = '');
               Navigator.pop(context);
             },
-            child: const Text(
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
+            child: Text(
               'ลบสถานที่',
               style: TextStyle(
                 color: AppColors.accentRed,
                 fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
               ),
             ),
           ),
@@ -759,15 +777,21 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
             onPressed: () {
               setState(() => _selectedLocation = controller.text.trim());
               Navigator.pop(context);
             },
-            child: const Text(
+            child: Text(
               'บันทึก',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -2015,12 +2039,19 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   void _showDeleteMemberConfirmation(Member user) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Row(
           children: [
             Container(
@@ -2029,10 +2060,10 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                 color: AppColors.accentRed.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.delete_outline_rounded,
                 color: AppColors.accentRed,
-                size: 24,
+                size: isTablet ? 26 : 24,
               ),
             ),
             const SizedBox(width: 12),
@@ -2040,7 +2071,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               child: Text(
                 'ยืนยันการลบสมาชิก',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   fontWeight: FontWeight.bold,
                   color: AppColors.accentRed,
                 ),
@@ -2051,7 +2082,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         content: Text(
           'ต้องการลบสมาชิก "${user.name}" ออกจากภารกิจนี้หรือไม่?',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: isTablet ? 16 : 14.5,
             height: 1.5,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
           ),
@@ -2059,11 +2090,18 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
             child: Text(
               'ยกเลิก',
               style: TextStyle(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
+                fontSize: isTablet ? 16 : 14.5,
               ),
             ),
           ),
@@ -2082,11 +2120,17 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันลบ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -2101,6 +2145,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     final leaderId = widget.task?.creatorId ?? authProvider.currentUser?.id;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     showDialog(
       context: context,
@@ -2110,12 +2155,16 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             return AlertDialog(
               backgroundColor: theme.colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+              ),
+              actionsPadding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 16 : 12,
               ),
               title: Text(
                 'เลือกผู้เข้าร่วม',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   fontWeight: FontWeight.bold,
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.9)
@@ -2303,6 +2352,12 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 20 : 16,
+                      vertical: isTablet ? 12 : 10,
+                    ),
+                  ),
                   child: Text(
                     'เสร็จ',
                     style: TextStyle(
@@ -2310,7 +2365,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                           ? AppColors.stormySkyBlue
                           : AppColors.stormySkyBlue),
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: isTablet ? 16 : 14.5,
                     ),
                   ),
                 ),
@@ -2835,20 +2890,25 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   Future<void> _showTimeInPastDialog(BuildContext context) async {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0),
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20.0),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
         ),
         title: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.warning_amber_rounded,
               color: AppColors.accentRed,
-              size: 28,
+              size: isTablet ? 30 : 28,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -2856,7 +2916,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                 'ไม่สามารถตั้งเวลาได้',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -2866,7 +2926,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         content: Text(
           'ไม่สามารถตั้งเวลาก่อนเวลาปัจจุบันได้',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: isTablet ? 16 : 14.5,
             height: 1.5,
             color: isDark
                 ? Colors.white.withValues(alpha: 0.85)
@@ -2878,11 +2938,17 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             onPressed: () => Navigator.pop(dialogContext),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.stormySkyBlue,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 8,
+              ),
             ),
-            child: const Text(
+            child: Text(
               'ตกลง',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -2897,6 +2963,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   ) async {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final timeStr =
         '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')} น.';
     final dateStr =
@@ -2908,14 +2975,18 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0),
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20.0),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
         ),
         title: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.info_outline_rounded,
               color: AppColors.stormySkyBlue,
-              size: 28,
+              size: isTablet ? 30 : 28,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -2923,7 +2994,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                 'ปรับวันที่เป็นวันพรุ่งนี้อัตโนมัติ',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -2933,7 +3004,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         content: Text(
           'เนื่องจากคุณตั้งเป็นเวลา $timeStr ซึ่งผ่านเวลาปัจจุบันไปแล้ว จะเริ่มตั้งเป็นวันที่พรุ่งนี้อัตโนมัติ ($dateStr)',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: isTablet ? 16 : 14.5,
             height: 1.5,
             color: isDark
                 ? Colors.white.withValues(alpha: 0.85)
@@ -2946,11 +3017,17 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             style: TextButton.styleFrom(
               foregroundColor:
                   theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 8,
+              ),
             ),
-            child: const Text(
+            child: Text(
               'เลือกเวลาใหม่',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
           ElevatedButton(
@@ -2964,11 +3041,17 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10.0),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 8,
+              ),
             ),
-            child: const Text(
+            child: Text(
               'ตกลง',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],

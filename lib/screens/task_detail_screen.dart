@@ -117,6 +117,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _showXPLimitDialog(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -124,50 +126,50 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         final theme = Theme.of(context);
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(isTablet ? 28 : 24),
           ),
           elevation: 10,
           backgroundColor: theme.colorScheme.surface,
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: EdgeInsets.all(isTablet ? 30.0 : 24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(isTablet ? 18 : 16),
                   decoration: BoxDecoration(
                     color: AppColors.accentOrange.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.warning_amber_rounded,
                     color: AppColors.accentOrange,
-                    size: 48,
+                    size: isTablet ? 54 : 48,
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: isTablet ? 24 : 20),
                 Text(
                   'Daily XP Cap Reached',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: isTablet ? 22 : 20,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: isTablet ? 14 : 12),
                 Text(
                   'ขณะนี้ท่านมีคะแนนที่ได้จากภารกิจกลุ่มต่อเนื่องถึง 270 แต้มแล้วการสร้างภารกิจหลังจากนี้ท่านจะไม่ได้รับแต้มอีก',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: isTablet ? 16 : 14.5,
                     height: 1.5,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: isTablet ? 28 : 24),
                 SizedBox(
                   width: double.infinity,
-                  height: 54,
+                  height: isTablet ? 58 : 54,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
@@ -180,14 +182,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               ? AppColors.stormyNightBackground
                               : Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(isTablet ? 16 : 14),
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
+                    child: Text(
                       'รับทราบ',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: isTablet ? 20 : 18,
                         height: 1.1,
                         fontWeight: FontWeight.w800,
                       ),
@@ -240,6 +242,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final canMemberDelete = currentTask.isGroup &&
         !isLeader &&
         (currentTask.isCompleted || _areAllMembersCompleted(currentTask, leaderId));
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
@@ -252,6 +255,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ? AppColors.stormyNightBackground
             : Theme.of(context).appBarTheme.backgroundColor,
         iconTheme: IconThemeData(
+          size: isTablet ? 28 : 24,
           color: Theme.of(context).brightness == Brightness.dark
               ? AppColors.textWhite
               : Theme.of(context).colorScheme.onSurface,
@@ -259,6 +263,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         title: Text(
           'รายละเอียดภารกิจ',
           style: TextStyle(
+            fontSize: isTablet ? 22 : 18,
+            fontWeight: FontWeight.bold,
             color: Theme.of(context).brightness == Brightness.dark
                 ? AppColors.textWhite
                 : Theme.of(context).colorScheme.onSurface,
@@ -269,6 +275,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             IconButton(
               icon: Icon(
                 Icons.more_vert,
+                size: isTablet ? 28 : 24,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? AppColors.textWhite
                     : null,
@@ -332,14 +339,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildHeaderSection(Task task) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     return Container(
-      margin: const EdgeInsets.all(AppConstants.paddingMedium),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      margin: EdgeInsets.all(isTablet ? 20.0 : AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 24.0 : AppConstants.paddingLarge),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 28.0 : AppConstants.radiusXLarge,
+        ),
         boxShadow: [
           BoxShadow(
             color: theme.brightness == Brightness.light
@@ -357,9 +368,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 14 : 12,
+                  vertical: isTablet ? 8 : 6,
                 ),
                 decoration: BoxDecoration(
                   color: theme.brightness == Brightness.dark
@@ -367,14 +378,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       : (task.isCompleted
                             ? AppColors.success.withValues(alpha: 0.1)
                             : AppColors.warning.withValues(alpha: 0.1)),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                  borderRadius: BorderRadius.circular(
+                    isTablet ? 10 : AppConstants.radiusSmall,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       task.isCompleted ? Icons.check_circle : Icons.schedule,
-                      size: 14,
+                      size: isTablet ? 18 : 14,
                       color: theme.brightness == Brightness.dark
                           ? (task.isCompleted
                                 ? const Color(0xFFA5D6A7)
@@ -383,11 +396,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                 ? AppColors.success
                                 : AppColors.warning),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: isTablet ? 8 : 6),
                     Text(
                       task.isCompleted ? 'เสร็จสิ้น' : 'กำลังดำเนินการ',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: isTablet ? 15 : 12,
                         fontWeight: FontWeight.w600,
                         color: theme.brightness == Brightness.dark
                             ? (task.isCompleted
@@ -406,18 +419,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               const Spacer(),
               // Type Badge
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: EdgeInsets.all(isTablet ? 8 : 6),
                 decoration: BoxDecoration(
                   color:
                       (task.isPersonal
                               ? AppColors.primaryBlue
                               : AppColors.primaryPurple)
                           .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                  borderRadius: BorderRadius.circular(
+                    isTablet ? 8 : AppConstants.radiusSmall,
+                  ),
                 ),
                 child: Icon(
                   task.isPersonal ? Icons.person : Icons.people,
-                  size: 16,
+                  size: isTablet ? 20 : 16,
                   color: task.isPersonal
                       ? AppColors.primaryBlue
                       : AppColors.primaryPurple,
@@ -426,24 +441,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ],
           ),
 
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(height: isTablet ? 20 : AppConstants.paddingMedium),
 
           // Task Title
           Text(
             task.title,
             style: TextStyle(
-              fontSize: 22,
+              fontSize: isTablet ? 26 : 22,
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.onSurface,
             ),
           ),
 
           if (task.description.isNotEmpty) ...[
-            const SizedBox(height: AppConstants.paddingSmall),
+            SizedBox(height: isTablet ? 8 : AppConstants.paddingSmall),
             Text(
               task.description,
               style: TextStyle(
-                fontSize: 15,
+                fontSize: isTablet ? 18 : 15,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? AppColors.stormyIceBlue
                     : theme.colorScheme.onSurface.withValues(alpha: 0.7),
@@ -514,25 +529,31 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           'สมาชิกในกลุ่มยังส่งงานไม่ครบถ้วน (เหลืออีก $incompleteCount คน) กรุณารอให้สมาชิกทุกคนส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
     }
 
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0),
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20.0),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
         ),
         title: Text(
           'ไม่สามารถเสร็จสิ้นภารกิจได้',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: isTablet ? 22 : 18,
             color: theme.colorScheme.onSurface,
           ),
         ),
         content: Text(
           message,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: isTablet ? 16 : 14.5,
             height: 1.5,
             color: isDark
                 ? Colors.white.withValues(alpha: 0.85)
@@ -548,14 +569,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ? AppColors.stormyNightBackground
                   : Colors.white,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12.0),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ตกลง',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -569,6 +596,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final leaderId = taskProvider.leaderIdForTask(task);
     final isLeader = currentUserId != null && currentUserId == leaderId;
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final isDark = theme.brightness == Brightness.dark;
 
     // Check if current user is an assigned group member
@@ -591,14 +619,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     Widget? generalSubtasksWidget;
     if (hasGeneralSubtasks) {
       generalSubtasksWidget = Container(
-        margin: const EdgeInsets.symmetric(
-          horizontal: AppConstants.paddingMedium,
+        margin: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20.0 : AppConstants.paddingMedium,
           vertical: AppConstants.paddingSmall,
         ),
-        padding: const EdgeInsets.all(AppConstants.paddingLarge),
+        padding: EdgeInsets.all(
+          isTablet ? 24.0 : AppConstants.paddingLarge,
+        ),
         decoration: BoxDecoration(
           color: isDark ? AppColors.stormyDarkSlate : theme.cardColor,
-          borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+          borderRadius: BorderRadius.circular(
+            isTablet ? 28.0 : AppConstants.radiusXLarge,
+          ),
           boxShadow: [
             BoxShadow(
               color: isDark
@@ -619,23 +651,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ? 'ความคืบหน้าภารกิจย่อยงานหลัก'
                       : 'ความคืบหน้าภารกิจย่อย',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: isTablet ? 20 : 16,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 12 : 8,
+                    vertical: isTablet ? 6 : 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.stormySkyBlue.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(isTablet ? 10 : 12),
                   ),
                   child: Text(
                     '${task.subtasks.where((s) => s.isDone).length}/${task.subtasks.length}',
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      fontSize: isTablet ? 15 : 12,
                       fontWeight: FontWeight.bold,
                       color: AppColors.stormySkyBlue,
                     ),
@@ -643,7 +677,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: AppConstants.paddingMedium),
+            SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -729,10 +763,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     }
                   },
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                    margin: EdgeInsets.only(bottom: isTablet ? 12 : 8),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 20 : 16,
+                      vertical: isTablet ? 16 : 12,
                     ),
                     decoration: BoxDecoration(
                       color: subtask.isDone
@@ -742,7 +776,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                   alpha: 0.5,
                                 ))
                           : AppColors.stormySkyBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(isTablet ? 18 : 15),
                       border: Border.all(
                         color: subtask.isDone
                             ? (isDark
@@ -758,17 +792,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           subtask.isDone
                               ? Icons.check_circle
                               : Icons.radio_button_unchecked,
-                          size: 20,
+                          size: isTablet ? 26 : 20,
                           color: subtask.isDone
                               ? AppColors.success
                               : AppColors.stormySkyBlue,
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: isTablet ? 16 : 12),
                         Expanded(
                           child: Text(
                             subtask.title,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: isTablet ? 18 : 15,
+                              height: 1.4,
                               fontWeight: subtask.isDone
                                   ? FontWeight.normal
                                   : FontWeight.w500,
@@ -785,10 +820,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                         if (task.isGroup && !isLeader)
                           Padding(
-                            padding: const EdgeInsets.only(left: 6),
+                            padding: EdgeInsets.only(left: isTablet ? 8 : 6),
                             child: Icon(
                               Icons.lock_outline_rounded,
-                              size: 16,
+                              size: isTablet ? 20 : 16,
                               color: theme.colorScheme.onSurface.withValues(
                                 alpha: 0.35,
                               ),
@@ -839,6 +874,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     bool isDark,
     ThemeData theme,
   ) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final statusInfo = _getMemberStatusInfo(myMember, task);
     final memberSubtasks = myMember.subTasks;
     final completedCount = myMember.completedSubTasks
@@ -1152,10 +1188,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     );
                   },
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                    margin: EdgeInsets.only(bottom: isTablet ? 10 : 8),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 18 : 14,
+                      vertical: isTablet ? 14 : 10,
                     ),
                     decoration: BoxDecoration(
                       color: isDone
@@ -1165,7 +1201,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                   alpha: 0.5,
                                 ))
                           : AppColors.stormySkyBlue.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(isTablet ? 16 : 14),
                       border: Border.all(
                         color: isDone
                             ? (isDark
@@ -1181,17 +1217,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           isDone
                               ? Icons.check_circle_rounded
                               : Icons.radio_button_unchecked_rounded,
-                          size: 20,
+                          size: isTablet ? 26 : 20,
                           color: isDone
                               ? AppColors.success
                               : AppColors.stormySkyBlue,
                         ),
-                        const SizedBox(width: 10),
+                        SizedBox(width: isTablet ? 14 : 10),
                         Expanded(
                           child: Text(
                             subtaskTitle,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: isTablet ? 17.5 : 14.5,
+                              height: 1.4,
                               fontWeight: isDone
                                   ? FontWeight.normal
                                   : FontWeight.w500,
@@ -1294,16 +1331,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildTaskInfoSection(Task task) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
+      margin: EdgeInsets.symmetric(
+        horizontal: isTablet ? 20.0 : AppConstants.paddingMedium,
       ),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      padding: EdgeInsets.all(
+        isTablet ? 24.0 : AppConstants.paddingLarge,
+      ),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 28.0 : AppConstants.radiusXLarge,
+        ),
         boxShadow: [
           BoxShadow(
             color: theme.brightness == Brightness.light
@@ -1320,18 +1363,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Text(
             'ข้อมูลภารกิจ',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: isTablet ? 20 : 16,
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
           _buildInfoRow(
             icon: Icons.calendar_today,
             label: 'วันและเวลา',
             value: _formatDateTime(task.dateTime),
           ),
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
           if (task.category != null)
             _buildInfoRow(
               icon: Icons.category,
@@ -1339,7 +1382,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               value: thaiCategoryLabel(task.category!),
             ),
           if (task.category != null)
-            const SizedBox(height: AppConstants.paddingMedium),
+            SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
           if (task.location != null)
             _buildInfoRow(
               icon: Icons.location_on,
@@ -1347,7 +1390,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               value: task.location!,
             ),
           if (task.location != null)
-            const SizedBox(height: AppConstants.paddingMedium),
+            SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
           _buildInfoRow(
             icon: Icons.access_time,
             label: 'สร้างเมื่อ',
@@ -1371,6 +1414,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (isLeader) {
       return const SizedBox.shrink();
     }
+
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     Member? myMember;
     if (task.isGroup || task.members.isNotEmpty) {
@@ -1399,22 +1444,49 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () async {
+                      final isTablet = MediaQuery.of(context).size.width >= 600;
                       final confirm = await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
-                              AppConstants.radiusLarge,
+                              isTablet ? 22 : AppConstants.radiusLarge,
                             ),
                           ),
-                          title: const Text('ยกเลิกการส่งงาน?'),
-                          content: const Text(
+                          actionsPadding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 20 : 16,
+                            vertical: isTablet ? 16 : 12,
+                          ),
+                          title: Text(
+                            'ยกเลิกการส่งงาน?',
+                            style: TextStyle(
+                              fontSize: isTablet ? 22 : 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          content: Text(
                             'คุณต้องการยกเลิกการส่งงานนี้ใช่หรือไม่? รายละเอียดการส่งจะถูกลบออก',
+                            style: TextStyle(
+                              fontSize: isTablet ? 16 : 14.5,
+                              height: 1.5,
+                            ),
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context, false),
-                              child: const Text('ย้อนกลับ'),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isTablet ? 20 : 16,
+                                  vertical: isTablet ? 12 : 10,
+                                ),
+                              ),
+                              child: Text(
+                                'ย้อนกลับ',
+                                style: TextStyle(
+                                  fontSize: isTablet ? 16 : 14.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                             ElevatedButton(
                               onPressed: () => Navigator.pop(context, true),
@@ -1425,8 +1497,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                             Brightness.dark
                                         ? AppColors.stormyNightBackground
                                         : Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isTablet ? 20 : 16,
+                                  vertical: isTablet ? 12 : 10,
+                                ),
                               ),
-                              child: const Text('ยกเลิกการส่ง'),
+                              child: Text(
+                                'ยกเลิกการส่ง',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: isTablet ? 16 : 14.5,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -1446,22 +1528,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         }
                       }
                     },
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.cancel_outlined,
                       color: AppColors.accentRed,
+                      size: isTablet ? 22 : 20,
                     ),
-                    label: const Text(
+                    label: Text(
                       'ยกเลิกการส่งงาน',
                       style: TextStyle(
                         color: AppColors.accentRed,
                         fontWeight: FontWeight.bold,
+                        fontSize: isTablet ? 16 : 14.5,
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppColors.accentRed),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: EdgeInsets.symmetric(
+                        vertical: isTablet ? 16 : 14,
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(
+                          isTablet ? 18 : 16,
+                        ),
                       ),
                     ),
                   ),
@@ -1491,22 +1579,49 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () async {
+                    final isTablet = MediaQuery.of(context).size.width >= 600;
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
-                            AppConstants.radiusLarge,
+                            isTablet ? 22 : AppConstants.radiusLarge,
                           ),
                         ),
-                        title: const Text('ยกเลิกการส่งงาน?'),
-                        content: const Text(
+                        actionsPadding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 20 : 16,
+                          vertical: isTablet ? 16 : 12,
+                        ),
+                        title: Text(
+                          'ยกเลิกการส่งงาน?',
+                          style: TextStyle(
+                            fontSize: isTablet ? 22 : 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        content: Text(
                           'คุณต้องการยกเลิกการส่งงานนี้ใช่หรือไม่? ไฟล์ที่อัปโหลดและรายละเอียดการส่งทั้งหมดจะถูกลบออก',
+                          style: TextStyle(
+                            fontSize: isTablet ? 16 : 14.5,
+                            height: 1.5,
+                          ),
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
-                            child: const Text('ย้อนกลับ'),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isTablet ? 20 : 16,
+                                vertical: isTablet ? 12 : 10,
+                              ),
+                            ),
+                            child: Text(
+                              'ย้อนกลับ',
+                              style: TextStyle(
+                                fontSize: isTablet ? 16 : 14.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                           ElevatedButton(
                             onPressed: () => Navigator.pop(context, true),
@@ -1517,8 +1632,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                           Brightness.dark
                                       ? AppColors.stormyNightBackground
                                       : Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isTablet ? 20 : 16,
+                                vertical: isTablet ? 12 : 10,
+                              ),
                             ),
-                            child: const Text('ยกเลิกการส่ง'),
+                            child: Text(
+                              'ยกเลิกการส่ง',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isTablet ? 16 : 14.5,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -1575,6 +1700,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     Member? myMember,
   }) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final attachments = myMember != null
         ? (myMember.attachments.isNotEmpty
             ? myMember.attachments
@@ -1584,13 +1710,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         _submissionController.text.trim().isNotEmpty || attachments.isNotEmpty;
 
     return Container(
-      margin: const EdgeInsets.all(AppConstants.paddingMedium),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      margin: EdgeInsets.all(isTablet ? 20.0 : AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 24.0 : AppConstants.paddingLarge),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 28.0 : AppConstants.radiusXLarge,
+        ),
         boxShadow: [
           BoxShadow(
             color: theme.brightness == Brightness.light
@@ -1607,28 +1735,29 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(isTablet ? 12 : 10),
                 decoration: BoxDecoration(
                   color:
                       (Theme.of(context).brightness == Brightness.light
                               ? AppColors.stormySkyBlue
                               : AppColors.primaryBlue)
                           .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(isTablet ? 16 : 14),
                 ),
                 child: Icon(
                   Icons.upload_file_outlined,
+                  size: isTablet ? 24 : 20,
                   color: (Theme.of(context).brightness == Brightness.light
                       ? AppColors.stormySkyBlue
                       : AppColors.primaryBlue),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isTablet ? 14 : 12),
               Expanded(
                 child: Text(
                   'ส่งงานให้หัวหน้าตรวจสอบ',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: isTablet ? 20 : 16,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
@@ -1636,14 +1765,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
           TextField(
             controller: _submissionController,
             minLines: 3,
             maxLines: 5,
+            style: TextStyle(
+              fontSize: isTablet ? 16 : 14,
+              color: theme.colorScheme.onSurface,
+            ),
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               hintText: 'วางลิงก์งานหรือสรุปงานที่นี่...',
+              hintStyle: TextStyle(
+                fontSize: isTablet ? 16 : 14,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
               suffixIcon: _isUploading
                   ? Padding(
                       padding: const EdgeInsets.all(12.0),
@@ -1753,11 +1890,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
           ),
           if (attachments.isNotEmpty) ...[
-            const SizedBox(height: AppConstants.paddingMedium),
+            SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
             Text(
               'ไฟล์แนบของคุณ (${attachments.length})',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: isTablet ? 18 : 14,
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.onSurface,
               ),
@@ -1786,7 +1923,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             ),
           ],
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -1815,15 +1952,32 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       }
 
                       if (hasIncompleteSubtasks) {
+                        final isTablet =
+                            MediaQuery.of(context).size.width >= 600;
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('ไม่สามารถส่งงานได้'),
-                            content: const Text(
-                              'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการส่งงานให้หัวหน้า',
-                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16.0),
+                              borderRadius:
+                                  BorderRadius.circular(isTablet ? 22 : 16.0),
+                            ),
+                            actionsPadding: EdgeInsets.symmetric(
+                              horizontal: isTablet ? 20 : 16,
+                              vertical: isTablet ? 16 : 12,
+                            ),
+                            title: Text(
+                              'ไม่สามารถส่งงานได้',
+                              style: TextStyle(
+                                fontSize: isTablet ? 22 : 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            content: Text(
+                              'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการส่งงานให้หัวหน้า',
+                              style: TextStyle(
+                                fontSize: isTablet ? 16 : 14.5,
+                                height: 1.5,
+                              ),
                             ),
                             actions: [
                               ElevatedButton(
@@ -1835,11 +1989,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                           Brightness.dark
                                       ? AppColors.stormyNightBackground
                                       : Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isTablet ? 20 : 16,
+                                    vertical: isTablet ? 12 : 10,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
                                 ),
-                                child: const Text('ตกลง'),
+                                child: Text(
+                                  'ตกลง',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: isTablet ? 16 : 14.5,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -1889,8 +2053,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       );
                     }
                   : null,
-              icon: const Icon(Icons.send_rounded),
-              label: const Text('ส่งงานให้หัวหน้าตรวจสอบ'),
+              icon: Icon(Icons.send_rounded, size: isTablet ? 22 : 18),
+              label: Text(
+                'ส่งงานให้หัวหน้าตรวจสอบ',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.stormySkyBlue,
                 foregroundColor:
@@ -1904,7 +2074,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   alpha: 0.55,
                 ),
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: EdgeInsets.symmetric(
+                  vertical: isTablet ? 16 : 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -2209,6 +2381,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final titleColor = isDark
         ? const Color(0xFF202124)
         : theme.colorScheme.onSurface;
@@ -2217,11 +2390,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         : theme.colorScheme.onSurface.withValues(alpha: 0.65);
 
     return Container(
-      margin: const EdgeInsets.all(AppConstants.paddingMedium),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      margin: EdgeInsets.all(isTablet ? 20.0 : AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 24.0 : AppConstants.paddingLarge),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 28.0 : AppConstants.radiusXLarge,
+        ),
         boxShadow: [
           BoxShadow(
             color: iconColor.withValues(alpha: 0.10),
@@ -2233,14 +2408,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isTablet ? 14 : 12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.75),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: iconColor),
+            child: Icon(icon, color: iconColor, size: isTablet ? 26 : 24),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: isTablet ? 16 : 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2248,7 +2423,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: isTablet ? 18 : 15,
                     fontWeight: FontWeight.bold,
                     color: titleColor,
                   ),
@@ -2257,7 +2432,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Text(
                   message,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: isTablet ? 15 : 13,
                     height: 1.35,
                     color: messageColor,
                   ),
@@ -2288,22 +2463,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(isTablet ? 12 : 8),
           decoration: BoxDecoration(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.05)
                 : (Theme.of(context).brightness == Brightness.light
                       ? AppColors.stormyOffWhite
                       : AppColors.backgroundLightGrey),
-            borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+            borderRadius: BorderRadius.circular(
+              isTablet ? 10 : AppConstants.radiusSmall,
+            ),
           ),
           child: Icon(
             icon,
-            size: 18,
+            size: isTablet ? 22 : 18,
             color: isDark
                 ? AppColors.stormyIceBlue
                 : (Theme.of(context).brightness == Brightness.light
@@ -2311,30 +2490,33 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       : AppColors.textSecondary),
           ),
         ),
-        const SizedBox(width: AppConstants.paddingMedium),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark
-                    ? AppColors.stormyIceBlue
-                    : (Theme.of(context).brightness == Brightness.light
-                          ? AppColors.stormyMutedBlueGrey
-                          : AppColors.textLight),
+        SizedBox(width: isTablet ? 16 : AppConstants.paddingMedium),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: isTablet ? 15 : 12.5,
+                  color: isDark
+                      ? AppColors.stormyIceBlue
+                      : (Theme.of(context).brightness == Brightness.light
+                            ? AppColors.stormyMutedBlueGrey
+                            : AppColors.textLight),
+                ),
               ),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: theme.colorScheme.onSurface,
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: isTablet ? 17 : 14.5,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -2352,6 +2534,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
     final members = task.members;
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final leaderMember = _leaderMemberForTask(task, leaderId);
 
     if (members.isEmpty) return const SizedBox.shrink();
@@ -2369,14 +2552,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ),
 
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.paddingMedium,
-              vertical: 8,
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 20.0 : AppConstants.paddingMedium,
+              vertical: isTablet ? 12 : 8,
             ),
             child: Text(
               'ผู้รับผิดชอบ',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: isTablet ? 22 : 18,
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.onSurface,
               ),
@@ -2399,14 +2582,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       children: [
         // Responsible Members Header (Leader Card ย้ายไปแสดงก่อนส่วนส่งงานแล้ว)
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppConstants.paddingMedium,
-            vertical: 8,
+          padding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20.0 : AppConstants.paddingMedium,
+            vertical: isTablet ? 12 : 8,
           ),
           child: Text(
             'ผู้รับผิดชอบ',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: isTablet ? 22 : 18,
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.onSurface,
             ),
@@ -2426,6 +2609,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     String leaderId,
   ) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final currentUserId = context.read<AuthProvider>().currentUser?.id;
     final leaderUser = taskProvider.getUserById(leaderId);
     final leaderName = leaderUser?.name ?? 'หัวหน้าภารกิจ';
@@ -2434,13 +2618,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final leaderMember = _leaderMemberForTask(task, leaderId);
 
     return Container(
-      margin: const EdgeInsets.all(AppConstants.paddingMedium),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      margin: EdgeInsets.all(isTablet ? 20.0 : AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 24.0 : AppConstants.paddingLarge),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(isTablet ? 28.0 : 25),
         boxShadow: [
           BoxShadow(
             color: theme.brightness == Brightness.light
@@ -2457,26 +2641,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Text(
             'หัวหน้าภารกิจ:',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isTablet ? 16 : 14,
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isTablet ? 16 : 12),
           Row(
             children: [
               UserAvatarWithFrame(
                 avatarUrl: leaderAvatarUrl,
                 frameId: leaderFrame,
                 fallbackName: leaderName,
-                size: 48,
+                size: isTablet ? 56 : 48,
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isTablet ? 16 : 12),
               Expanded(
                 child: Text(
                   leaderName,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: isTablet ? 22 : 18,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
@@ -2503,17 +2687,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         children: [
                           Icon(
                             Icons.visibility_outlined,
-                            size: 20,
+                            size: isTablet ? 24 : 22,
                             color: theme.colorScheme.onSurface,
                           ),
                           const SizedBox(width: 10),
-                          const Text('ดูรายละเอียดงานมอบหมาย'),
+                          Text(
+                            'ดูรายละเอียดงานมอบหมาย',
+                            style: TextStyle(
+                              fontSize: isTablet ? 17 : 16,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                   icon: Icon(
                     Icons.more_vert,
+                    size: isTablet ? 28 : 22,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
@@ -2530,6 +2721,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     TaskProvider taskProvider,
     String leaderId,
   ) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final nonLeaderMembers = task.members
         .where((m) => m.id != leaderId)
         .toList();
@@ -2539,8 +2731,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 20.0 : AppConstants.paddingMedium,
       ),
       itemCount: nonLeaderMembers.length,
       itemBuilder: (context, index) {
@@ -2558,6 +2750,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   ) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final currentUserId = context.read<AuthProvider>().currentUser?.id;
     final isSelf = currentUserId != null && member.id == currentUserId;
     final memberFrame =
@@ -2567,12 +2760,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final statusInfo = _getMemberStatusInfo(member, task);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: EdgeInsets.only(bottom: isTablet ? 14 : 10),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
         boxShadow: [
           BoxShadow(
             color: isDark
@@ -2584,17 +2777,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 10 : 8,
+        ),
         leading: UserAvatarWithFrame(
           avatarUrl: member.avatarUrl,
           frameId: memberFrame,
           fallbackName: member.name,
-          size: 44,
+          size: isTablet ? 52 : 44,
         ),
         title: Text(
           member.name,
           style: TextStyle(
-            fontSize: 15,
+            fontSize: isTablet ? 19 : 15,
             fontWeight: FontWeight.bold,
             color: theme.colorScheme.onSurface,
           ),
@@ -2606,15 +2802,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           child: Align(
             alignment: Alignment.centerLeft,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 14 : 10,
+                vertical: isTablet ? 6 : 4,
+              ),
               decoration: BoxDecoration(
                 color: statusInfo.backgroundColor,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(isTablet ? 12 : 10),
               ),
               child: Text(
                 statusInfo.label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: isTablet ? 15 : 12,
                   fontWeight: FontWeight.bold,
                   color: statusInfo.textColor,
                 ),
@@ -2637,17 +2836,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       children: [
                         Icon(
                           Icons.visibility_outlined,
-                          size: 20,
+                          size: isTablet ? 24 : 22,
                           color: theme.colorScheme.onSurface,
                         ),
                         const SizedBox(width: 10),
-                        const Text('ดูรายละเอียดงานมอบหมาย'),
+                        Text(
+                          'ดูรายละเอียดงานมอบหมาย',
+                          style: TextStyle(
+                            fontSize: isTablet ? 17 : 16,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
                 icon: Icon(
                   Icons.more_vert,
+                  size: isTablet ? 28 : 22,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
@@ -2717,6 +2923,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildLeaderSummaryCard(User leader, Task task, Member? leaderMember) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final nonLeaderMembers =
         task.members.where((m) => m.id != leader.id).toList();
     final membersToCheck =
@@ -2751,13 +2958,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
 
     return Container(
-      margin: const EdgeInsets.all(AppConstants.paddingMedium),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      margin: EdgeInsets.all(isTablet ? 20.0 : AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 24.0 : AppConstants.paddingLarge),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(isTablet ? 28.0 : 25),
         boxShadow: [
           BoxShadow(
             color: theme.brightness == Brightness.light
@@ -2774,26 +2981,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Text(
             'หัวหน้าภารกิจ:',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isTablet ? 16 : 14,
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isTablet ? 16 : 12),
           Row(
             children: [
               UserAvatarWithFrame(
                 avatarUrl: leader.avatarUrl,
                 frameId: leader.equippedFrame,
                 fallbackName: leader.name,
-                size: 48,
+                size: isTablet ? 56 : 48,
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isTablet ? 16 : 12),
               Expanded(
                 child: Text(
                   leader.name,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: isTablet ? 22 : 18,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
@@ -2818,44 +3025,54 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         children: [
                           Icon(
                             Icons.visibility_outlined,
-                            size: 20,
+                            size: isTablet ? 24 : 22,
                             color: theme.colorScheme.onSurface,
                           ),
                           const SizedBox(width: 10),
-                          const Text('ดูรายละเอียดงานมอบหมาย'),
+                          Text(
+                            'ดูรายละเอียดงานมอบหมาย',
+                            style: TextStyle(
+                              fontSize: isTablet ? 17 : 16,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                   icon: Icon(
                     Icons.more_vert,
+                    size: isTablet ? 28 : 22,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isTablet ? 20 : 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 20 : 16,
+              vertical: isTablet ? 15 : 12,
+            ),
             decoration: BoxDecoration(
               color: bannerColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(isTablet ? 18 : 15),
             ),
             child: Row(
               children: [
                 Icon(
                   bannerIcon,
                   color: bannerColor,
-                  size: 20,
+                  size: isTablet ? 24 : 20,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isTablet ? 14 : 12),
                 Expanded(
                   child: Text(
                     bannerText,
                     style: TextStyle(
                       color: bannerColor,
                       fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontSize: isTablet ? 16 : 14,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -2875,6 +3092,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     TaskProvider taskProvider,
   ) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final isDark = theme.brightness == Brightness.dark;
     final leaderId = taskProvider.leaderIdForTask(task);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -2903,16 +3121,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         (task.submittedBy == member.id ? task.submittedAt : null);
 
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
+      margin: EdgeInsets.symmetric(
+        horizontal: isTablet ? 20.0 : AppConstants.paddingMedium,
         vertical: 8,
       ),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isTablet ? 24.0 : 20),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(isTablet ? 28.0 : 25),
         boxShadow: [
           BoxShadow(
             color: isDark
@@ -2934,14 +3152,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 frameId:
                     taskProvider.getUserById(member.id)?.equippedFrame ?? '',
                 fallbackName: member.name,
-                size: 40,
+                size: isTablet ? 50 : 40,
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isTablet ? 14 : 12),
               Expanded(
                 child: Text(
                   member.name,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: isTablet ? 20 : 16,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
@@ -2966,24 +3184,31 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       children: [
                         Icon(
                           Icons.visibility_outlined,
-                          size: 20,
+                          size: isTablet ? 24 : 22,
                           color: theme.colorScheme.onSurface,
                         ),
                         const SizedBox(width: 10),
-                        const Text('ดูรายละเอียดงานมอบหมาย'),
+                        Text(
+                          'ดูรายละเอียดงานมอบหมาย',
+                          style: TextStyle(
+                            fontSize: isTablet ? 17 : 16,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
                 icon: Icon(
                   Icons.more_vert,
+                  size: isTablet ? 28 : 22,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: isTablet ? 20 : 16),
 
           // Member Task Info
           Row(
@@ -2995,7 +3220,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     Text(
                       'ภารกิจที่ได้รับมอบหมาย: ${member.taskTitle ?? "ไม่ได้ระบุ"}',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: isTablet ? 18 : 15,
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
                       ),
@@ -3006,8 +3231,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       const SizedBox(height: 2),
                       Text(
                         'ภารกิจย่อย: ${member.completedSubTasks.length}/${member.subTasks.length}',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: isTablet ? 15 : 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primaryPurple,
                         ),
@@ -3018,7 +3243,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       Text(
                         'ส่งเมื่อ ${_formatDateTime(submittedAt)}',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: isTablet ? 14 : 12,
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.5,
                           ),
@@ -3035,17 +3260,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               ),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.check_circle,
                               color: AppColors.primaryGreen,
-                              size: 24,
+                              size: isTablet ? 28 : 24,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'เสร็จสิ้น!',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: isTablet ? 18 : 16,
                               color: AppColors.primaryGreen,
                               fontWeight: FontWeight.w900,
                             ),
@@ -3053,10 +3278,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ],
                       )
                     else
-                      const Text(
+                      Text(
                         'กำลังทำ',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: isTablet ? 15 : 12,
                           color: AppColors.accentRed,
                           fontWeight: FontWeight.bold,
                         ),
@@ -3065,9 +3290,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 14 : 10,
+                  vertical: isTablet ? 7 : 5,
                 ),
                 decoration: BoxDecoration(
                   color:
@@ -3075,12 +3300,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               ? AppColors.stormyDarkSlate
                               : AppColors.primaryPurple)
                           .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(isTablet ? 12 : 10),
                 ),
                 child: Text(
                   '${member.score ?? "0"} คะแนน',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isTablet ? 15 : 12,
                     fontWeight: FontWeight.bold,
                     color: (Theme.of(context).brightness == Brightness.light
                         ? AppColors.stormyDarkSlate
@@ -3091,20 +3316,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ],
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: isTablet ? 20 : 16),
 
           if ((isMemberPending || isMemberCompleted) &&
               submissionText != null &&
               submissionText.isNotEmpty) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(isTablet ? 16 : 12),
               decoration: BoxDecoration(
                 color: isDark
                     ? Colors.white.withValues(alpha: 0.05)
                     : (Theme.of(context).brightness == Brightness.light
                           ? AppColors.stormyOffWhite
                           : AppColors.backgroundLightGrey),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
               ),
               child: Row(
                 children: [
@@ -3113,14 +3338,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     color: (Theme.of(context).brightness == Brightness.light
                         ? AppColors.stormySkyBlue
                         : AppColors.primaryBlue),
-                    size: 20,
+                    size: isTablet ? 24 : 20,
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: isTablet ? 12 : 10),
                   Expanded(
                     child: _buildLinkifiedText(
                       submissionText,
                       TextStyle(
-                        fontSize: 13,
+                        fontSize: isTablet ? 16 : 13,
                         color: (Theme.of(context).brightness == Brightness.light
                             ? AppColors.stormySkyBlue
                             : AppColors.primaryBlue),
@@ -3130,7 +3355,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isTablet ? 16 : 12),
           ],
 
           if ((isMemberPending || isMemberCompleted) &&
@@ -3143,7 +3368,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 showDelete: false,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isTablet ? 16 : 12),
           ],
 
           if (isLeader && isMemberPending)
@@ -3167,18 +3392,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               ? const Color(0xFFFF6B6B)
                               : AppColors.accentRed)
                           .withValues(alpha: isDark ? 0.12 : 0.06),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        vertical: isTablet ? 15 : 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'ปฏิเสธ',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isTablet ? 16 : 14,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isTablet ? 14 : 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
@@ -3209,15 +3439,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           theme.brightness == Brightness.dark
                               ? AppColors.stormyNightBackground
                               : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        vertical: isTablet ? 15 : 12,
+                      ),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'อนุมัติ',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isTablet ? 16 : 14,
+                      ),
                     ),
                   ),
                 ),
@@ -3231,10 +3466,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _showRevertApprovalDialog(task, member),
-                icon: const Icon(Icons.replay_rounded, size: 18),
-                label: const Text(
+                icon: Icon(Icons.replay_rounded, size: isTablet ? 22 : 18),
+                label: Text(
                   'ส่งกลับไปแก้ไข',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTablet ? 15 : 13,
+                  ),
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: isDark
@@ -3251,7 +3489,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ? const Color(0xFFFFB74D)
                           : const Color(0xFFD97706))
                       .withValues(alpha: isDark ? 0.12 : 0.06),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  padding: EdgeInsets.symmetric(
+                    vertical: isTablet ? 14 : 11,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
@@ -3260,7 +3500,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
           ],
 
-          const SizedBox(height: 16),
+          SizedBox(height: isTablet ? 20 : 16),
         ],
       ),
     );
@@ -3290,6 +3530,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildCommentsSection(Task task, TaskProvider taskProvider) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final canAddComments =
         !task.isDeleted && !(task.isGroup && task.isCompleted);
 
@@ -3302,13 +3543,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
 
     return Container(
-      margin: const EdgeInsets.all(AppConstants.paddingMedium),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      margin: EdgeInsets.all(isTablet ? 20.0 : AppConstants.paddingMedium),
+      padding: EdgeInsets.all(isTablet ? 24.0 : AppConstants.paddingLarge),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 28.0 : AppConstants.radiusXLarge,
+        ),
         boxShadow: [
           BoxShadow(
             color: theme.brightness == Brightness.light
@@ -3328,7 +3571,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 child: Text(
                   'ความคิดเห็น',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: isTablet ? 20 : 16,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
@@ -3337,31 +3580,36 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               IconButton(
                 tooltip: 'เปิดแชทเต็ม',
                 onPressed: () => _showFullCommentsSheet(task),
-                icon: const Icon(Icons.open_in_full_rounded),
+                icon: Icon(
+                  Icons.open_in_full_rounded,
+                  size: isTablet ? 26 : 22,
+                ),
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
                 visualDensity: VisualDensity.compact,
               ),
             ],
           ),
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
 
           // Comments List
           if (task.comments.isEmpty)
             Center(
               child: Padding(
-                padding: const EdgeInsets.all(AppConstants.paddingLarge),
+                padding: EdgeInsets.all(
+                  isTablet ? 28.0 : AppConstants.paddingLarge,
+                ),
                 child: Column(
                   children: [
                     Icon(
                       Icons.chat_bubble_outline,
-                      size: 48,
+                      size: isTablet ? 64 : 48,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                     ),
-                    const SizedBox(height: AppConstants.paddingSmall),
+                    SizedBox(height: isTablet ? 12 : AppConstants.paddingSmall),
                     Text(
                       'ยังไม่มีความคิดเห็น',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: isTablet ? 17 : 14,
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.5,
                         ),
@@ -3373,14 +3621,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             )
           else
             ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 280),
+              constraints: BoxConstraints(maxHeight: isTablet ? 380 : 280),
               child: ListView.separated(
                 controller: _mainCommentsScrollController,
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
                 itemCount: task.comments.length,
                 separatorBuilder: (context, index) =>
-                    const SizedBox(height: AppConstants.paddingMedium),
+                    SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
                 itemBuilder: (context, index) {
                   return _buildCommentItem(
                     task.comments[index],
@@ -3392,7 +3640,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             ),
 
-          if (canAddComments) const SizedBox(height: AppConstants.paddingLarge),
+          if (canAddComments)
+            SizedBox(height: isTablet ? 22 : AppConstants.paddingLarge),
 
           if (canAddComments)
             _buildCommentComposer(
@@ -3409,6 +3658,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Future<void> _showFullCommentsSheet(Task task) async {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     // Unfocus everything before opening the sheet to prevent focus restoration jumps
     _mainCommentFocusNode.unfocus();
@@ -3487,12 +3737,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               color: theme.brightness == Brightness.dark
                                   ? AppColors.stormyDarkSlate
                                   : theme.cardColor,
-                              borderRadius: const BorderRadius.only(
+                              borderRadius: BorderRadius.only(
                                 topLeft: Radius.circular(
-                                  AppConstants.radiusXLarge,
+                                  isTablet ? 28 : AppConstants.radiusXLarge,
                                 ),
                                 topRight: Radius.circular(
-                                  AppConstants.radiusXLarge,
+                                  isTablet ? 28 : AppConstants.radiusXLarge,
                                 ),
                               ),
                             ),
@@ -3501,12 +3751,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               child: Column(
                                 children: [
                                   Container(
-                                    margin: const EdgeInsets.only(
-                                      top: 12,
-                                      bottom: 8,
+                                    margin: EdgeInsets.only(
+                                      top: isTablet ? 16 : 12,
+                                      bottom: isTablet ? 12 : 8,
                                     ),
-                                    width: 40,
-                                    height: 4,
+                                    width: isTablet ? 50 : 40,
+                                    height: isTablet ? 5 : 4,
                                     decoration: BoxDecoration(
                                       color: theme.colorScheme.onSurface
                                           .withValues(alpha: 0.18),
@@ -3514,8 +3764,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                     ),
                                   ),
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AppConstants.paddingLarge,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isTablet
+                                          ? 24
+                                          : AppConstants.paddingLarge,
                                     ),
                                     child: Row(
                                       children: [
@@ -3523,7 +3775,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                           child: Text(
                                             'ความคิดเห็น',
                                             style: TextStyle(
-                                              fontSize: 18,
+                                              fontSize: isTablet ? 22 : 18,
                                               fontWeight: FontWeight.bold,
                                               color:
                                                   theme.colorScheme.onSurface,
@@ -3532,6 +3784,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                         ),
                                         IconButton(
                                           tooltip: 'ปิด',
+                                          iconSize: isTablet ? 28 : 24,
                                           onPressed: () {
                                             _sheetCommentFocusNode.unfocus();
                                             _mainCommentFocusNode.unfocus();
@@ -3544,8 +3797,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(
-                                    height: AppConstants.paddingSmall,
+                                  SizedBox(
+                                    height: isTablet
+                                        ? 12
+                                        : AppConstants.paddingSmall,
                                   ),
                                   Expanded(
                                     child: currentTask.comments.isEmpty
@@ -3553,6 +3808,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                             child: Text(
                                               'ยังไม่มีความคิดเห็น',
                                               style: TextStyle(
+                                                fontSize: isTablet ? 17 : 14,
                                                 color: theme
                                                     .colorScheme
                                                     .onSurface
@@ -3562,20 +3818,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                           )
                                         : ListView.separated(
                                             controller: scrollController,
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                                  horizontal:
-                                                      AppConstants.paddingLarge,
-                                                  vertical:
-                                                      AppConstants.paddingSmall,
-                                                ),
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: isTablet
+                                                  ? 24
+                                                  : AppConstants.paddingLarge,
+                                              vertical: isTablet
+                                                  ? 12
+                                                  : AppConstants.paddingSmall,
+                                            ),
                                             itemCount:
                                                 currentTask.comments.length,
                                             separatorBuilder:
                                                 (context, index) =>
-                                                    const SizedBox(
-                                                      height:
-                                                          AppConstants
+                                                    SizedBox(
+                                                      height: isTablet
+                                                          ? 18
+                                                          : AppConstants
                                                               .paddingMedium,
                                                     ),
                                             itemBuilder: (context, index) =>
@@ -3590,11 +3848,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                   ),
                                   if (canAddComments)
                                     Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        AppConstants.paddingLarge,
-                                        AppConstants.paddingSmall,
-                                        AppConstants.paddingLarge,
-                                        AppConstants.paddingMedium,
+                                      padding: EdgeInsets.fromLTRB(
+                                        isTablet
+                                            ? 24
+                                            : AppConstants.paddingLarge,
+                                        isTablet
+                                            ? 12
+                                            : AppConstants.paddingSmall,
+                                        isTablet
+                                            ? 24
+                                            : AppConstants.paddingLarge,
+                                        isTablet
+                                            ? 20
+                                            : AppConstants.paddingMedium,
                                       ),
                                       child: _buildCommentComposer(
                                         currentTask,
@@ -3638,241 +3904,249 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     VoidCallback? onComposerChanged,
   }) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final targetFocusNode = focusNode ?? _mainCommentFocusNode;
     return TextFieldTapRegion(
       child: Column(
         children: [
-        if (_commentAttachments.isNotEmpty) ...[
-          SizedBox(
-            height: 60,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _commentAttachments.length,
-              itemBuilder: (context, index) {
-                final attachment = _commentAttachments[index];
-                final isImage = _isImageAttachment(attachment);
-                return GestureDetector(
-                  onTap: () {
-                    if (isImage) {
-                      _showImagePreviewDialog(
-                        context,
-                        attachment.fileUrl,
-                        attachment.fileName,
-                      );
-                    } else {
-                      _showDocumentDetailsDialog(
-                        context,
-                        attachment.fileUrl,
-                        attachment.fileName,
-                        attachment.fileType,
-                      );
-                    }
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.brightness == Brightness.light
-                          ? const Color(0xFFF1F5F9)
-                          : Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
+          if (_commentAttachments.isNotEmpty) ...[
+            SizedBox(
+              height: isTablet ? 68 : 60,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _commentAttachments.length,
+                itemBuilder: (context, index) {
+                  final attachment = _commentAttachments[index];
+                  final isImage = _isImageAttachment(attachment);
+                  return GestureDetector(
+                    onTap: () {
+                      if (isImage) {
+                        _showImagePreviewDialog(
+                          context,
+                          attachment.fileUrl,
+                          attachment.fileName,
+                        );
+                      } else {
+                        _showDocumentDetailsDialog(
+                          context,
+                          attachment.fileUrl,
+                          attachment.fileName,
+                          attachment.fileType,
+                        );
+                      }
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isTablet ? 10 : 8,
+                        vertical: isTablet ? 6 : 4,
+                      ),
+                      decoration: BoxDecoration(
                         color: theme.brightness == Brightness.light
-                            ? const Color(0xFFE2E8F0)
-                            : Colors.white.withValues(alpha: 0.15),
+                            ? const Color(0xFFF1F5F9)
+                            : Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: theme.brightness == Brightness.light
+                              ? const Color(0xFFE2E8F0)
+                              : Colors.white.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isImage)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Image.network(
+                                    attachment.fileUrl,
+                                    width: isTablet ? 38 : 32,
+                                    height: isTablet ? 38 : 32,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        Icon(
+                                          Icons.image,
+                                          size: isTablet ? 28 : 24,
+                                          color: AppColors.stormySkyBlue,
+                                        ),
+                                  ),
+                                  Container(
+                                    width: isTablet ? 38 : 32,
+                                    height: isTablet ? 38 : 32,
+                                    color: Colors.black.withValues(alpha: 0.18),
+                                    child: Icon(
+                                      Icons.open_in_full_rounded,
+                                      color: Colors.white,
+                                      size: isTablet ? 16 : 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Icon(
+                              attachment.fileType.toLowerCase() == 'pdf'
+                                  ? Icons.picture_as_pdf_outlined
+                                  : Icons.insert_drive_file_outlined,
+                              size: isTablet ? 28 : 24,
+                              color: attachment.fileType.toLowerCase() == 'pdf'
+                                  ? AppColors.accentRed
+                                  : (Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? AppColors.stormySkyBlue
+                                        : AppColors.primaryBlue),
+                            ),
+                          SizedBox(width: isTablet ? 10 : 8),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: isTablet ? 140 : 100,
+                            ),
+                            child: Text(
+                              attachment.fileName,
+                              style: TextStyle(
+                                fontSize: isTablet ? 14 : 12,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              _removeCommentAttachment(
+                                attachment,
+                                onComposerChanged: onComposerChanged,
+                              );
+                            },
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: isTablet ? 18 : 16,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isImage)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Image.network(
-                                  attachment.fileUrl,
-                                  width: 32,
-                                  height: 32,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Icon(
-                                        Icons.image,
-                                        size: 24,
-                                        color: AppColors.stormySkyBlue,
-                                      ),
-                                ),
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  color: Colors.black.withValues(alpha: 0.18),
-                                  child: const Icon(
-                                    Icons.open_in_full_rounded,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
-                                ),
-                              ],
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: isTablet ? 10 : AppConstants.paddingSmall),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _commentController,
+                  focusNode: targetFocusNode,
+                  onTap: () {
+                    if (!targetFocusNode.hasFocus) {
+                      targetFocusNode.requestFocus();
+                    }
+                  },
+                  onTapOutside: (_) {
+                    targetFocusNode.unfocus();
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  },
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: isTablet ? 16 : 14,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'เขียนความคิดเห็น...',
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                      fontSize: isTablet ? 16 : 14,
+                    ),
+                    suffixIcon: _isUploadingCommentAttachment
+                        ? SizedBox(
+                            width: isTablet ? 28 : 24,
+                            height: isTablet ? 28 : 24,
+                            child: const Padding(
+                              padding: EdgeInsets.all(12.0),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.stormySkyBlue,
+                              ),
                             ),
                           )
-                        else
-                          Icon(
-                            attachment.fileType.toLowerCase() == 'pdf'
-                                ? Icons.picture_as_pdf_outlined
-                                : Icons.insert_drive_file_outlined,
-                            size: 24,
-                            color: attachment.fileType.toLowerCase() == 'pdf'
-                                ? AppColors.accentRed
-                                : (Theme.of(context).brightness ==
-                                          Brightness.light
-                                      ? AppColors.stormySkyBlue
-                                      : AppColors.primaryBlue),
-                          ),
-                        const SizedBox(width: 8),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 100),
-                          child: Text(
-                            attachment.fileName,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            _removeCommentAttachment(
-                              attachment,
-                              onComposerChanged: onComposerChanged,
-                            );
-                          },
-                          child: Icon(
-                            Icons.close_rounded,
-                            size: 16,
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.6,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppConstants.paddingSmall),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _commentController,
-                focusNode: targetFocusNode,
-                onTap: () {
-                  if (!targetFocusNode.hasFocus) {
-                    targetFocusNode.requestFocus();
-                  }
-                },
-                onTapOutside: (_) {
-                  targetFocusNode.unfocus();
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                style: TextStyle(color: theme.colorScheme.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'เขียนความคิดเห็น...',
-                  hintStyle: TextStyle(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                  suffixIcon: _isUploadingCommentAttachment
-                      ? SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                        : IconButton(
+                            icon: Icon(
+                              Icons.attach_file_rounded,
                               color: AppColors.stormySkyBlue,
+                              size: isTablet ? 24 : 20,
+                            ),
+                            onPressed: () => _pickCommentAttachment(
+                              task.id,
+                              taskProvider,
+                              onComposerChanged: onComposerChanged,
                             ),
                           ),
-                        )
-                      : IconButton(
-                          icon: const Icon(
-                            Icons.attach_file_rounded,
-                            color: AppColors.stormySkyBlue,
-                          ),
-                          onPressed: () => _pickCommentAttachment(
-                            task.id,
-                            taskProvider,
-                            onComposerChanged: onComposerChanged,
-                          ),
-                        ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      AppConstants.radiusMedium,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        isTablet ? 16 : AppConstants.radiusMedium,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        isTablet ? 16 : AppConstants.radiusMedium,
+                      ),
+                      borderSide: BorderSide(
+                        color: theme.brightness == Brightness.dark
+                            ? AppColors.stormyMutedBlueGrey.withValues(alpha: 0.6)
+                            : AppColors.stormyMutedBlueGrey,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        isTablet ? 16 : AppConstants.radiusMedium,
+                      ),
+                      borderSide: const BorderSide(
+                        color: AppColors.stormySkyBlue,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 18 : AppConstants.paddingMedium,
+                      vertical: isTablet ? 14 : AppConstants.paddingSmall,
                     ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      AppConstants.radiusMedium,
-                    ),
-                    borderSide: BorderSide(
-                      color: theme.brightness == Brightness.dark
-                          ? AppColors.stormyMutedBlueGrey.withValues(alpha: 0.6)
-                          : AppColors.stormyMutedBlueGrey,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      AppConstants.radiusMedium,
-                    ),
-                    borderSide: const BorderSide(
-                      color: AppColors.stormySkyBlue,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.paddingMedium,
-                    vertical: AppConstants.paddingSmall,
-                  ),
-                ),
-                maxLines: null,
-              ),
-            ),
-            const SizedBox(width: AppConstants.paddingSmall),
-            GestureDetector(
-              onTap: () => _addComment(
-                task,
-                taskProvider,
-                focusNode: targetFocusNode,
-                onCommentSent: onCommentSent,
-                onComposerChanged: onComposerChanged,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.stormySkyBlue,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.send,
-                  color: AppColors.textWhite,
-                  size: 20,
+                  maxLines: null,
                 ),
               ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
+              SizedBox(width: isTablet ? 10 : AppConstants.paddingSmall),
+              GestureDetector(
+                onTap: () => _addComment(
+                  task,
+                  taskProvider,
+                  focusNode: targetFocusNode,
+                  onCommentSent: onCommentSent,
+                  onComposerChanged: onComposerChanged,
+                ),
+                child: Container(
+                  padding: EdgeInsets.all(isTablet ? 14 : 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.stormySkyBlue,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.send,
+                    color: AppColors.textWhite,
+                    size: isTablet ? 22 : 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   bool _isImageAttachment(TaskAttachment attachment) {
@@ -4052,13 +4326,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }) async {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+          borderRadius: BorderRadius.circular(
+            isTablet ? 22 : AppConstants.radiusLarge,
+          ),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
         ),
         title: Row(
           children: [
@@ -4068,17 +4349,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 color: AppColors.accentRed.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.delete_outline_rounded,
                 color: AppColors.accentRed,
-                size: 20,
+                size: isTablet ? 24 : 20,
               ),
             ),
             const SizedBox(width: 10),
             Text(
               'ลบความคิดเห็น?',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: isTablet ? 22 : 18,
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.onSurface,
               ),
@@ -4091,8 +4372,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             color: isDark
                 ? AppColors.stormyIceBlue
                 : theme.colorScheme.onSurface.withValues(alpha: 0.82),
-            fontSize: 14,
-            height: 1.4,
+            fontSize: isTablet ? 16 : 14.5,
+            height: 1.5,
           ),
         ),
         actions: [
@@ -4102,8 +4383,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               foregroundColor: isDark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -4112,13 +4403,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               foregroundColor: isDark
                   ? AppColors.stormyNightBackground
                   : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ลบ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -4171,6 +4469,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final leaderId = taskProvider.leaderIdForTask(task);
     final isCommenterLeader = comment.userId == leaderId;
 
@@ -4190,19 +4489,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           avatarUrl: comment.userAvatarUrl,
           frameId: frameId,
           fallbackName: comment.userName,
-          size: AppConstants.avatarSmall,
+          size: isTablet ? 44 : AppConstants.avatarSmall,
         ),
-        const SizedBox(width: AppConstants.paddingSmall),
+        SizedBox(width: isTablet ? 12 : AppConstants.paddingSmall),
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(AppConstants.paddingMedium),
+            padding: EdgeInsets.all(isTablet ? 18 : AppConstants.paddingMedium),
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.white.withValues(alpha: 0.05)
                   : (Theme.of(context).brightness == Brightness.light
                         ? AppColors.stormyOffWhite
                         : AppColors.backgroundLightGrey),
-              borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+              borderRadius: BorderRadius.circular(
+                isTablet ? 20 : AppConstants.radiusLarge,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -4217,7 +4518,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           Text(
                             comment.userName,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: isTablet ? 17 : 14,
                               fontWeight: FontWeight.w600,
                               color: theme.colorScheme.onSurface,
                             ),
@@ -4225,11 +4526,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (isCommenterLeader) ...[
-                            const SizedBox(height: 4),
+                            SizedBox(height: isTablet ? 6 : 4),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isTablet ? 8 : 6,
+                                vertical: isTablet ? 3 : 2,
                               ),
                               decoration: BoxDecoration(
                                 color:
@@ -4238,7 +4539,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                             ? AppColors.stormySkyBlue
                                             : AppColors.primaryPink)
                                         .withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(
+                                  isTablet ? 6 : 4,
+                                ),
                                 border: Border.all(
                                   color: AppColors.stormySkyBlue,
                                   width: 0.5,
@@ -4247,7 +4550,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               child: Text(
                                 'หัวหน้า',
                                 style: TextStyle(
-                                  fontSize: 9,
+                                  fontSize: isTablet ? 12 : 9,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.stormySkyBlue,
                                 ),
@@ -4257,7 +4560,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: isTablet ? 12 : 8),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -4265,30 +4568,33 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         Text(
                           _formatCommentTime(comment.createdAt),
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: isTablet ? 13.5 : 11,
                             color: isDark
                                 ? Colors.white54
-                                : (Theme.of(context).brightness == Brightness.light
-                                      ? AppColors.stormyMutedBlueGrey
-                                      : AppColors.textLight),
+                                : (Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? AppColors.stormyMutedBlueGrey
+                                        : AppColors.textLight),
                           ),
                         ),
                         if (comment.content.isNotEmpty) ...[
-                          const SizedBox(width: 6),
+                          SizedBox(width: isTablet ? 8 : 6),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: () => _copyCommentText(comment.content),
                             child: Tooltip(
                               message: 'คัดลอกข้อความ',
                               child: Padding(
-                                padding: const EdgeInsets.all(2.0),
+                                padding: EdgeInsets.all(isTablet ? 4.0 : 2.0),
                                 child: Icon(
                                   Icons.copy_rounded,
-                                  size: 13,
+                                  size: isTablet ? 16 : 13,
                                   color: isDark
                                       ? Colors.white38
-                                      : (Theme.of(context).brightness == Brightness.light
-                                            ? AppColors.stormyMutedBlueGrey.withValues(alpha: 0.8)
+                                      : (Theme.of(context).brightness ==
+                                                Brightness.light
+                                            ? AppColors.stormyMutedBlueGrey
+                                                  .withValues(alpha: 0.8)
                                             : AppColors.textLight),
                                 ),
                               ),
@@ -4296,7 +4602,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ),
                         ],
                         if (canDelete) ...[
-                          const SizedBox(width: 6),
+                          SizedBox(width: isTablet ? 8 : 6),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: () => _confirmDeleteComment(
@@ -4309,10 +4615,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             child: Tooltip(
                               message: 'ลบความคิดเห็น',
                               child: Padding(
-                                padding: const EdgeInsets.all(2.0),
+                                padding: EdgeInsets.all(isTablet ? 4.0 : 2.0),
                                 child: Icon(
                                   Icons.delete_outline_rounded,
-                                  size: 14,
+                                  size: isTablet ? 18 : 14,
                                   color: isDark
                                       ? Colors.redAccent.withValues(alpha: 0.7)
                                       : AppColors.accentRed.withValues(alpha: 0.8),
@@ -4325,21 +4631,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: isTablet ? 6 : 4),
                 if (comment.content.isNotEmpty)
                   _buildLinkifiedText(
                     comment.content,
                     TextStyle(
-                      fontSize: 13,
+                      fontSize: isTablet ? 16 : 13,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       height: 1.4,
                     ),
                   ),
                 if (comment.attachments.isNotEmpty) ...[
-                  if (comment.content.isNotEmpty) const SizedBox(height: 8),
+                  if (comment.content.isNotEmpty)
+                    SizedBox(height: isTablet ? 12 : 8),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: isTablet ? 10 : 8,
+                    runSpacing: isTablet ? 10 : 8,
                     children: comment.attachments.map((attachment) {
                       final isImage = _isImageAttachment(attachment);
                       return GestureDetector(
@@ -4360,15 +4667,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           }
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 6,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 10 : 8,
+                            vertical: isTablet ? 8 : 6,
                           ),
                           decoration: BoxDecoration(
                             color: isDark
                                 ? Colors.white.withValues(alpha: 0.08)
                                 : Colors.white,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 12 : 10,
+                            ),
                             border: Border.all(
                               color: isDark
                                   ? Colors.white.withValues(alpha: 0.12)
@@ -4386,13 +4695,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                   child: Image.network(
                                     attachment.fileUrl,
-                                    width: 24,
-                                    height: 24,
+                                    width: isTablet ? 30 : 24,
+                                    height: isTablet ? 30 : 24,
                                     fit: BoxFit.cover,
                                     errorBuilder:
                                         (context, error, stackTrace) => Icon(
                                           Icons.image,
-                                          size: 20,
+                                          size: isTablet ? 24 : 20,
                                           color: AppColors.stormySkyBlue,
                                         ),
                                   ),
@@ -4402,7 +4711,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                   attachment.fileType.toLowerCase() == 'pdf'
                                       ? Icons.picture_as_pdf_outlined
                                       : Icons.insert_drive_file_outlined,
-                                  size: 20,
+                                  size: isTablet ? 24 : 20,
                                   color:
                                       attachment.fileType.toLowerCase() == 'pdf'
                                       ? AppColors.accentRed
@@ -4411,15 +4720,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                             ? AppColors.stormySkyBlue
                                             : AppColors.primaryBlue),
                                 ),
-                              const SizedBox(width: 6),
+                              SizedBox(width: isTablet ? 8 : 6),
                               ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 150,
+                                constraints: BoxConstraints(
+                                  maxWidth: isTablet ? 200 : 150,
                                 ),
                                 child: Text(
                                   attachment.fileName,
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: isTablet ? 14 : 12,
                                     fontWeight: FontWeight.w500,
                                     color: theme.colorScheme.onSurface,
                                     decoration: TextDecoration.underline,
@@ -4676,15 +4985,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
     if (latestTask.subtasks.isNotEmpty &&
         latestTask.subtasks.any((s) => !s.isDone)) {
+      final isTablet = MediaQuery.of(context).size.width >= 600;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('ไม่สามารถเสร็จสิ้นภารกิจได้'),
-          content: const Text(
-            'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
-          ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(isTablet ? 22 : 16.0),
+          ),
+          actionsPadding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20 : 16,
+            vertical: isTablet ? 16 : 12,
+          ),
+          title: Text(
+            'ไม่สามารถเสร็จสิ้นภารกิจได้',
+            style: TextStyle(
+              fontSize: isTablet ? 22 : 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'กรุณาทำภารกิจย่อยทั้งหมดให้เสร็จสิ้นก่อนทำการปิดภารกิจหลัก',
+            style: TextStyle(
+              fontSize: isTablet ? 16 : 14.5,
+              height: 1.5,
+            ),
           ),
           actions: [
             ElevatedButton(
@@ -4694,11 +5018,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 foregroundColor: Theme.of(context).brightness == Brightness.dark
                     ? AppColors.stormyNightBackground
                     : Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),
               ),
-              child: const Text('ตกลง'),
+              child: Text(
+                'ตกลง',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 16 : 14.5,
+                ),
+              ),
             ),
           ],
         ),
@@ -4772,6 +5106,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     if (!mounted) return;
 
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -4784,14 +5120,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ? AppColors.stormyDarkSlate
               : theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(isTablet ? 22 : 16),
+          ),
+          actionsPadding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20 : 16,
+            vertical: isTablet ? 16 : 12,
           ),
           title: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.task_alt_rounded,
                 color: AppColors.primaryGreen,
-                size: 26,
+                size: isTablet ? 30 : 26,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -4799,7 +5139,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   'อนุมัติงานครบทุกคนแล้ว',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 18,
+                    fontSize: isTablet ? 22 : 18,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
@@ -4809,7 +5149,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           content: Text(
             'เนื่องจากคุณอนุมัติงานสมาชิกทุกคนแล้ว ต้องการกดเสร็จสิ้นเพื่อปิดงานนี้เลยหรือไม่? ซึ่งคุณสามารถกดปุ่มเสร็จสิ้นได้ในปุ่มสามจุดมุมขวาบนในหน้านี้ทีหลังได้',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isTablet ? 16 : 14.5,
               height: 1.5,
               color: isDark
                   ? AppColors.stormyIceBlue
@@ -4823,8 +5163,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 foregroundColor: isDark
                     ? AppColors.stormySkyBlue
                     : AppColors.textSecondary,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
               ),
-              child: const Text('ยังก่อน'),
+              child: Text(
+                'ยังก่อน',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -4833,13 +5183,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 foregroundColor: isDark
                     ? AppColors.stormyNightBackground
                     : Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'เสร็จสิ้น',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 16 : 14.5,
+                ),
               ),
             ),
           ],
@@ -4868,6 +5225,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   void _showOptionsMenu(BuildContext context, Task task, {bool isLeader = true}) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final onSurface = theme.colorScheme.onSurface;
 
     showModalBottomSheet(
@@ -4888,8 +5246,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           children: [
             Container(
               margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
+              width: isTablet ? 56 : 40,
+              height: isTablet ? 5 : 4,
               decoration: BoxDecoration(
                 color: theme.brightness == Brightness.light
                     ? (Theme.of(context).brightness == Brightness.light
@@ -4903,11 +5261,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ListTile(
                 leading: Icon(
                   Icons.edit_outlined,
+                  size: isTablet ? 26 : 22,
                   color: (Theme.of(context).brightness == Brightness.light
                       ? AppColors.stormySkyBlue
                       : AppColors.primaryBlue),
                 ),
-                title: Text('แก้ไขภารกิจ', style: TextStyle(color: onSurface)),
+                title: Text(
+                  'แก้ไขภารกิจ',
+                  style: TextStyle(
+                    color: onSurface,
+                    fontSize: isTablet ? 18 : 16,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _openEditTaskModal(context, task);
@@ -4921,6 +5287,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     : (task.isCompleted
                           ? Icons.undo
                           : Icons.check_circle_outline),
+                size: isTablet ? 26 : 22,
                 color: task.isDeleted
                     ? onSurface
                     : (task.isCompleted
@@ -4931,7 +5298,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 task.isDeleted
                     ? (task.isCompleted ? 'เลิกทำเสร็จสิ้น' : 'คืนค่า')
                     : (task.isCompleted ? 'เลิกทำเสร็จสิ้น' : 'ทำว่าเสร็จสิ้น'),
-                style: TextStyle(color: onSurface),
+                style: TextStyle(
+                  color: onSurface,
+                  fontSize: isTablet ? 18 : 16,
+                  fontWeight: FontWeight.normal,
+                ),
               ),
               onTap: () async {
                 final connectivity = context.read<ConnectivityProvider>();
@@ -4992,11 +5363,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ListTile(
               leading: Icon(
                 task.isDeleted ? Icons.delete_forever : Icons.delete_outline,
+                size: isTablet ? 26 : 22,
                 color: AppColors.error,
               ),
               title: Text(
                 task.isDeleted ? 'ลบถาวร' : 'ส่งไปที่ถังขยะ',
-                style: const TextStyle(color: AppColors.error),
+                style: TextStyle(
+                  color: AppColors.error,
+                  fontSize: isTablet ? 18 : 16,
+                  fontWeight: FontWeight.normal,
+                ),
               ),
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -5015,16 +5391,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _showPermanentDeleteConfirmation(Task task) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 16),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Text(
           'ลบถาวร',
-          style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppColors.error,
+            fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
+          ),
         ),
         content: Text(
           'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจ "${task.title}" ถาวร? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
@@ -5034,6 +5422,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.82),
+            fontSize: isTablet ? 16 : 14.5,
+            height: 1.5,
           ),
         ),
         actions: [
@@ -5043,8 +5433,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -5075,13 +5475,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFFEF9A9A)
                   : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ลบ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -5090,16 +5497,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _showDeleteConfirmation(Task task, {bool isLeader = true}) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 16),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Text(
           'ยืนยันการลบภารกิจ',
-          style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppColors.error,
+            fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
+          ),
         ),
         content: Text(
           task.isGroup && !isLeader
@@ -5111,6 +5530,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 : Theme.of(
                     context,
                   ).colorScheme.onSurface.withValues(alpha: 0.82),
+            fontSize: isTablet ? 16 : 14.5,
+            height: 1.5,
           ),
         ),
         actions: [
@@ -5120,8 +5541,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -5169,13 +5600,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   Theme.of(context).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันการลบ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
@@ -5236,18 +5674,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (displayAttachments.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingMedium,
-        vertical: AppConstants.paddingSmall,
+      margin: EdgeInsets.symmetric(
+        horizontal: isTablet ? 20.0 : AppConstants.paddingMedium,
+        vertical: isTablet ? 12.0 : AppConstants.paddingSmall,
       ),
-      padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      padding: EdgeInsets.all(isTablet ? 24.0 : AppConstants.paddingLarge),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : theme.cardColor,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXLarge),
+        borderRadius: BorderRadius.circular(
+          isTablet ? 28.0 : AppConstants.radiusXLarge,
+        ),
         boxShadow: [
           BoxShadow(
             color: isDark
@@ -5264,35 +5705,35 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(isTablet ? 10 : 8),
                 decoration: BoxDecoration(
                   color:
                       (Theme.of(context).brightness == Brightness.light
                               ? AppColors.stormySkyBlue
                               : AppColors.primaryBlue)
                           .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(isTablet ? 12 : 10),
                 ),
                 child: Icon(
                   Icons.attach_file_rounded,
                   color: (Theme.of(context).brightness == Brightness.light
                       ? AppColors.stormySkyBlue
                       : AppColors.primaryBlue),
-                  size: 20,
+                  size: isTablet ? 24 : 20,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isTablet ? 14 : 12),
               Text(
                 'ไฟล์แนบ (${displayAttachments.length})',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: isTablet ? 20 : 16,
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppConstants.paddingMedium),
+          SizedBox(height: isTablet ? 18 : AppConstants.paddingMedium),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -5335,6 +5776,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
     final type = attachment.fileType.toLowerCase();
     final isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].contains(type);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -5355,13 +5797,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           attachment.fileName,
         ),
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(10),
+          margin: EdgeInsets.only(bottom: isTablet ? 14 : 12),
+          padding: EdgeInsets.all(isTablet ? 12 : 10),
           decoration: BoxDecoration(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.04)
                 : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
             border: Border.all(
               color: theme.dividerColor.withValues(alpha: 0.15),
             ),
@@ -5369,10 +5811,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(isTablet ? 14 : 12),
                 child: Container(
-                  width: 60,
-                  height: 60,
+                  width: isTablet ? 72 : 60,
+                  height: isTablet ? 72 : 60,
                   color: isDark ? Colors.grey[900] : Colors.grey[200],
                   child: Image.network(
                     attachment.fileUrl,
@@ -5399,7 +5841,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: isTablet ? 16 : 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -5407,18 +5849,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     Text(
                       attachment.fileName,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: isTablet ? 17 : 14,
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isTablet ? 6 : 4),
                     Text(
                       'รูปภาพ • แตะเพื่อดูไฟล์',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: isTablet ? 14 : 12,
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.55,
                         ),
@@ -5429,13 +5871,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
               Icon(
                 Icons.open_in_new_rounded,
-                size: 18,
+                size: isTablet ? 22 : 18,
                 color: (Theme.of(context).brightness == Brightness.light
                     ? AppColors.stormySkyBlue
                     : AppColors.primaryBlue),
               ),
               if (showDeleteButton) ...[
-                const SizedBox(width: 12),
+                SizedBox(width: isTablet ? 14 : 12),
                 GestureDetector(
                   onTap: () {
                     if (onDelete != null) {
@@ -5444,9 +5886,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       _deleteAttachment(task, attachment, taskProvider);
                     }
                   },
-                  child: const Icon(
+                  child: Icon(
                     Icons.close_rounded,
-                    size: 20,
+                    size: isTablet ? 24 : 20,
                     color: AppColors.accentRed,
                   ),
                 ),
@@ -5487,13 +5929,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           type,
         ),
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          margin: EdgeInsets.only(bottom: isTablet ? 14 : 12),
+          padding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 18 : 14,
+            vertical: isTablet ? 14 : 12,
+          ),
           decoration: BoxDecoration(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.04)
                 : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
             border: Border.all(
               color: theme.dividerColor.withValues(alpha: 0.15),
             ),
@@ -5501,14 +5946,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(isTablet ? 12 : 10),
                 decoration: BoxDecoration(
                   color: iconBgColor,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(isTablet ? 14 : 12),
                 ),
-                child: Icon(docIcon, color: iconColor, size: 24),
+                child: Icon(
+                  docIcon,
+                  color: iconColor,
+                  size: isTablet ? 28 : 24,
+                ),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: isTablet ? 16 : 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -5516,18 +5965,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     Text(
                       attachment.fileName,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: isTablet ? 17 : 14,
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isTablet ? 6 : 4),
                     Text(
                       '${type.toUpperCase()} เอกสาร • แตะเพื่อดูไฟล์',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: isTablet ? 14 : 12,
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.55,
                         ),
@@ -5538,13 +5987,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
               Icon(
                 Icons.open_in_new_rounded,
-                size: 18,
+                size: isTablet ? 22 : 18,
                 color: (Theme.of(context).brightness == Brightness.light
                     ? AppColors.stormySkyBlue
                     : AppColors.primaryBlue),
               ),
               if (showDeleteButton) ...[
-                const SizedBox(width: 12),
+                SizedBox(width: isTablet ? 14 : 12),
                 GestureDetector(
                   onTap: () {
                     if (onDelete != null) {
@@ -5553,9 +6002,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       _deleteAttachment(task, attachment, taskProvider);
                     }
                   },
-                  child: const Icon(
+                  child: Icon(
                     Icons.close_rounded,
-                    size: 20,
+                    size: isTablet ? 24 : 20,
                     color: AppColors.accentRed,
                   ),
                 ),
@@ -5572,20 +6021,50 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     TaskAttachment attachment,
     VoidCallback onDelete,
   ) async {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+          borderRadius: BorderRadius.circular(
+            isTablet ? 22 : AppConstants.radiusLarge,
+          ),
         ),
-        title: const Text('ลบไฟล์แนบ?'),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
+        title: Text(
+          'ลบไฟล์แนบ?',
+          style: TextStyle(
+            fontSize: isTablet ? 22 : 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Text(
           'คุณต้องการลบไฟล์ "${attachment.fileName}" ใช่หรือไม่? ไฟล์นี้จะถูกลบออกจากภารกิจนี้ถาวร',
+          style: TextStyle(
+            fontSize: isTablet ? 16 : 14.5,
+            height: 1.5,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('ย้อนกลับ'),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
+            child: Text(
+              'ย้อนกลับ',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -5595,8 +6074,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   Theme.of(context).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text('ลบไฟล์'),
+            child: Text(
+              'ลบไฟล์',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
+            ),
           ),
         ],
       ),
@@ -5625,20 +6114,50 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     TaskAttachment attachment,
     TaskProvider taskProvider,
   ) async {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+          borderRadius: BorderRadius.circular(
+            isTablet ? 22 : AppConstants.radiusLarge,
+          ),
         ),
-        title: const Text('ลบไฟล์แนบ?'),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
+        title: Text(
+          'ลบไฟล์แนบ?',
+          style: TextStyle(
+            fontSize: isTablet ? 22 : 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Text(
           'คุณต้องการลบไฟล์ "${attachment.fileName}" ใช่หรือไม่? ไฟล์นี้จะถูกลบออกจากภารกิจนี้ถาวร',
+          style: TextStyle(
+            fontSize: isTablet ? 16 : 14.5,
+            height: 1.5,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('ย้อนกลับ'),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
+            child: Text(
+              'ย้อนกลับ',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -5648,8 +6167,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   Theme.of(context).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text('ลบไฟล์'),
+            child: Text(
+              'ลบไฟล์',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
+            ),
           ),
         ],
       ),
@@ -5937,23 +6466,38 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     String fileName,
     String fileType,
   ) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+          ),
+          actionsPadding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20 : 16,
+            vertical: isTablet ? 16 : 12,
           ),
           title: Row(
             children: [
               Icon(
                 Icons.insert_drive_file,
+                size: isTablet ? 28 : 24,
                 color: (Theme.of(context).brightness == Brightness.light
                     ? AppColors.stormySkyBlue
                     : AppColors.primaryBlue),
               ),
               const SizedBox(width: 10),
-              const Text('รายละเอียดไฟล์เอกสาร'),
+              Expanded(
+                child: Text(
+                  'รายละเอียดไฟล์เอกสาร',
+                  style: TextStyle(
+                    fontSize: isTablet ? 22 : 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ],
           ),
           content: Column(
@@ -5962,30 +6506,64 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             children: [
               Text(
                 'ชื่อไฟล์: $fileName',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 16 : 14.5,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text('ประเภทไฟล์'),
+              Text(
+                'ประเภทไฟล์',
+                style: TextStyle(
+                  fontSize: isTablet ? 15 : 13.5,
+                ),
+              ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'เนื่องจากเป็นไฟล์เอกสาร ระบบจะเปิดไฟล์นี้ผ่านเว็บเบราว์เซอร์ของระบบเพื่อให้ท่านดาวน์โหลดหรือเปิดดูโดยละเอียด',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: isTablet ? 14 : 12.5,
+                  color: Colors.grey,
+                  height: 1.5,
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('ปิด'),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
+              ),
+              child: Text(
+                'ปิด',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
                 _launchURL(fileUrl);
               },
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('เปิดในบราวเซอร์'),
+              icon: Icon(Icons.open_in_new, size: isTablet ? 20 : 18),
+              label: Text(
+                'เปิดในบราวเซอร์',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
                 backgroundColor:
                     (Theme.of(context).brightness == Brightness.light
                     ? AppColors.stormySkyBlue
@@ -5994,6 +6572,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     Theme.of(context).brightness == Brightness.dark
                         ? AppColors.stormyNightBackground
                         : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(isTablet ? 12 : 10),
+                ),
               ),
             ),
           ],
@@ -6005,16 +6586,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void _showRejectTaskSubmissionDialog(Task task) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(isTablet ? 10 : 8),
               decoration: BoxDecoration(
                 color: (isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed)
                     .withValues(alpha: 0.15),
@@ -6023,7 +6611,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               child: Icon(
                 Icons.cancel_outlined,
                 color: isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed,
-                size: 24,
+                size: isTablet ? 28 : 24,
               ),
             ),
             const SizedBox(width: 12),
@@ -6031,7 +6619,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               child: Text(
                 'ปฏิเสธงานที่ส่งมา',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,
                 ),
@@ -6042,7 +6630,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         content: Text(
           'คุณต้องการปฏิเสธงานที่ส่งมาและส่งกลับไปให้แก้ไขใช่หรือไม่?',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: isTablet ? 16 : 14.5,
             height: 1.5,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
           ),
@@ -6050,9 +6638,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
             child: Text(
               'ยกเลิก',
               style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.bold,
               ),
@@ -6083,13 +6678,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               foregroundColor:
                   isDark ? AppColors.stormyNightBackground : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(isTablet ? 12 : 10),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันปฏิเสธ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -6100,16 +6701,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void _showRejectMemberSubmissionDialog(Task task, Member member) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(isTablet ? 10 : 8),
               decoration: BoxDecoration(
                 color: (isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed)
                     .withValues(alpha: 0.15),
@@ -6118,7 +6726,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               child: Icon(
                 Icons.cancel_outlined,
                 color: isDark ? const Color(0xFFFF6B6B) : AppColors.accentRed,
-                size: 24,
+                size: isTablet ? 28 : 24,
               ),
             ),
             const SizedBox(width: 12),
@@ -6126,7 +6734,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               child: Text(
                 'ปฏิเสธงานที่ส่งมา',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,
                 ),
@@ -6137,7 +6745,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         content: Text(
           'ต้องการปฏิเสธงานของ "${member.name}" และส่งกลับไปให้แก้ไขใช่หรือไม่?',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: isTablet ? 16 : 14.5,
             height: 1.5,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
           ),
@@ -6145,9 +6753,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
             child: Text(
               'ยกเลิก',
               style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.bold,
               ),
@@ -6181,13 +6796,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               foregroundColor:
                   isDark ? AppColors.stormyNightBackground : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(isTablet ? 12 : 10),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันปฏิเสธ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -6198,16 +6819,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void _showRevertApprovalDialog(Task task, Member member) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(isTablet ? 10 : 8),
               decoration: BoxDecoration(
                 color:
                     (isDark ? const Color(0xFFFFB74D) : const Color(0xFFD97706))
@@ -6218,7 +6846,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Icons.replay_rounded,
                 color:
                     isDark ? const Color(0xFFFFB74D) : const Color(0xFFD97706),
-                size: 24,
+                size: isTablet ? 28 : 24,
               ),
             ),
             const SizedBox(width: 12),
@@ -6226,7 +6854,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               child: Text(
                 'ส่งงานกลับไปแก้ไข',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isTablet ? 22 : 18,
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,
                 ),
@@ -6237,7 +6865,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         content: Text(
           'คุณต้องการยกเลิกการอนุมัติและส่งงานของ "${member.name}" กลับไปแก้ไขใช่หรือไม่?\n\n(ระบบจะเปลี่ยนสถานะเป็นกำลังทำภารกิจ และเรียกคืนคะแนนที่สมาชิกได้รับ)',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: isTablet ? 16 : 14.5,
             height: 1.5,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
           ),
@@ -6245,9 +6873,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
+            ),
             child: Text(
               'ยกเลิก',
               style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.bold,
               ),
@@ -6280,13 +6915,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   isDark ? const Color(0xFFFFB74D) : const Color(0xFFD97706),
               foregroundColor: isDark ? Colors.black : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(isTablet ? 12 : 10),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันส่งกลับ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -6295,11 +6936,32 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _showOfflineDialog(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต'),
-        content: const Text('กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อดำเนินการนี้'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
+        title: Text(
+          'ไม่มีการเชื่อมต่ออินเทอร์เน็ต',
+          style: TextStyle(
+            fontSize: isTablet ? 22 : 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อดำเนินการนี้',
+          style: TextStyle(
+            fontSize: isTablet ? 16 : 14.5,
+            height: 1.5,
+          ),
+        ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
@@ -6310,10 +6972,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ? AppColors.stormyNightBackground
                       : Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.circular(isTablet ? 14 : 12.0),
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
               ),
             ),
-            child: const Text('ตกลง'),
+            child: Text(
+              'ตกลง',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

@@ -16,9 +16,11 @@ class DailyTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isTablet = MediaQuery.of(context).size.width >= 600;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     if (tasks.isEmpty) {
-      return _buildEmptyState(context, isTablet);
+      return _buildEmptyState(context, isTablet, isLandscape);
     }
 
     return SingleChildScrollView(
@@ -32,14 +34,16 @@ class DailyTimeline extends StatelessWidget {
             Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: AppConstants.paddingLarge,
-                vertical: isTablet ? 20 : AppConstants.paddingMedium,
+                vertical: isLandscape
+                    ? 8
+                    : (isTablet ? 20 : AppConstants.paddingMedium),
               ),
               child: Row(
                 children: [
                   Text(
                     'ตารางเวลา',
                     style: TextStyle(
-                      fontSize: isTablet ? 24 : 18,
+                      fontSize: isLandscape ? 18 : (isTablet ? 24 : 18),
                       fontWeight: FontWeight.bold,
                       color: theme.brightness == Brightness.dark
                           ? Colors.white
@@ -49,8 +53,8 @@ class DailyTimeline extends StatelessWidget {
                   const SizedBox(width: AppConstants.paddingSmall),
                   Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isTablet ? 16 : 12,
-                      vertical: isTablet ? 6 : 4,
+                      horizontal: isLandscape ? 10 : (isTablet ? 16 : 12),
+                      vertical: isLandscape ? 4 : (isTablet ? 6 : 4),
                     ),
                     decoration: BoxDecoration(
                       color: theme.brightness == Brightness.light
@@ -63,7 +67,7 @@ class DailyTimeline extends StatelessWidget {
                     child: Text(
                       '${tasks.length} ภารกิจ',
                       style: TextStyle(
-                        fontSize: isTablet ? 15 : 12,
+                        fontSize: isLandscape ? 12 : (isTablet ? 15 : 12),
                         fontWeight: FontWeight.w600,
                         color: theme.brightness == Brightness.light
                             ? AppColors.stormyDarkSlate
@@ -83,14 +87,19 @@ class DailyTimeline extends StatelessWidget {
                   if (priorityComparison != 0) return priorityComparison;
                   return a.dateTime.compareTo(b.dateTime);
                 }))
-                .map((task) => _buildTimelineItem(context, task, isTablet)),
+                .map((task) => _buildTimelineItem(context, task, isTablet, isLandscape)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimelineItem(BuildContext context, Task task, bool isTablet) {
+  Widget _buildTimelineItem(
+    BuildContext context,
+    Task task,
+    bool isTablet,
+    bool isLandscape,
+  ) {
     final theme = Theme.of(context);
     final taskProvider = Provider.of<TaskProvider>(context);
     final color = task.priorityColor;
@@ -98,7 +107,7 @@ class DailyTimeline extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: AppConstants.paddingLarge,
-        vertical: isTablet ? 6 : AppConstants.paddingSmall / 2,
+        vertical: isLandscape ? 4 : (isTablet ? 6 : AppConstants.paddingSmall / 2),
       ),
       child: GestureDetector(
         onTap: () async {
@@ -106,7 +115,9 @@ class DailyTimeline extends StatelessWidget {
           await Navigator.pushNamed(context, '/task-detail');
         },
         child: Container(
-          padding: EdgeInsets.all(isTablet ? 20 : AppConstants.paddingMedium),
+          padding: EdgeInsets.all(
+            isLandscape ? 12 : (isTablet ? 20 : AppConstants.paddingMedium),
+          ),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(
@@ -123,8 +134,8 @@ class DailyTimeline extends StatelessWidget {
               Column(
                 children: [
                   Container(
-                    width: isTablet ? 16 : 12,
-                    height: isTablet ? 16 : 12,
+                    width: isLandscape ? 10 : (isTablet ? 16 : 12),
+                    height: isLandscape ? 10 : (isTablet ? 16 : 12),
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
@@ -134,15 +145,17 @@ class DailyTimeline extends StatelessWidget {
                   if (tasks.indexOf(task) != tasks.length - 1)
                     Container(
                       width: isTablet ? 3 : 2,
-                      height: isTablet ? 48 : 40,
+                      height: isLandscape ? 36 : (isTablet ? 48 : 40),
                       color: color.withValues(alpha: 0.3),
                     ),
                 ],
               ),
               SizedBox(
-                width: isTablet
-                    ? AppConstants.paddingLarge
-                    : AppConstants.paddingMedium,
+                width: isLandscape
+                    ? 12
+                    : (isTablet
+                        ? AppConstants.paddingLarge
+                        : AppConstants.paddingMedium),
               ),
 
               // Task Content
@@ -154,7 +167,7 @@ class DailyTimeline extends StatelessWidget {
                     Text(
                       DateFormat('h:mm a').format(task.dateTime),
                       style: TextStyle(
-                        fontSize: isTablet ? 15 : 12,
+                        fontSize: isLandscape ? 12 : (isTablet ? 15 : 12),
                         fontWeight: FontWeight.w600,
                         color: color,
                       ),
@@ -165,16 +178,13 @@ class DailyTimeline extends StatelessWidget {
                     Text(
                       task.title,
                       style: TextStyle(
-                        fontSize: isTablet ? 19 : 15,
+                        fontSize: isLandscape ? 14 : (isTablet ? 19 : 15),
                         fontWeight: FontWeight.w600,
                         color: task.isCompleted
                             ? AppColors.textLight
                             : (theme.brightness == Brightness.dark
-                                  ? Colors.white
-                                  : theme.colorScheme.onSurface),
-                        decoration: task.isCompleted
-                            ? TextDecoration.lineThrough
-                            : null,
+                                ? Colors.white
+                                : theme.colorScheme.onSurface),
                       ),
                     ),
 
@@ -184,7 +194,7 @@ class DailyTimeline extends StatelessWidget {
                       Text(
                         task.category!,
                         style: TextStyle(
-                          fontSize: isTablet ? 15 : 12,
+                          fontSize: isLandscape ? 12 : (isTablet ? 15 : 12),
                           color: color,
                           fontWeight: FontWeight.w500,
                         ),
@@ -196,8 +206,8 @@ class DailyTimeline extends StatelessWidget {
 
               // Priority Dot
               Container(
-                width: isTablet ? 12 : 8,
-                height: isTablet ? 12 : 8,
+                width: isLandscape ? 8 : (isTablet ? 12 : 8),
+                height: isLandscape ? 8 : (isTablet ? 12 : 8),
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
             ],
@@ -207,35 +217,41 @@ class DailyTimeline extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, bool isTablet) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    bool isTablet,
+    bool isLandscape,
+  ) {
     final theme = Theme.of(context);
     return Center(
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
-          padding: const EdgeInsets.all(AppConstants.paddingXLarge),
+          padding: EdgeInsets.all(
+            isLandscape ? 12.0 : AppConstants.paddingXLarge,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: isTablet ? 100 : 80,
-                height: isTablet ? 100 : 80,
+                width: isLandscape ? 52 : (isTablet ? 100 : 80),
+                height: isLandscape ? 52 : (isTablet ? 100 : 80),
                 decoration: BoxDecoration(
                   color: AppColors.backgroundGrey,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.event_available,
-                  size: isTablet ? 50 : 40,
+                  size: isLandscape ? 26 : (isTablet ? 50 : 40),
                   color: AppColors.textLight,
                 ),
               ),
-              const SizedBox(height: AppConstants.paddingLarge),
+              SizedBox(height: isLandscape ? 8 : AppConstants.paddingLarge),
               Text(
                 'ไม่มีภารกิจสำหรับวันนี้',
                 style: TextStyle(
-                  fontSize: isTablet ? 22 : 18,
+                  fontSize: isLandscape ? 16 : (isTablet ? 22 : 18),
                   fontWeight: FontWeight.w600,
                   color: theme.brightness == Brightness.dark
                       ? Colors.white
@@ -243,11 +259,11 @@ class DailyTimeline extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppConstants.paddingSmall),
+              SizedBox(height: isLandscape ? 4 : AppConstants.paddingSmall),
               Text(
                 'พักผ่อนให้สบาย หรือวางแผนล่วงหน้าได้เลย!',
                 style: TextStyle(
-                  fontSize: isTablet ? 16 : 14,
+                  fontSize: isLandscape ? 13 : (isTablet ? 16 : 14),
                   color: AppColors.textSecondary,
                 ),
                 textAlign: TextAlign.center,

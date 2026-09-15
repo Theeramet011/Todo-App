@@ -1149,18 +1149,34 @@ class _MemberAssignmentDetailScreenState
     String fileName,
     String fileType,
   ) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+          ),
+          actionsPadding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20 : 16,
+            vertical: isTablet ? 16 : 12,
           ),
           title: Row(
             children: [
-              const Icon(Icons.insert_drive_file, color: AppColors.primaryBlue),
+              Icon(
+                Icons.insert_drive_file,
+                color: AppColors.primaryBlue,
+                size: isTablet ? 26 : 22,
+              ),
               const SizedBox(width: 10),
-              const Text('รายละเอียดไฟล์เอกสาร'),
+              Text(
+                'รายละเอียดไฟล์เอกสาร',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 22 : 18,
+                ),
+              ),
             ],
           ),
           content: Column(
@@ -1169,21 +1185,45 @@ class _MemberAssignmentDetailScreenState
             children: [
               Text(
                 'ชื่อไฟล์: $fileName',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 16 : 14.5,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text('ประเภทไฟล์'),
+              Text(
+                'ประเภทไฟล์',
+                style: TextStyle(
+                  fontSize: isTablet ? 15 : 13.5,
+                ),
+              ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'เนื่องจากเป็นไฟล์เอกสาร ระบบจะเปิดไฟล์นี้ผ่านเว็บเบราว์เซอร์ของระบบเพื่อให้ท่านดาวน์โหลดหรือเปิดดูโดยละเอียด',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: isTablet ? 14 : 12.5,
+                  color: Colors.grey,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('ปิด'),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
+              ),
+              child: Text(
+                'ปิด',
+                style: TextStyle(
+                  fontSize: isTablet ? 16 : 14.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             ElevatedButton.icon(
               onPressed: () async {
@@ -1198,14 +1238,27 @@ class _MemberAssignmentDetailScreenState
                   );
                 }
               },
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('เปิดในบราวเซอร์'),
+              icon: Icon(
+                Icons.open_in_new,
+                size: isTablet ? 20 : 18,
+              ),
+              label: Text(
+                'เปิดในบราวเซอร์',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 16 : 14.5,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.stormySkyBlue,
                 foregroundColor:
                     Theme.of(context).brightness == Brightness.dark
                         ? AppColors.stormyNightBackground
                         : Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 20 : 16,
+                  vertical: isTablet ? 12 : 10,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

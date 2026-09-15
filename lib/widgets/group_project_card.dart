@@ -15,6 +15,7 @@ import '../screens/bin_screen.dart';
 import '../providers/connectivity_provider.dart';
 import '../config/constants.dart';
 import '../utils/responsive.dart';
+import 'priority_tag.dart';
 
 class GroupProjectCard extends StatelessWidget {
   final Task project;
@@ -108,6 +109,8 @@ class GroupProjectCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      PriorityTag(priority: project.priorityLabel),
                       if (isLeader) ...[
                         const SizedBox(width: 8),
                         _buildLeaderBadge(context),
@@ -184,6 +187,7 @@ class GroupProjectCard extends StatelessWidget {
                                     'สมาชิกในกลุ่มยังส่งงานไม่ครบถ้วน (เหลืออีก $incompleteCount คน) กรุณารอให้สมาชิกทุกคนส่งงานและอนุมัติให้ครบก่อนเสร็จสิ้นภารกิจ';
                               }
 
+                              final isTablet = MediaQuery.of(context).size.width >= 600;
                               showDialog(
                                 context: context,
                                 builder: (context) => AlertDialog(
@@ -197,7 +201,7 @@ class GroupProjectCard extends StatelessWidget {
                                     'ไม่สามารถเสร็จสิ้นภารกิจได้',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 18,
+                                      fontSize: isTablet ? 22 : 18,
                                       color: Theme.of(context)
                                           .colorScheme
                                           .onSurface,
@@ -206,7 +210,7 @@ class GroupProjectCard extends StatelessWidget {
                                   content: Text(
                                     message,
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: isTablet ? 16 : 14.5,
                                       height: 1.5,
                                       color: isDark
                                           ? Colors.white.withValues(alpha: 0.85)
@@ -214,6 +218,10 @@ class GroupProjectCard extends StatelessWidget {
                                               alpha: 0.85,
                                             ),
                                     ),
+                                  ),
+                                  actionsPadding: EdgeInsets.symmetric(
+                                    horizontal: isTablet ? 20 : 16,
+                                    vertical: isTablet ? 16 : 12,
                                   ),
                                   actions: [
                                     ElevatedButton(
@@ -225,19 +233,20 @@ class GroupProjectCard extends StatelessWidget {
                                             ? AppColors.stormyNightBackground
                                             : Colors.white,
                                         elevation: 0,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: 10,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: isTablet ? 24 : 20,
+                                          vertical: isTablet ? 12 : 10,
                                         ),
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(12.0),
                                         ),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'ตกลง',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
+                                          fontSize: isTablet ? 16 : 14.5,
                                         ),
                                       ),
                                     ),
@@ -302,21 +311,29 @@ class GroupProjectCard extends StatelessWidget {
                     },
                     icon: Icon(
                       Icons.more_vert,
+                      size: isTablet ? 28 : 22,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     itemBuilder: (context) => [
                       if (isLeader) ...[
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'edit',
                           child: Row(
                             children: [
                               Icon(
                                 Icons.edit_outlined,
                                 color: AppColors.primaryBlue,
-                                size: 20,
+                                size: isTablet ? 24 : 22,
                               ),
-                              SizedBox(width: 10),
-                              Text('แก้ไขภารกิจ'),
+                              SizedBox(width: isTablet ? 12 : 10),
+                              Text(
+                                'แก้ไขภารกิจ',
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                  fontSize: isTablet ? 18 : 16,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -332,29 +349,38 @@ class GroupProjectCard extends StatelessWidget {
                                   color: isCompleted
                                       ? AppColors.warning
                                       : AppColors.success,
-                                  size: 20,
+                                  size: isTablet ? 24 : 22,
                                 ),
-                                const SizedBox(width: 10),
+                                SizedBox(width: isTablet ? 12 : 10),
                                 Text(
                                   isCompleted ? 'ทำยังไม่เสร็จ' : 'ทำว่าเสร็จสิ้น',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onSurface,
+                                    fontSize: isTablet ? 18 : 16,
+                                    fontWeight: FontWeight.normal,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                       ],
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
                             Icon(
                               Icons.delete_outline,
                               color: AppColors.accentRed,
-                              size: 20,
+                              size: isTablet ? 24 : 22,
                             ),
-                            SizedBox(width: 10),
+                            SizedBox(width: isTablet ? 12 : 10),
                             Text(
                               'ลบภารกิจ',
-                              style: TextStyle(color: AppColors.accentRed),
+                              style: TextStyle(
+                                color: AppColors.accentRed,
+                                fontSize: isTablet ? 18 : 16,
+                                fontWeight: FontWeight.normal,
+                              ),
                             ),
                           ],
                         ),
@@ -504,18 +530,23 @@ class GroupProjectCard extends StatelessWidget {
 
   Widget _buildLeaderBadge(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 12 : 8,
+        vertical: isTablet ? 6 : 4,
+      ),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.light
             ? theme.colorScheme.primary.withValues(alpha: 0.14)
             : AppColors.stormySkyBlue.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(isTablet ? 10 : 8),
       ),
       child: Text(
         'หัวหน้า',
         style: theme.textTheme.labelSmall?.copyWith(
+          fontSize: isTablet ? 15 : null,
           color: theme.brightness == Brightness.light
               ? theme.colorScheme.primary
               : AppColors.stormySkyBlue,
@@ -609,18 +640,20 @@ class GroupProjectCard extends StatelessWidget {
   }
 
   void _showDeleteConfirmation(BuildContext parentContext, {required bool isLeader}) {
+    final isTablet = MediaQuery.of(parentContext).size.width >= 600;
     showDialog(
       context: parentContext,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Theme.of(parentContext).brightness == Brightness.dark
             ? AppColors.stormyDarkSlate
             : Theme.of(parentContext).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
           'ยืนยันการลบภารกิจ',
           style: TextStyle(
             color: AppColors.accentRed,
             fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 22 : 18,
           ),
         ),
         content: Text(
@@ -628,6 +661,7 @@ class GroupProjectCard extends StatelessWidget {
               ? 'คุณแน่ใจหรือไม่ว่าต้องการลบโครงการกลุ่มนี้โดยส่งไปที่ถังขยะ?'
               : 'คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจกลุ่มนี้ออกจากรายการของคุณ?\n\n(การลบนี้จะมีผลเฉพาะกับคุณเท่านั้น โดยไม่ส่งผลกระทบต่อกลุ่มหรือสมาชิกคนอื่น)',
           style: TextStyle(
+            fontSize: isTablet ? 16 : 14.5,
             color: Theme.of(parentContext).brightness == Brightness.dark
                 ? AppColors.stormyIceBlue
                 : Theme.of(
@@ -635,16 +669,30 @@ class GroupProjectCard extends StatelessWidget {
                   ).colorScheme.onSurface.withValues(alpha: 0.82),
           ),
         ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 18 : 14,
+                vertical: isTablet ? 12 : 10,
+              ),
               foregroundColor:
                   Theme.of(parentContext).brightness == Brightness.dark
                   ? AppColors.stormySkyBlue
                   : AppColors.textSecondary,
             ),
-            child: const Text('ยกเลิก'),
+            child: Text(
+              'ยกเลิก',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -685,13 +733,20 @@ class GroupProjectCard extends StatelessWidget {
                   Theme.of(parentContext).brightness == Brightness.dark
                       ? AppColors.stormyNightBackground
                       : Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 10,
+              ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
+            child: Text(
               'ยืนยันการลบ',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
             ),
           ),
         ],
