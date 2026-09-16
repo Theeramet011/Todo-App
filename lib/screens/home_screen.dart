@@ -252,7 +252,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           Responsive.isDesktop(context))
                       ? 38
                       : 32,
-                  color: AppColors.stormyDarkSlate,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.stormyDarkSlate
+                      : Colors.white,
                 ),
               ),
             )

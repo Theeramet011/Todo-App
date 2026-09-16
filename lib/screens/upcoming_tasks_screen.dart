@@ -585,7 +585,13 @@ class _UpcomingTasksScreenState extends State<UpcomingTasksScreen> {
           onPressed: () => _showCreateTaskModal(context),
           elevation: 4,
           backgroundColor: AppColors.stormySkyBlue,
-          child: Icon(Icons.add, size: isTablet ? 36 : 32, color: Colors.white),
+          child: Icon(
+            Icons.add,
+            size: isTablet ? 36 : 32,
+            color: theme.brightness == Brightness.dark
+                ? AppColors.stormyDarkSlate
+                : Colors.white,
+          ),
         ),
       ),
     );
