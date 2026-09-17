@@ -3081,7 +3081,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
               initialTime: currentTime,
               builder: (context, child) {
                 return MediaQuery(
-                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
                   child: child!,
                 );
               },
@@ -4459,7 +4459,7 @@ class _CustomReminderSheetContentState
               initialTime: currentTime,
               builder: (context, child) {
                 return MediaQuery(
-                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
                   child: child!,
                 );
               },

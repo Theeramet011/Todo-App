@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import '../config/colors.dart';
+import '../utils/responsive.dart';
 
 class TutorialService {
   // GlobalKeys to attach to your target UI elements
@@ -9,10 +10,31 @@ class TutorialService {
   static final GlobalKey navKey = GlobalKey();
   static final GlobalKey levelKey = GlobalKey();
   static final GlobalKey streakKey = GlobalKey();
+  static final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
   /// Call this function to start the guided tour.
   static void showTutorial(BuildContext context) {
     _showPart1(context);
+  }
+
+  static void _openDrawer(BuildContext context) {
+    if (scaffoldKey.currentState != null) {
+      scaffoldKey.currentState!.openDrawer();
+    } else {
+      try {
+        Scaffold.of(context).openDrawer();
+      } catch (_) {}
+    }
+  }
+
+  static void _closeDrawer(BuildContext context) {
+    if (scaffoldKey.currentState != null) {
+      scaffoldKey.currentState!.closeDrawer();
+    } else {
+      try {
+        Scaffold.of(context).closeDrawer();
+      } catch (_) {}
+    }
   }
 
   static Widget _buildSkipWidget(BuildContext context) {
@@ -43,7 +65,7 @@ class TutorialService {
     final isLight = Theme.of(context).brightness == Brightness.light;
     late TutorialCoachMark tutorialCoachMark;
     tutorialCoachMark = TutorialCoachMark(
-      targets: _createPart1Targets(),
+      targets: _createPart1Targets(context),
       colorShadow: isLight
           ? AppColors.stormyDarkSlate
           : const Color(0xFF1A2530), // Adaptive shadow
@@ -56,7 +78,7 @@ class TutorialService {
       },
       onFinish: () {
         // Open drawer for the next part
-        Scaffold.of(context).openDrawer();
+        _openDrawer(context);
         Future.delayed(const Duration(milliseconds: 400), () {
           if (context.mounted) {
             _showPart2(context);
@@ -72,7 +94,7 @@ class TutorialService {
     final isLight = Theme.of(context).brightness == Brightness.light;
     late TutorialCoachMark tutorialCoachMark;
     tutorialCoachMark = TutorialCoachMark(
-      targets: _createPart2Targets(),
+      targets: _createPart2Targets(context),
       colorShadow: isLight
           ? AppColors.stormyDarkSlate
           : const Color(0xFF1A2530),
@@ -85,7 +107,7 @@ class TutorialService {
       },
       onFinish: () {
         // Close drawer to return to home screen
-        Scaffold.of(context).closeDrawer();
+        _closeDrawer(context);
         Future.delayed(const Duration(milliseconds: 400), () {
           if (context.mounted) {
             _showPart3(context);
@@ -93,7 +115,7 @@ class TutorialService {
         });
       },
       onSkip: () {
-        Scaffold.of(context).closeDrawer();
+        _closeDrawer(context);
         return true;
       },
     );
@@ -104,7 +126,7 @@ class TutorialService {
     final isLight = Theme.of(context).brightness == Brightness.light;
     late TutorialCoachMark tutorialCoachMark;
     tutorialCoachMark = TutorialCoachMark(
-      targets: _createPart3Targets(),
+      targets: _createPart3Targets(context),
       colorShadow: isLight
           ? AppColors.stormyDarkSlate
           : const Color(0xFF1A2530),
@@ -123,7 +145,22 @@ class TutorialService {
     tutorialCoachMark.show(context: context);
   }
 
-  static List<TargetFocus> _createPart1Targets() {
+  @visibleForTesting
+  static List<TargetFocus> createPart1TargetsForTesting(BuildContext context) =>
+      _createPart1Targets(context);
+
+  @visibleForTesting
+  static List<TargetFocus> createPart2TargetsForTesting(BuildContext context) =>
+      _createPart2Targets(context);
+
+  @visibleForTesting
+  static List<TargetFocus> createPart3TargetsForTesting(BuildContext context) =>
+      _createPart3Targets(context);
+
+  static List<TargetFocus> _createPart1Targets(BuildContext context) {
+    final isTablet =
+        Responsive.isTablet(context) || Responsive.useNavigationRail(context);
+
     return [
       TargetFocus(
         identify: "fabTarget",
@@ -135,13 +172,27 @@ class TutorialService {
           TargetContent(
             align: ContentAlign.top,
             builder: (context, controller) {
-              return _buildTooltipContent(
-                context: context,
-                title: "เริ่มต้นการผจญภัย!",
-                description:
-                    "กดที่นี่เพื่อสร้างภารกิจใหม่ แล้วรับค่า EXP ทันทีที่ทำสำเร็จ",
-                iconPath: 'assets/images/icons/swords.png',
-              );
+              return isTablet
+                  ? Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 24, bottom: 8),
+                        child: _buildTooltipContent(
+                          context: context,
+                          title: "เริ่มต้นการผจญภัย!",
+                          description:
+                              "กดที่นี่เพื่อสร้างภารกิจใหม่ แล้วรับค่า EXP ทันทีที่ทำสำเร็จ",
+                          iconPath: 'assets/images/icons/swords.png',
+                        ),
+                      ),
+                    )
+                  : _buildTooltipContent(
+                      context: context,
+                      title: "เริ่มต้นการผจญภัย!",
+                      description:
+                          "กดที่นี่เพื่อสร้างภารกิจใหม่ แล้วรับค่า EXP ทันทีที่ทำสำเร็จ",
+                      iconPath: 'assets/images/icons/swords.png',
+                    );
             },
           ),
         ],
@@ -157,13 +208,24 @@ class TutorialService {
           TargetContent(
             align: ContentAlign.bottom,
             builder: (context, controller) {
-              return _buildTooltipContent(
-                context: context,
-                title: "สลับโหมดได้ดั่งใจ!",
-                description:
-                    "จะจัดการภารกิจส่วนตัวหรือลุยภารกิจกลุ่มกับเพื่อนก็ทำได้ที่นี่",
-                iconPath: 'assets/images/icons/costumer.png',
-              );
+              return isTablet
+                  ? Align(
+                      alignment: Alignment.topCenter,
+                      child: _buildTooltipContent(
+                        context: context,
+                        title: "สลับโหมดได้ดั่งใจ!",
+                        description:
+                            "จะจัดการภารกิจส่วนตัวหรือลุยภารกิจกลุ่มกับเพื่อนก็ทำได้ที่นี่",
+                        iconPath: 'assets/images/icons/costumer.png',
+                      ),
+                    )
+                  : _buildTooltipContent(
+                      context: context,
+                      title: "สลับโหมดได้ดั่งใจ!",
+                      description:
+                          "จะจัดการภารกิจส่วนตัวหรือลุยภารกิจกลุ่มกับเพื่อนก็ทำได้ที่นี่",
+                      iconPath: 'assets/images/icons/costumer.png',
+                    );
             },
           ),
         ],
@@ -174,18 +236,32 @@ class TutorialService {
         enableOverlayTab: true,
         alignSkip: Alignment.topRight,
         shape: ShapeLightFocus.RRect,
-        radius: 16,
+        radius: isTablet ? 20 : 16,
         contents: [
           TargetContent(
-            align: ContentAlign.top,
+            align: isTablet ? ContentAlign.right : ContentAlign.top,
             builder: (context, controller) {
-              return _buildTooltipContent(
-                context: context,
-                title: "เมนูหลัก",
-                description:
-                    "ตรวจเช็คตารางย้อนหลังและตั้งค่าต่างๆ ได้จากเมนูหลักตรงนี้",
-                iconPath: 'assets/images/icons/done.png',
-              );
+              return isTablet
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: _buildTooltipContent(
+                          context: context,
+                          title: "เมนูหลัก",
+                          description:
+                              "ตรวจเช็คตารางย้อนหลังและตั้งค่าต่างๆ ได้จากเมนูหลักตรงนี้",
+                          iconPath: 'assets/images/icons/done.png',
+                        ),
+                      ),
+                    )
+                  : _buildTooltipContent(
+                      context: context,
+                      title: "เมนูหลัก",
+                      description:
+                          "ตรวจเช็คตารางย้อนหลังและตั้งค่าต่างๆ ได้จากเมนูหลักตรงนี้",
+                      iconPath: 'assets/images/icons/done.png',
+                    );
             },
           ),
         ],
@@ -193,7 +269,9 @@ class TutorialService {
     ];
   }
 
-  static List<TargetFocus> _createPart2Targets() {
+  static List<TargetFocus> _createPart2Targets(BuildContext context) {
+    final isTablet = Responsive.isTablet(context);
+
     return [
       TargetFocus(
         identify: "levelTarget",
@@ -206,13 +284,27 @@ class TutorialService {
           TargetContent(
             align: ContentAlign.bottom,
             builder: (context, controller) {
-              return _buildTooltipContent(
-                context: context,
-                title: "อัปเลเวลและพัฒนาตัวละคร!",
-                description:
-                    "ทุกภารกิจที่คุณทำสำเร็จจะเปลี่ยนเป็น EXP เพื่ออัปเลเวลและพัฒนาตัวละครของคุณ!",
-                iconPath: 'assets/images/icons/star.png',
-              );
+              return isTablet
+                  ? Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 20, right: 20),
+                        child: _buildTooltipContent(
+                          context: context,
+                          title: "อัปเลเวลและพัฒนาตัวละคร!",
+                          description:
+                              "ทุกภารกิจที่คุณทำสำเร็จจะเปลี่ยนเป็น EXP เพื่ออัปเลเวลและพัฒนาตัวละครของคุณ!",
+                          iconPath: 'assets/images/icons/star.png',
+                        ),
+                      ),
+                    )
+                  : _buildTooltipContent(
+                      context: context,
+                      title: "อัปเลเวลและพัฒนาตัวละคร!",
+                      description:
+                          "ทุกภารกิจที่คุณทำสำเร็จจะเปลี่ยนเป็น EXP เพื่ออัปเลเวลและพัฒนาตัวละครของคุณ!",
+                      iconPath: 'assets/images/icons/star.png',
+                    );
             },
           ),
         ],
@@ -220,25 +312,39 @@ class TutorialService {
     ];
   }
 
-  static List<TargetFocus> _createPart3Targets() {
+  static List<TargetFocus> _createPart3Targets(BuildContext context) {
+    final isTablet = Responsive.isTablet(context);
+
     return [
       TargetFocus(
         identify: "streakTarget",
         keyTarget: streakKey,
         enableOverlayTab: true,
         alignSkip: Alignment.topRight,
-        shape: ShapeLightFocus.Circle,
+        shape: ShapeLightFocus.RRect,
+        radius: 16,
         contents: [
           TargetContent(
             align: ContentAlign.bottom,
             builder: (context, controller) {
-              return _buildTooltipContent(
-                context: context,
-                title: "รักษาความต่อเนื่อง!",
-                description:
-                    "ยิ่งคุณทำภารกิจทุกวัน Streak จะยิ่งพุ่งและปลดล็อกตราพิเศษ",
-                iconPath: 'assets/images/icons/fire.png',
-              );
+              return isTablet
+                  ? Align(
+                      alignment: Alignment.topCenter,
+                      child: _buildTooltipContent(
+                        context: context,
+                        title: "รักษาความต่อเนื่อง!",
+                        description:
+                            "ยิ่งคุณทำภารกิจทุกวัน Streak จะยิ่งพุ่งและปลดล็อกตราพิเศษ",
+                        iconPath: 'assets/images/icons/fire.png',
+                      ),
+                    )
+                  : _buildTooltipContent(
+                      context: context,
+                      title: "รักษาความต่อเนื่อง!",
+                      description:
+                          "ยิ่งคุณทำภารกิจทุกวัน Streak จะยิ่งพุ่งและปลดล็อกตราพิเศษ",
+                      iconPath: 'assets/images/icons/fire.png',
+                    );
             },
           ),
         ],
@@ -253,11 +359,16 @@ class TutorialService {
     required String iconPath,
   }) {
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final isTablet = Responsive.isTablet(context);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      constraints: BoxConstraints(
+        maxWidth: isTablet ? 360 : double.infinity,
+      ),
+      padding: EdgeInsets.all(isTablet ? 22 : 20),
       decoration: BoxDecoration(
         color: isLight ? Colors.white : const Color(0xFF2A2A2A),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(isTablet ? 18 : 15),
         border: Border.all(
           color: isLight ? AppColors.stormySkyBlue : const Color(0xFF8A5CF5),
           width: 2,
@@ -280,25 +391,25 @@ class TutorialService {
             children: [
               Image.asset(
                 iconPath,
-                width: 28,
-                height: 28,
+                width: isTablet ? 30 : 28,
+                height: isTablet ? 30 : 28,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
                   return Icon(
                     Icons.star,
                     color: isLight ? AppColors.stormySkyBlue : Colors.amber,
-                    size: 28,
+                    size: isTablet ? 30 : 28,
                   );
                 },
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: isLight ? AppColors.stormyDarkSlate : Colors.white,
-                    fontSize: 18,
+                    fontSize: isTablet ? 19 : 18,
                   ),
                 ),
               ),
@@ -309,7 +420,7 @@ class TutorialService {
             description,
             style: TextStyle(
               color: isLight ? AppColors.stormyMutedBlueGrey : Colors.white70,
-              fontSize: 14,
+              fontSize: isTablet ? 15 : 14,
               height: 1.5,
             ),
           ),
@@ -318,3 +429,4 @@ class TutorialService {
     );
   }
 }
+

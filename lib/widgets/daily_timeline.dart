@@ -185,6 +185,13 @@ class DailyTimeline extends StatelessWidget {
                             : (theme.brightness == Brightness.dark
                                 ? Colors.white
                                 : theme.colorScheme.onSurface),
+                        decoration: task.isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                        decorationColor: task.isCompleted
+                            ? AppColors.primaryGreen
+                            : null,
+                        decorationThickness: 2.0,
                       ),
                     ),
 

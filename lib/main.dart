@@ -592,7 +592,7 @@ class MyApp extends StatelessWidget {
             builder: (context, child) {
               final mediaQueryData = MediaQuery.of(context);
               return MediaQuery(
-                data: mediaQueryData.copyWith(alwaysUse24HourFormat: false),
+                data: mediaQueryData.copyWith(alwaysUse24HourFormat: true),
                 child: _AppLifecycleObserver(
                   child: _AchievementUnlockListener(
                     child: _LevelUpListener(

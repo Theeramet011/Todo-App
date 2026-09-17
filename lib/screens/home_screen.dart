@@ -176,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final useDrawer = Responsive.useDrawer(context);
 
     return Scaffold(
+      key: TutorialService.scaffoldKey,
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? AppColors.stormyNightBackground
           : null,
@@ -264,7 +265,6 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: useRail
           ? null
           : AdaptiveNavBar(
-              key: TutorialService.navKey,
               currentIndex: _currentIndex,
               onTap: (index) {
                 setState(() => _currentIndex = index);

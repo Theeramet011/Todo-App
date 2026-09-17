@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/colors.dart';
 import '../config/constants.dart';
 import '../utils/responsive.dart';
+import '../utils/tutorial_service.dart';
 
 class AdaptiveNavBar extends StatelessWidget {
   final int currentIndex;
@@ -31,6 +32,7 @@ class AdaptiveNavBar extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
+      key: TutorialService.navKey,
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
             ? AppColors.stormyNightBackground
@@ -150,41 +152,56 @@ class AdaptiveNavBar extends StatelessWidget {
     final screenHeight = MediaQuery.of(context).size.height;
     final topPadding = math.max(16.0, (screenHeight - 340) / 2);
 
-    return NavigationRail(
-      extended: false,
-      minWidth: 76,
-      groupAlignment: -1.0,
-      backgroundColor: theme.colorScheme.surface,
-      elevation: 2,
-      selectedIndex: currentIndex,
-      onDestinationSelected: onTap,
-      leading: Padding(
-        padding: EdgeInsets.only(top: topPadding, bottom: 8),
-        child: IconButton(
-          icon: Icon(Icons.menu, color: theme.colorScheme.onSurface),
-          tooltip: 'เมนู',
-          onPressed: () => Scaffold.of(context).openDrawer(),
+    return Stack(
+      children: [
+        NavigationRail(
+          extended: false,
+          minWidth: 76,
+          groupAlignment: -1.0,
+          backgroundColor: theme.colorScheme.surface,
+          elevation: 2,
+          selectedIndex: currentIndex,
+          onDestinationSelected: onTap,
+          leading: Padding(
+            padding: EdgeInsets.only(top: topPadding, bottom: 8),
+            child: IconButton(
+              icon: Icon(Icons.menu, color: theme.colorScheme.onSurface),
+              tooltip: 'เมนู',
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
+          trailing: null,
+          destinations: [
+            _buildNavDestination(
+              icon: Icons.home_outlined,
+              activeIcon: Icons.home,
+              label: 'ภารกิจ',
+              labelThai: '',
+            ),
+            _buildNavDestination(
+              icon: Icons.calendar_month_outlined,
+              activeIcon: Icons.calendar_month,
+              label: 'ปฏิทิน',
+              labelThai: '',
+            ),
+            _buildNavDestination(
+              icon: Icons.settings_outlined,
+              activeIcon: Icons.settings,
+              label: 'ตั้งค่า',
+              labelThai: '',
+            ),
+          ],
         ),
-      ),
-      trailing: null,
-      destinations: [
-        _buildNavDestination(
-          icon: Icons.home_outlined,
-          activeIcon: Icons.home,
-          label: 'ภารกิจ',
-          labelThai: '',
-        ),
-        _buildNavDestination(
-          icon: Icons.calendar_month_outlined,
-          activeIcon: Icons.calendar_month,
-          label: 'ปฏิทิน',
-          labelThai: '',
-        ),
-        _buildNavDestination(
-          icon: Icons.settings_outlined,
-          activeIcon: Icons.settings,
-          label: 'ตั้งค่า',
-          labelThai: '',
+        Positioned(
+          left: 4,
+          top: topPadding - 4,
+          width: 68,
+          height: 310,
+          child: IgnorePointer(
+            child: SizedBox(
+              key: TutorialService.navKey,
+            ),
+          ),
         ),
       ],
     );
