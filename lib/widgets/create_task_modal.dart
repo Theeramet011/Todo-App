@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/colors.dart';
@@ -3059,6 +3060,203 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     );
   }
 
+  DateTime? _calculateNextMatchingRecurringDate(
+    DateTime baseDate,
+    List<String> selectedDays, {
+    int frequencyNum = 1,
+  }) {
+    if (selectedDays.isEmpty) return null;
+
+    const thaiWeekdays = {
+      'อา.': 7,
+      'จ.': 1,
+      'อ.': 2,
+      'พ.': 3,
+      'พฤ.': 4,
+      'ศ.': 5,
+      'ส.': 6,
+    };
+
+    final targetWeekdays =
+        selectedDays.map((d) => thaiWeekdays[d]).whereType<int>().toList()..sort();
+    if (targetWeekdays.isEmpty) return null;
+
+    final currentWeekday = baseDate.weekday;
+
+    // ถ้าวันปัจจุบันตรงกับหนึ่งในวันที่เลือกทำซ้ำอยู่แล้ว ไม่ต้องปรับเปลี่ยน
+    if (targetWeekdays.contains(currentWeekday)) {
+      return null;
+    }
+
+    // หาวันที่มากกว่าวันปัจจุบันในสัปดาห์นี้
+    final remainingThisWeek =
+        targetWeekdays.where((w) => w > currentWeekday).toList();
+
+    if (remainingThisWeek.isNotEmpty) {
+      final nextWeekday = remainingThisWeek.first;
+      final daysToAdd = nextWeekday - currentWeekday;
+      return DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day + daysToAdd,
+      );
+    } else {
+      // ข้ามไปสัปดาห์ถัดไป
+      final firstWeekday = targetWeekdays.first;
+      final daysToEndOfWeek = 7 - currentWeekday;
+      final daysInInterval = (frequencyNum - 1) * 7;
+      final totalDaysToAdd = daysToEndOfWeek + daysInInterval + firstWeekday;
+      return DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day + totalDaysToAdd,
+      );
+    }
+  }
+
+  Future<bool?> _showRecurringDateShiftConfirmDialog({
+    required BuildContext context,
+    required DateTime currentDate,
+    required DateTime targetDate,
+  }) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
+    final currentDateStr =
+        '${currentDate.day} ${_thaiShortMonthsList[currentDate.month - 1]} ${currentDate.year + 543}';
+    final targetDateStr =
+        '${targetDate.day} ${_thaiShortMonthsList[targetDate.month - 1]} ${targetDate.year + 543}';
+
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppColors.stormyDarkSlate : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isTablet ? 22 : 20.0),
+        ),
+        actionsPadding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 16 : 12,
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.update_rounded,
+              color: AppColors.stormySkyBlue,
+              size: isTablet ? 30 : 28,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'ปรับเปลี่ยนวันที่ตามรอบทำซ้ำ',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isTablet ? 22 : 18,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'เนื่องจากคุณเปลี่ยนกำหนดการทำซ้ำใหม่ในสัปดาห์หลังวันที่ปัจจุบัน ต้องการเปลี่ยนวันที่ตามวันทำซ้ำทันทีหรือไม่',
+              style: TextStyle(
+                fontSize: isTablet ? 16 : 14.5,
+                height: 1.5,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.85)
+                    : AppColors.stormyDarkSlate.withValues(alpha: 0.85),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.stormyNightBackground.withValues(alpha: 0.5)
+                    : AppColors.stormySkyBlue.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.stormySkyBlue.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today_rounded,
+                    size: 16,
+                    color: AppColors.stormySkyBlue,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'จาก $currentDateStr  ➔  $targetDateStr',
+                      style: TextStyle(
+                        fontSize: isTablet ? 14 : 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.stormySkyBlue,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 16 : 12,
+                vertical: isTablet ? 12 : 8,
+              ),
+            ),
+            child: Text(
+              'คงเดิม',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.stormySkyBlue,
+              foregroundColor: isDark
+                  ? AppColors.stormyNightBackground
+                  : Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 16,
+                vertical: isTablet ? 12 : 8,
+              ),
+            ),
+            child: Text(
+              'เปลี่ยนทันที',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isTablet ? 16 : 14.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTimeField() {
     final theme = Theme.of(context);
     final isLight = theme.brightness == Brightness.light;
@@ -3846,7 +4044,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     });
   }
 
-  void _createTask() {
+  Future<void> _createTask() async {
     final connectivity = context.read<ConnectivityProvider>();
     if (connectivity.isOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3934,6 +4132,66 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       }
     }
 
+    // ตรวจสอบกรณีแก้ไขงานทำซ้ำแบบกำหนดเอง และวันทำซ้ำใหม่ในสัปดาห์ตกอยู่หลังวันปัจจุบัน
+    // (แบบที่ 3: หากผู้ใช้เปลี่ยนวันที่กลับไปวันก่อน จะไม่แสดงหน้าต่างแจ้งเตือน และจะเปลี่ยนวันก็ต่อเมื่อผู้ใช้กดเลือกในปฏิทินเองเท่านั้น)
+    final originalDate = widget.task != null
+        ? DateTime(
+            widget.task!.dateTime.year,
+            widget.task!.dateTime.month,
+            widget.task!.dateTime.day,
+          )
+        : null;
+    final selectedDateOnly = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    final bool isDateChangedToEarlier =
+        originalDate != null && selectedDateOnly.isBefore(originalDate);
+
+    final bool isRecurrenceRuleChanged = widget.task != null &&
+        (widget.task!.isRecurring != _isRecurring ||
+            widget.task!.recurringType !=
+                (_isRecurring ? _selectedRecurringType : 'daily') ||
+            !listEquals(
+              widget.task!.customRecurringDays,
+              _isRecurring && _selectedRecurringType == 'custom'
+                  ? _customRecurringConfig.selectedDays
+                  : null,
+            ));
+
+    if (widget.task != null &&
+        !isDateChangedToEarlier &&
+        isRecurrenceRuleChanged &&
+        _isRecurring &&
+        _selectedRecurringType == 'custom' &&
+        _customRecurringConfig.selectedDays.isNotEmpty) {
+      final nextMatchingDate = _calculateNextMatchingRecurringDate(
+        _selectedDate,
+        _customRecurringConfig.selectedDays,
+        frequencyNum: _customRecurringConfig.frequencyNum,
+      );
+
+      if (nextMatchingDate != null && nextMatchingDate.isAfter(_selectedDate)) {
+        final shouldShift = await _showRecurringDateShiftConfirmDialog(
+          context: context,
+          currentDate: _selectedDate,
+          targetDate: nextMatchingDate,
+        );
+
+        if (!mounted || shouldShift == null) {
+          // ผู้ใช้ปิดหรือกดยกเลิก
+          return;
+        }
+
+        if (shouldShift == true) {
+          setState(() {
+            _selectedDate = nextMatchingDate;
+          });
+        }
+      }
+    }
+
     setState(() {
       _isSaving = true;
     });
@@ -3949,9 +4207,22 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
     final isDateTimeChanged = widget.task == null ||
         !widget.task!.dateTime.isAtSameMomentAs(dateTime);
 
-    final bool resetNotified = isDateTimeChanged;
+    final bool isRecurrenceChanged = widget.task != null &&
+        (widget.task!.isRecurring != _isRecurring ||
+            widget.task!.recurringType !=
+                (_isRecurring ? _selectedRecurringType : 'daily') ||
+            widget.task!.customRecurringDays !=
+                (_isRecurring && _selectedRecurringType == 'custom'
+                    ? _customRecurringConfig.selectedDays
+                    : null) ||
+            widget.task!.recurringTime !=
+                (_isRecurring && _selectedRecurringType == 'custom'
+                    ? _formatTimeForStorage(_recurringTime)
+                    : null));
 
-    final Map<String, bool> finalCustomReminders = isDateTimeChanged
+    final bool resetNotified = isDateTimeChanged || isRecurrenceChanged;
+
+    final Map<String, bool> finalCustomReminders = resetNotified
         ? customReminders.map((k, v) => MapEntry(k, false))
         : Map<String, bool>.from(customReminders);
 

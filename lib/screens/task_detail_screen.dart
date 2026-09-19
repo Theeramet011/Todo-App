@@ -3119,6 +3119,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final submittedAt =
         member.submittedAt ??
         (task.submittedBy == member.id ? task.submittedAt : null);
+    final isLateSubmission =
+        submittedAt != null && submittedAt.isAfter(task.dateTime);
 
     return Container(
       margin: EdgeInsets.symmetric(
@@ -3156,15 +3158,60 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
               SizedBox(width: isTablet ? 14 : 12),
               Expanded(
-                child: Text(
-                  member.name,
-                  style: TextStyle(
-                    fontSize: isTablet ? 20 : 16,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        member.name,
+                        style: TextStyle(
+                          fontSize: isTablet ? 20 : 16,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isLeader &&
+                        isLateSubmission &&
+                        (isMemberPending || isMemberCompleted)) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 9 : 7,
+                          vertical: isTablet ? 4 : 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentRed.withValues(alpha: 0.12),
+                          borderRadius:
+                              BorderRadius.circular(isTablet ? 9 : 7),
+                          border: Border.all(
+                            color: AppColors.accentRed.withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: isTablet ? 14 : 12,
+                              color: AppColors.accentRed,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'เสร็จล่าช้า',
+                              style: TextStyle(
+                                fontSize: isTablet ? 13 : 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.accentRed,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               PopupMenuButton<String>(

@@ -626,18 +626,18 @@ async function ensureNextRecurringTaskInstance(db, taskData, taskId, nowMs) {
 
   const nextTimestamp = admin.firestore.Timestamp.fromDate(nextDate);
 
+  const cleanTitle = (taskData.title || "").trim().toLowerCase();
   const existingCloneSnap = await db
     .collection("tasks")
     .where("creatorId", "==", taskData.creatorId)
-    .where("title", "==", taskData.title)
-    .where("isRecurring", "==", true)
     .where("dateTime", "==", nextTimestamp)
-    .limit(5)
+    .limit(10)
     .get();
 
   const hasActiveClone = existingCloneSnap.docs.some((doc) => {
     const d = doc.data();
-    return d.isDeleted !== true && d.deletedAt == null;
+    const isMatchingTitle = (d.title || "").trim().toLowerCase() === cleanTitle;
+    return isMatchingTitle && d.isDeleted !== true && d.deletedAt == null;
   });
 
   if (hasActiveClone) {
@@ -724,6 +724,8 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
       .where("status", "in", ["todo", "inProgress", "pending"])
       .get();
     console.log(`🔍 รันรอบ 1 นาที! พบภารกิจที่กำลังดำเนินการ: ${tasksSnapshot.size} ชิ้น`);
+
+    const notifiedInThisRun = new Set();
 
     for (const doc of tasksSnapshot.docs) {
       const taskData = doc.data();
@@ -892,6 +894,15 @@ exports.checkDeadlinesAndPushNotify = onSchedule({
             console.log(`🔕 ผู้ใช้ ${userId} ปิดการแจ้งเตือนไว้ (ข้ามการส่ง)...`);
             continue; // 🛑 สั่งให้ข้ามการทำภารกิจของลูปนี้ไปเลย ไม่เซฟ ไม่ยิง FCM
           }
+
+          const dedupeKey = `${userId}:${(taskData.title || "").trim().toLowerCase()}:${flagToUpdateTag}`;
+          if (notifiedInThisRun.has(dedupeKey)) {
+            console.log(
+              `⚠️ ข้ามการส่งแจ้งเตือนซ้ำในรอบเดียวกัน -> User: ${userId}, ภารกิจ: "${taskTitle}" [${flagToUpdateTag}]`
+            );
+            continue;
+          }
+          notifiedInThisRun.add(dedupeKey);
 
           const copy = isGroup
             ? groupNotificationCopy(flagToUpdateTag, recipient.role, taskTitle)

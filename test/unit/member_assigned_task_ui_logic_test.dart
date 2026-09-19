@@ -149,5 +149,79 @@ void main() {
         isTrue,
       );
     });
+
+    test('Late submission badge condition: true only when submitted after task deadline and in leader view', () {
+      final deadline = DateTime(2026, 9, 18, 18, 0); // 18:00
+
+      final onTimeMember = Member(
+        id: 'member_1',
+        name: 'Alice',
+        status: 'pending',
+        submittedAt: DateTime(2026, 9, 18, 17, 45), // 17:45 (on time)
+      );
+
+      final lateMember = Member(
+        id: 'member_2',
+        name: 'Bob',
+        status: 'pending',
+        submittedAt: DateTime(2026, 9, 18, 19, 49), // 19:49 (late)
+      );
+
+      final inProgressMember = Member(
+        id: 'member_3',
+        name: 'Charlie',
+        status: 'inProgress',
+        submittedAt: null,
+      );
+
+      final completedLateMember = Member(
+        id: 'member_4',
+        name: 'Dave',
+        status: 'completed',
+        submittedAt: DateTime(2026, 9, 18, 19, 0), // late
+      );
+
+      bool shouldShowLateBadge({
+        required bool isLeader,
+        required Member member,
+        required DateTime taskDeadline,
+      }) {
+        final isMemberPending = member.status == 'pending';
+        final isMemberCompleted = member.status == 'completed';
+        final submittedAt = member.submittedAt;
+        final isLateSubmission = submittedAt != null && submittedAt.isAfter(taskDeadline);
+        return isLeader && isLateSubmission && (isMemberPending || isMemberCompleted);
+      }
+
+      // Leader viewing late pending submission -> TRUE
+      expect(
+        shouldShowLateBadge(isLeader: true, member: lateMember, taskDeadline: deadline),
+        isTrue,
+      );
+
+      // Leader viewing on-time pending submission -> FALSE
+      expect(
+        shouldShowLateBadge(isLeader: true, member: onTimeMember, taskDeadline: deadline),
+        isFalse,
+      );
+
+      // Leader viewing in-progress member (not yet submitted) -> FALSE
+      expect(
+        shouldShowLateBadge(isLeader: true, member: inProgressMember, taskDeadline: deadline),
+        isFalse,
+      );
+
+      // Leader viewing completed late submission -> TRUE
+      expect(
+        shouldShowLateBadge(isLeader: true, member: completedLateMember, taskDeadline: deadline),
+        isTrue,
+      );
+
+      // Non-leader viewing late submission -> FALSE
+      expect(
+        shouldShowLateBadge(isLeader: false, member: lateMember, taskDeadline: deadline),
+        isFalse,
+      );
+    });
   });
 }

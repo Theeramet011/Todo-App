@@ -348,8 +348,7 @@ class TaskProvider with ChangeNotifier {
     final creator = task.creatorId;
     final type = task.type.name;
     final project = task.projectId ?? '';
-    final recurrence = task.recurringType.trim();
-    return '$creator|$type|$project|$cleanTitle|$recurrence';
+    return '$creator|$type|$project|$cleanTitle';
   }
 
   List<Task> _collapseRecurringTasks(
@@ -2035,14 +2034,17 @@ class TaskProvider with ChangeNotifier {
     Task sourceTask,
     DateTime recurringDateTime,
   ) async {
-    // Check if a clone for this exact date and task already exists
+    final cleanSourceTitle = sourceTask.title.trim().toLowerCase();
+    final sourceProjectId = sourceTask.projectId ?? '';
+
+    // Check if a clone for this exact date and task series already exists
     final hasExistingClone = _tasks.any(
       (t) =>
           !t.isDeleted &&
-          t.title == sourceTask.title &&
+          t.title.trim().toLowerCase() == cleanSourceTitle &&
           t.creatorId == sourceTask.creatorId &&
-          t.isRecurring == sourceTask.isRecurring &&
-          t.recurringType == sourceTask.recurringType &&
+          (t.projectId ?? '') == sourceProjectId &&
+          t.isRecurring &&
           t.dateTime.isAtSameMomentAs(recurringDateTime),
     );
 
@@ -2173,6 +2175,73 @@ class TaskProvider with ChangeNotifier {
     await _cloneRecurringTaskToDate(sourceTask, recurringDateTime);
   }
 
+  bool _isCleaningDuplicates = false;
+  Future<void> _cleanupDuplicateRecurringTasks() async {
+    if (_isCleaningDuplicates) return;
+    final currentUserId = _currentUserId;
+    if (currentUserId == null) return;
+
+    _isCleaningDuplicates = true;
+    try {
+      final activeRecurring = _tasks
+          .where(
+            (t) =>
+                t.isRecurring &&
+                !t.isDeleted &&
+                t.status != TaskStatus.completed &&
+                (t.creatorId == currentUserId ||
+                    t.assigneeIds.contains(currentUserId)),
+          )
+          .toList();
+
+      final Map<String, List<Task>> grouped = {};
+      for (final task in activeRecurring) {
+        final key =
+            '${task.creatorId}|${task.projectId ?? ''}|${task.title.trim().toLowerCase()}|${task.dateTime.millisecondsSinceEpoch}';
+        grouped.putIfAbsent(key, () => []).add(task);
+      }
+
+      final List<String> taskIdsToDelete = [];
+      final now = DateTime.now();
+
+      for (final duplicates in grouped.values) {
+        if (duplicates.length <= 1) continue;
+
+        duplicates.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        for (int i = 1; i < duplicates.length; i++) {
+          final dup = duplicates[i];
+          taskIdsToDelete.add(dup.id);
+          final localIndex = _tasks.indexWhere((t) => t.id == dup.id);
+          if (localIndex != -1) {
+            _tasks[localIndex] = dup.copyWith(
+              isDeleted: true,
+              deletedAt: now,
+            );
+          }
+        }
+      }
+
+      if (taskIdsToDelete.isNotEmpty) {
+        final batch = _firestore.batch();
+        for (final id in taskIdsToDelete) {
+          batch.update(_firestore.collection('tasks').doc(id), {
+            'isDeleted': true,
+            'deletedAt': Timestamp.fromDate(now),
+          });
+        }
+        await batch.commit();
+        debugPrint(
+          '🧹 Cleaned up ${taskIdsToDelete.length} duplicate recurring tasks',
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error cleaning up duplicate recurring tasks: $e');
+    } finally {
+      _isCleaningDuplicates = false;
+    }
+  }
+
   bool _isEnsuringRecurring = false;
   Future<void> _ensureUpcomingRecurringTasks() async {
     if (_isEnsuringRecurring) return;
@@ -2181,35 +2250,52 @@ class TaskProvider with ChangeNotifier {
 
     _isEnsuringRecurring = true;
     try {
-      final now = DateTime.now();
-      final recurringTasks = _tasks
-          .where(
-            (t) =>
-                t.isRecurring &&
-                !t.isDeleted &&
-                t.status != TaskStatus.completed &&
-                (t.creatorId == currentUserId ||
-                    t.assigneeIds.contains(currentUserId)) &&
-                t.dateTime.isBefore(now),
-          )
-          .toList();
+      await _cleanupDuplicateRecurringTasks();
 
-      for (final task in recurringTasks) {
-        final upcomingDate = _nextUpcomingRecurringDateTime(task);
+      final now = DateTime.now();
+      final Map<String, List<Task>> seriesMap = {};
+      for (final t in _tasks) {
+        if (!t.isRecurring || t.isDeleted) continue;
+        if (t.creatorId != currentUserId && !t.assigneeIds.contains(currentUserId)) {
+          continue;
+        }
+        final key =
+            '${t.creatorId}|${t.projectId ?? ''}|${t.title.trim().toLowerCase()}';
+        seriesMap.putIfAbsent(key, () => []).add(t);
+      }
+
+      for (final tasksInSeries in seriesMap.values) {
+        final hasActiveFutureOrToday = tasksInSeries.any((t) =>
+            !t.isCompleted &&
+            !t.isDeleted &&
+            (t.dateTime.isAfter(now) || _isSameDay(t.dateTime, now)));
+
+        if (hasActiveFutureOrToday) {
+          continue;
+        }
+
+        tasksInSeries.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+        final mostRecent = tasksInSeries.first;
+
+        final upcomingDate = _nextUpcomingRecurringDateTime(mostRecent) ??
+            _recurringDateTimeFor(mostRecent);
         if (upcomingDate == null) continue;
+
+        final cleanTitle = mostRecent.title.trim().toLowerCase();
+        final projectId = mostRecent.projectId ?? '';
 
         final hasExisting = _tasks.any(
           (t) =>
               !t.isDeleted &&
-              t.title == task.title &&
-              t.creatorId == task.creatorId &&
-              t.isRecurring == task.isRecurring &&
-              t.recurringType == task.recurringType &&
+              t.title.trim().toLowerCase() == cleanTitle &&
+              t.creatorId == mostRecent.creatorId &&
+              (t.projectId ?? '') == projectId &&
+              t.isRecurring &&
               t.dateTime.isAtSameMomentAs(upcomingDate),
         );
 
         if (!hasExisting) {
-          await _cloneRecurringTaskToDate(task, upcomingDate);
+          await _cloneRecurringTaskToDate(mostRecent, upcomingDate);
         }
       }
     } catch (e) {
@@ -2224,13 +2310,17 @@ class TaskProvider with ChangeNotifier {
         _recurringDateTimeFor(sourceTask);
     if (recurringDateTime == null) return;
 
+    final cleanSourceTitle = sourceTask.title.trim().toLowerCase();
+    final sourceProjectId = sourceTask.projectId ?? '';
+
     // ค้นหางานโคลนที่ตรงกับรอบถัดไปและยังไม่ได้ทำเสร็จ
     final cloneIndex = _tasks.indexWhere(
       (t) =>
-          t.title == sourceTask.title &&
+          !t.isDeleted &&
+          t.title.trim().toLowerCase() == cleanSourceTitle &&
           t.creatorId == sourceTask.creatorId &&
-          t.isRecurring == sourceTask.isRecurring &&
-          t.recurringType == sourceTask.recurringType &&
+          (t.projectId ?? '') == sourceProjectId &&
+          t.isRecurring &&
           t.dateTime.isAtSameMomentAs(recurringDateTime) &&
           t.status != TaskStatus.completed,
     );
@@ -2263,9 +2353,162 @@ class TaskProvider with ChangeNotifier {
         .doc(updatedTask.id)
         .set(updatedTask.toMap(), SetOptions(merge: true));
 
+    // ซิงค์และคลีนงานในซีรีส์ทำซ้ำเดียวกันเมื่อมีการแก้ไขงาน
+    if (updatedTask.isRecurring || previousTask?.isRecurring == true) {
+      try {
+        await _syncRecurringSeriesOnUpdate(previousTask, updatedTask);
+      } catch (e) {
+        debugPrint('Error syncing recurring series on update: $e');
+      }
+    }
+
     if (updatedTask.isGroup && previousTask != null) {
       await _notifyNewGroupMembersAdded(previousTask, updatedTask);
       await _notifyGroupTaskUpdated(previousTask, updatedTask);
+    }
+  }
+
+  Future<void> _syncRecurringSeriesOnUpdate(
+    Task? previousTask,
+    Task updatedTask,
+  ) async {
+    final cleanTitle = updatedTask.title.trim().toLowerCase();
+    final creatorId = updatedTask.creatorId;
+    final projectId = updatedTask.projectId ?? '';
+    final now = DateTime.now();
+
+    final siblingTasks = _tasks
+        .where(
+          (t) =>
+              t.id != updatedTask.id &&
+              !t.isDeleted &&
+              t.creatorId == creatorId &&
+              (t.projectId ?? '') == projectId &&
+              t.title.trim().toLowerCase() == cleanTitle,
+        )
+        .toList();
+
+    if (siblingTasks.isEmpty) return;
+
+    final batch = _firestore.batch();
+    bool hasBatchOps = false;
+
+    // 1. เคลียร์งานซ้ำที่มีกำหนดส่งตรงกันเป๊ะ
+    for (final sibling in siblingTasks) {
+      if (sibling.dateTime.isAtSameMomentAs(updatedTask.dateTime) &&
+          !sibling.isCompleted) {
+        final siblingIndex = _tasks.indexWhere((t) => t.id == sibling.id);
+        if (siblingIndex != -1) {
+          _tasks[siblingIndex] = sibling.copyWith(
+            isDeleted: true,
+            deletedAt: now,
+          );
+        }
+        batch.update(_firestore.collection('tasks').doc(sibling.id), {
+          'isDeleted': true,
+          'deletedAt': Timestamp.fromDate(now),
+        });
+        hasBatchOps = true;
+      }
+    }
+
+    final isRecurrenceChanged = previousTask == null ||
+        previousTask.isRecurring != updatedTask.isRecurring ||
+        previousTask.recurringType != updatedTask.recurringType ||
+        previousTask.recurringTime != updatedTask.recurringTime ||
+        previousTask.customRecurringDays != updatedTask.customRecurringDays ||
+        previousTask.customRecurringNum != updatedTask.customRecurringNum ||
+        previousTask.customRecurringUnit != updatedTask.customRecurringUnit ||
+        previousTask.customRecurringMode != updatedTask.customRecurringMode;
+
+    if (isRecurrenceChanged) {
+      if (!updatedTask.isRecurring) {
+        // หากปิดการทำซ้ำ: ลบงานล่วงหน้าในอนาคตทั้งหมด และหยุดทำซ้ำในงานเก่า
+        for (final sibling in siblingTasks) {
+          if (sibling.isDeleted || sibling.isCompleted) continue;
+          if (sibling.dateTime.isAfter(now)) {
+            final siblingIndex = _tasks.indexWhere((t) => t.id == sibling.id);
+            if (siblingIndex != -1) {
+              _tasks[siblingIndex] =
+                  sibling.copyWith(isDeleted: true, deletedAt: now);
+            }
+            batch.update(_firestore.collection('tasks').doc(sibling.id), {
+              'isDeleted': true,
+              'deletedAt': Timestamp.fromDate(now),
+            });
+            hasBatchOps = true;
+          } else {
+            final siblingIndex = _tasks.indexWhere((t) => t.id == sibling.id);
+            if (siblingIndex != -1) {
+              _tasks[siblingIndex] = sibling.copyWith(isRecurring: false);
+            }
+            batch.update(_firestore.collection('tasks').doc(sibling.id), {
+              'isRecurring': false,
+            });
+            hasBatchOps = true;
+          }
+        }
+      } else {
+        // หากเปลี่ยนรูปแบบการทำซ้ำ (เช่น เปลี่ยนเป็นกำหนดเอง หรือเปลี่ยนวัน):
+        // ลบงานล่วงหน้าเดิมในอนาคต/วันนี้ออก เพื่อให้งานที่อัปเดตใหม่เป็นตัวหลัก
+        for (final sibling in siblingTasks) {
+          if (sibling.isDeleted || sibling.isCompleted) continue;
+          if (sibling.dateTime.isAfter(now) ||
+              _isSameDay(sibling.dateTime, now)) {
+            final siblingIndex = _tasks.indexWhere((t) => t.id == sibling.id);
+            if (siblingIndex != -1) {
+              _tasks[siblingIndex] =
+                  sibling.copyWith(isDeleted: true, deletedAt: now);
+            }
+            batch.update(_firestore.collection('tasks').doc(sibling.id), {
+              'isDeleted': true,
+              'deletedAt': Timestamp.fromDate(now),
+            });
+            hasBatchOps = true;
+          } else {
+            // งานในอดีตที่ค้างอยู่ ให้อัปเดตกฎการทำซ้ำตามอันใหม่ เพื่อไม่ให้สปอว์นงานรอบเดิม
+            final siblingIndex = _tasks.indexWhere((t) => t.id == sibling.id);
+            if (siblingIndex != -1) {
+              _tasks[siblingIndex] = sibling.copyWith(
+                recurringType: updatedTask.recurringType,
+                recurringDate: updatedTask.recurringDate,
+                recurringTime: updatedTask.recurringTime,
+                customRecurringDays: updatedTask.customRecurringDays,
+                customRecurringFixedDates:
+                    updatedTask.customRecurringFixedDates,
+                customRecurringMode: updatedTask.customRecurringMode,
+                customRecurringNum: updatedTask.customRecurringNum,
+                customRecurringUnit: updatedTask.customRecurringUnit,
+              );
+            }
+            final updateData = <String, dynamic>{
+              'recurringType': updatedTask.recurringType,
+              'recurringDate': updatedTask.recurringDate != null
+                  ? Timestamp.fromDate(updatedTask.recurringDate!)
+                  : null,
+              'recurringTime': updatedTask.recurringTime,
+              'customRecurringDays': updatedTask.customRecurringDays,
+              'customRecurringFixedDates': updatedTask
+                  .customRecurringFixedDates
+                  ?.map((d) => Timestamp.fromDate(d))
+                  .toList(),
+              'customRecurringMode': updatedTask.customRecurringMode,
+              'customRecurringNum': updatedTask.customRecurringNum,
+              'customRecurringUnit': updatedTask.customRecurringUnit,
+            };
+            batch.update(
+              _firestore.collection('tasks').doc(sibling.id),
+              updateData,
+            );
+            hasBatchOps = true;
+          }
+        }
+      }
+    }
+
+    if (hasBatchOps) {
+      await batch.commit();
+      notifyListeners();
     }
   }
 
@@ -3270,12 +3513,14 @@ class TaskProvider with ChangeNotifier {
         if (task.isRecurring) {
           // จะทำการค้นหางานอื่นๆ ทั้งหมดที่อยู่ใน "ซีรีส์เดียวกัน" และ "ยังไม่เสร็จ (Pending)"
           // โดยอิงจากชื่อ, ผู้สร้าง, และประเภทการทำซ้ำ
+          final cleanTaskTitle = task.title.trim().toLowerCase();
+          final taskProjectId = task.projectId ?? '';
           final recurringClones = _tasks.where(
             (t) =>
-                t.title == task.title &&
+                t.title.trim().toLowerCase() == cleanTaskTitle &&
                 t.creatorId == task.creatorId &&
-                t.isRecurring == task.isRecurring &&
-                t.recurringType == task.recurringType &&
+                (t.projectId ?? '') == taskProjectId &&
+                t.isRecurring &&
                 !t.isCompleted,
           );
 
