@@ -482,6 +482,18 @@ const THAI_WEEKDAYS_MAP = {
   "ส.": 6,
 };
 
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function toBangkokDate(date) {
+  return new Date(date.getTime() + BANGKOK_OFFSET_MS);
+}
+
+function fromBangkokDateParts(year, month, date, hours = 0, minutes = 0) {
+  return new Date(
+    Date.UTC(year, month, date, hours, minutes, 0, 0) - BANGKOK_OFFSET_MS
+  );
+}
+
 function calculateNextRecurringDate(taskData, fromDate) {
   if (!taskData || !taskData.isRecurring) return null;
 
@@ -496,21 +508,33 @@ function calculateNextRecurringDate(taskData, fromDate) {
               : Date.now()
         );
 
+  const bkkBase = toBangkokDate(base);
+  let bkkYear = bkkBase.getUTCFullYear();
+  let bkkMonth = bkkBase.getUTCMonth();
+  let bkkDate = bkkBase.getUTCDate();
+  let bkkHours = bkkBase.getUTCHours();
+  let bkkMinutes = bkkBase.getUTCMinutes();
+
   const type = taskData.recurringType || "daily";
-  let nextDate = new Date(base.getTime());
 
   if (type === "daily") {
-    nextDate.setDate(nextDate.getDate() + 1);
+    bkkDate += 1;
   } else if (type === "weekly") {
-    nextDate.setDate(nextDate.getDate() + 7);
+    bkkDate += 7;
   } else if (type === "monthly") {
-    nextDate.setMonth(nextDate.getMonth() + 1);
+    bkkMonth += 1;
   } else if (type === "yearly") {
-    nextDate.setFullYear(nextDate.getFullYear() + 1);
+    bkkYear += 1;
   } else if (type === "weekdays") {
-    nextDate.setDate(nextDate.getDate() + 1);
-    while (nextDate.getDay() === 0 || nextDate.getDay() === 6) {
-      nextDate.setDate(nextDate.getDate() + 1);
+    bkkDate += 1;
+    let tempBkk = toBangkokDate(
+      fromBangkokDateParts(bkkYear, bkkMonth, bkkDate, bkkHours, bkkMinutes)
+    );
+    while (tempBkk.getUTCDay() === 0 || tempBkk.getUTCDay() === 6) {
+      bkkDate += 1;
+      tempBkk = toBangkokDate(
+        fromBangkokDateParts(bkkYear, bkkMonth, bkkDate, bkkHours, bkkMinutes)
+      );
     }
   } else if (type === "custom") {
     const num = Number(taskData.customRecurringNum) || 1;
@@ -521,6 +545,8 @@ function calculateNextRecurringDate(taskData, fromDate) {
     const mode = taskData.customRecurringMode || "byDueDate";
 
     let customBase = new Date(base.getTime());
+    let customFixedFound = false;
+
     if (mode === "byFixedDate") {
       const fixedDates = Array.isArray(taskData.customRecurringFixedDates)
         ? taskData.customRecurringFixedDates
@@ -531,8 +557,12 @@ function calculateNextRecurringDate(taskData, fromDate) {
           .filter((d) => d.getTime() > base.getTime())
           .sort((a, b) => a.getTime() - b.getTime());
         if (upcomingFixed.length > 0) {
-          nextDate = upcomingFixed[0];
-          customBase = null;
+          const nextFixed = upcomingFixed[0];
+          const bkkFixed = toBangkokDate(nextFixed);
+          bkkYear = bkkFixed.getUTCFullYear();
+          bkkMonth = bkkFixed.getUTCMonth();
+          bkkDate = bkkFixed.getUTCDate();
+          customFixedFound = true;
         }
       } else if (taskData.recurringDate) {
         customBase = taskData.recurringDate.toDate
@@ -541,10 +571,14 @@ function calculateNextRecurringDate(taskData, fromDate) {
       }
     }
 
-    if (customBase) {
+    if (!customFixedFound) {
+      const bkkCustom = toBangkokDate(customBase);
+      bkkYear = bkkCustom.getUTCFullYear();
+      bkkMonth = bkkCustom.getUTCMonth();
+      bkkDate = bkkCustom.getUTCDate();
+
       if (unit === "วัน") {
-        nextDate = new Date(customBase.getTime());
-        nextDate.setDate(nextDate.getDate() + num);
+        bkkDate += num;
       } else if (unit === "สัปดาห์") {
         if (days.length > 0) {
           const targetDays = days
@@ -553,38 +587,29 @@ function calculateNextRecurringDate(taskData, fromDate) {
             .sort((a, b) => a - b);
 
           if (targetDays.length === 0) {
-            nextDate = new Date(customBase.getTime());
-            nextDate.setDate(nextDate.getDate() + num * 7);
+            bkkDate += num * 7;
           } else {
-            const currentDay = customBase.getDay();
+            const currentDay = bkkCustom.getUTCDay();
             const remainingThisWeek = targetDays.filter((d) => d > currentDay);
             if (remainingThisWeek.length > 0) {
               const nextDay = remainingThisWeek[0];
-              nextDate = new Date(customBase.getTime());
-              nextDate.setDate(nextDate.getDate() + (nextDay - currentDay));
+              bkkDate += (nextDay - currentDay);
             } else {
               const firstDay = targetDays[0];
               const daysToEndOfWeek = 7 - currentDay;
               const additionalDays = (num - 1) * 7 + firstDay;
-              nextDate = new Date(customBase.getTime());
-              nextDate.setDate(
-                nextDate.getDate() + daysToEndOfWeek + additionalDays
-              );
+              bkkDate += (daysToEndOfWeek + additionalDays);
             }
           }
         } else {
-          nextDate = new Date(customBase.getTime());
-          nextDate.setDate(nextDate.getDate() + num * 7);
+          bkkDate += num * 7;
         }
       } else if (unit === "เดือน") {
-        nextDate = new Date(customBase.getTime());
-        nextDate.setMonth(nextDate.getMonth() + num);
+        bkkMonth += num;
       } else if (unit === "ปี") {
-        nextDate = new Date(customBase.getTime());
-        nextDate.setFullYear(nextDate.getFullYear() + num);
+        bkkYear += num;
       } else {
-        nextDate = new Date(customBase.getTime());
-        nextDate.setDate(nextDate.getDate() + num);
+        bkkDate += num;
       }
     }
   }
@@ -597,11 +622,18 @@ function calculateNextRecurringDate(taskData, fromDate) {
     const h = parseInt(parts[0], 10);
     const m = parseInt(parts[1], 10);
     if (!isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-      nextDate.setHours(h, m, 0, 0);
+      bkkHours = h;
+      bkkMinutes = m;
     }
   }
 
-  return nextDate;
+  return fromBangkokDateParts(
+    bkkYear,
+    bkkMonth,
+    bkkDate,
+    bkkHours,
+    bkkMinutes
+  );
 }
 
 function getUpcomingRecurringDate(taskData, nowMs) {
