@@ -155,7 +155,10 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
     _subTasks = List.from(widget.memberTask.subTasks);
     _complexity = widget.memberTask.difficulty;
     _workload = widget.memberTask.workload;
-    _risk = widget.memberTask.risk;
+    _risk = (widget.memberTask.risk.toLowerCase() == 'none' ||
+            widget.memberTask.risk.trim().isEmpty)
+        ? 'Low'
+        : widget.memberTask.risk;
 
     // Initialize _hasTask state for Leader
     _hasTask =
@@ -805,7 +808,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                 descController.clear();
                 _complexity = 'Easy';
                 _workload = 'Small';
-                _risk = 'None';
+                _risk = 'Low';
                 _subTasks.clear();
                 _scoreController.clear();
                 _currentCoAssignees.clear();
@@ -821,7 +824,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                 description: null,
                 difficulty: 'Easy',
                 workload: 'Small',
-                risk: 'None',
+                risk: 'Low',
                 subTasks: const [],
                 score: null,
                 coAssigneeIds: const [],
@@ -1046,7 +1049,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
                           description: null,
                           difficulty: 'Easy',
                           workload: 'Small',
-                          risk: 'None',
+                          risk: 'Low',
                           subTasks: const [],
                           score: null,
                           coAssigneeIds: const [],
@@ -1517,7 +1520,7 @@ class _MemberConfigSheetState extends State<MemberConfigSheet> {
             child: _buildCompactRatingItem(
               label: 'ความเสี่ยง',
               selectedValue: _risk,
-              options: const ['None', 'Low', 'High'],
+              options: const ['Low', 'Medium', 'High'],
               onSelected: (val) => _onMetricChanged('risk', val),
               activeIcon: Icons.shield_rounded,
               activeColor: AppColors.accentRed,

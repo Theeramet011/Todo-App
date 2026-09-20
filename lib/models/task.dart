@@ -41,10 +41,55 @@ class Member {
   final String? description;
   final String? _difficulty;
   String get difficulty => _difficulty ?? 'Easy';
+  String get thaiDifficulty {
+    switch (difficulty.trim().toLowerCase()) {
+      case 'easy':
+      case 'ง่าย':
+        return 'ง่าย';
+      case 'hard':
+      case 'ยาก':
+        return 'ยาก';
+      default:
+        return 'ปานกลาง';
+    }
+  }
+
   final String? _workload;
   String get workload => _workload ?? 'Small';
+  String get thaiWorkload {
+    switch (workload.trim().toLowerCase()) {
+      case 'small':
+      case 'น้อย':
+        return 'น้อย';
+      case 'large':
+      case 'มาก':
+        return 'มาก';
+      default:
+        return 'ปานกลาง';
+    }
+  }
+
   final String? _risk;
-  String get risk => _risk ?? 'None';
+  String get risk => _risk ?? 'Low';
+  String get thaiRisk {
+    switch (risk.trim().toLowerCase()) {
+      case 'high':
+      case 'สูง':
+        return 'สูง';
+      case 'medium':
+      case 'normal':
+      case 'moderate':
+      case 'กลาง':
+      case 'ปานกลาง':
+        return 'กลาง';
+      case 'none':
+      case 'ไม่มี':
+      case 'low':
+      case 'ต่ำ':
+      default:
+        return 'ต่ำ';
+    }
+  }
   final List<String>? _subTasks;
   List<String> get subTasks => _subTasks ?? const [];
   final List<String>? _completedSubTasks;
@@ -70,7 +115,7 @@ class Member {
     this.description,
     String difficulty = 'Easy',
     String workload = 'Small',
-    String risk = 'None',
+    String risk = 'Low',
     List<String> subTasks = const [],
     List<String>? completedSubTasks,
     this.score,
@@ -104,7 +149,7 @@ class Member {
       description: data['description']?.toString(),
       difficulty: (data['difficulty'] ?? 'Easy').toString(),
       workload: (data['workload'] ?? 'Small').toString(),
-      risk: (data['risk'] ?? 'None').toString(),
+      risk: (data['risk'] ?? 'Low').toString(),
       subTasks:
           (data['subTasks'] as List?)?.map((e) => e.toString()).toList() ??
           const [],

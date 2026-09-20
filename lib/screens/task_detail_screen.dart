@@ -1067,23 +1067,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             children: [
               _buildSmallMetricBox(
                 label: 'ความยาก',
-                value: myMember.difficulty.isNotEmpty
-                    ? myMember.difficulty
-                    : 'Medium',
+                value: myMember.thaiDifficulty,
                 color: _getComplexityColor(myMember.difficulty),
               ),
               const SizedBox(width: 8),
               _buildSmallMetricBox(
                 label: 'ปริมาณภารกิจ',
-                value: myMember.workload.isNotEmpty
-                    ? myMember.workload
-                    : 'Medium',
+                value: myMember.thaiWorkload,
                 color: _getWorkloadColor(myMember.workload),
               ),
               const SizedBox(width: 8),
               _buildSmallMetricBox(
                 label: 'ความเสี่ยง',
-                value: myMember.risk.isNotEmpty ? myMember.risk : 'Low',
+                value: myMember.thaiRisk,
                 color: _getRiskColor(myMember.risk),
               ),
               if (myMember.score != null &&
@@ -1297,10 +1293,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Color _getComplexityColor(String value) {
-    switch (value.toLowerCase()) {
+    switch (value.trim().toLowerCase()) {
       case 'easy':
+      case 'ง่าย':
         return AppColors.primaryGreen;
       case 'hard':
+      case 'ยาก':
         return AppColors.accentRed;
       default:
         return AppColors.primaryBlue;
@@ -1308,10 +1306,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Color _getWorkloadColor(String value) {
-    switch (value.toLowerCase()) {
+    switch (value.trim().toLowerCase()) {
       case 'small':
+      case 'น้อย':
         return AppColors.primaryGreen;
       case 'large':
+      case 'มาก':
         return AppColors.primaryPurple;
       default:
         return AppColors.primaryBlue;
@@ -1319,11 +1319,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Color _getRiskColor(String value) {
-    switch (value.toLowerCase()) {
+    switch (value.trim().toLowerCase()) {
       case 'none':
+      case 'ไม่มี':
         return AppColors.primaryGreen;
       case 'high':
+      case 'สูง':
         return AppColors.accentRed;
+      case 'low':
+      case 'ต่ำ':
       default:
         return AppColors.warning;
     }

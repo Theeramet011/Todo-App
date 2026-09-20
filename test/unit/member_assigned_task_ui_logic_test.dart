@@ -223,5 +223,44 @@ void main() {
         isFalse,
       );
     });
+
+    test('Member thaiDifficulty, thaiWorkload, and thaiRisk translations', () {
+      const member1 = Member(
+        difficulty: 'Easy',
+        workload: 'Small',
+        risk: 'None',
+      );
+      expect(member1.thaiDifficulty, equals('ง่าย'));
+      expect(member1.thaiWorkload, equals('น้อย'));
+      expect(member1.thaiRisk, equals('ต่ำ'));
+
+      const member2 = Member(
+        difficulty: 'Medium',
+        workload: 'Medium',
+        risk: 'Medium',
+      );
+      expect(member2.thaiDifficulty, equals('ปานกลาง'));
+      expect(member2.thaiWorkload, equals('ปานกลาง'));
+      expect(member2.thaiRisk, equals('กลาง'));
+
+      const member3 = Member(
+        difficulty: 'Hard',
+        workload: 'Large',
+        risk: 'High',
+      );
+      expect(member3.thaiDifficulty, equals('ยาก'));
+      expect(member3.thaiWorkload, equals('มาก'));
+      expect(member3.thaiRisk, equals('สูง'));
+
+      // Case when already in Thai or mixed casing
+      const member4 = Member(
+        difficulty: 'ยาก',
+        workload: 'น้อย',
+        risk: 'ต่ำ',
+      );
+      expect(member4.thaiDifficulty, equals('ยาก'));
+      expect(member4.thaiWorkload, equals('น้อย'));
+      expect(member4.thaiRisk, equals('ต่ำ'));
+    });
   });
 }

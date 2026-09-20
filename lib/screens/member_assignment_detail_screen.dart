@@ -353,21 +353,21 @@ class _MemberAssignmentDetailScreenState
         _buildMetricBox(
           context,
           'ความยาก',
-          member.difficulty,
+          member.thaiDifficulty,
           _getComplexityColor(member.difficulty),
         ),
         const SizedBox(width: 12),
         _buildMetricBox(
           context,
           'ปริมาณภารกิจ',
-          member.workload,
+          member.thaiWorkload,
           _getWorkloadColor(member.workload),
         ),
         const SizedBox(width: 12),
         _buildMetricBox(
           context,
           'ความเสี่ยง',
-          member.risk,
+          member.thaiRisk,
           _getRiskColor(member.risk),
         ),
       ],
@@ -865,10 +865,12 @@ class _MemberAssignmentDetailScreenState
   }
 
   Color _getComplexityColor(String value) {
-    switch (value.toLowerCase()) {
+    switch (value.trim().toLowerCase()) {
       case 'easy':
+      case 'ง่าย':
         return AppColors.primaryGreen;
       case 'hard':
+      case 'ยาก':
         return AppColors.accentRed;
       default:
         return AppColors.primaryBlue;
@@ -876,10 +878,12 @@ class _MemberAssignmentDetailScreenState
   }
 
   Color _getWorkloadColor(String value) {
-    switch (value.toLowerCase()) {
+    switch (value.trim().toLowerCase()) {
       case 'small':
+      case 'น้อย':
         return AppColors.primaryGreen;
       case 'large':
+      case 'มาก':
         return AppColors.primaryPurple;
       default:
         return AppColors.primaryBlue;
@@ -887,11 +891,15 @@ class _MemberAssignmentDetailScreenState
   }
 
   Color _getRiskColor(String value) {
-    switch (value.toLowerCase()) {
+    switch (value.trim().toLowerCase()) {
       case 'none':
+      case 'ไม่มี':
         return AppColors.primaryGreen;
       case 'high':
+      case 'สูง':
         return AppColors.accentRed;
+      case 'low':
+      case 'ต่ำ':
       default:
         return AppColors.warning;
     }

@@ -610,7 +610,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
             child: _buildCompactRatingItem(
               label: 'ความเสี่ยง',
               selectedValue: _selectedRisk,
-              options: ['ไม่มี', 'ต่ำ', 'สูง'],
+              options: ['ต่ำ', 'กลาง', 'สูง'],
               onSelected: (val) => setState(() => _selectedRisk = val),
               activeIcon: Icons.shield_rounded,
               activeColor: AppColors.accentRed,
@@ -1942,7 +1942,7 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
                           if (user.taskTitle != null &&
                               user.taskTitle!.isNotEmpty)
                             Text(
-                              '${user.taskTitle} (${user.difficulty})',
+                              '${user.taskTitle} (${user.thaiDifficulty})',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: theme.colorScheme.onSurface.withValues(
@@ -3972,21 +3972,23 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
   String _riskToString(int value) {
     switch (value) {
       case 1:
-        return 'ไม่มี';
-      case 2:
         return 'ต่ำ';
+      case 2:
+        return 'กลาง';
       case 3:
         return 'สูง';
       default:
-        return 'ไม่มี';
+        return 'ต่ำ';
     }
   }
 
   int _riskToInt(String value) {
     switch (value) {
+      case 'ต่ำ':
       case 'ไม่มี':
         return 1;
-      case 'ต่ำ':
+      case 'กลาง':
+      case 'ปานกลาง':
         return 2;
       case 'สูง':
         return 3;
