@@ -1,7 +1,8 @@
-// Project Model - โมเดลสำหรับโปรเจกต์และการจัดหมวดหมู่งาน (Project Data Structure)
+// [DEPRECATED / UNUSED] Project Model - โมเดลสำหรับโปรเจกต์เดิม (ไม่ได้ใช้งานในระบบจริง)
 //
-// กำหนดโครงสร้างข้อมูลโปรเจกต์ เช่น ชื่องานกลุ่ม หัวหน้าโปรเจกต์ สมาชิก สถานะโปรเจกต์ (planning, active, completed)
-// และการแปลงข้อมูลไป-กลับกับ Firebase Firestore
+// หมายเหตุ: ปัจจุบันระบบใช้คอลเลกชัน 'tasks' เพียงตารางเดียวในการจัดการทั้งภาระงานส่วนบุคคลและงานกลุ่ม
+// โดยจำแนกด้วยฟิลด์ 'type: group' และมี 'creatorId' (หัวหน้า) และ 'assigneeIds/members' (สมาชิก) ในตัว
+// ไฟล์นี้คงไว้เพื่อความเข้ากันได้ย้อนหลัง (Backward Compatibility) เท่านั้น
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../utils/thai_display.dart';

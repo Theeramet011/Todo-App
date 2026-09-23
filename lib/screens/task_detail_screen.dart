@@ -303,7 +303,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               // Task Info Section
               _buildTaskInfoSection(currentTask),
 
-              if (currentTask.isDeleted) _buildDeletedTaskCard(),
+              if (currentTask.isDeleted && currentTask.isGroup && !isLeader)
+                _buildDeletedTaskCard(),
 
               // Task Leader Card (Member View) — แสดงก่อนส่วนส่งงาน
               if (currentTask.isGroup && !isLeader)

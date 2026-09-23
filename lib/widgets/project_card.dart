@@ -1,3 +1,6 @@
+// [DEPRECATED / UNUSED] ProjectCard - วิดเจ็ตการ์ดโปรเจกต์เดิม (ไม่ได้ใช้งานในหน้าจอจริง)
+//
+// หมายเหตุ: หน้าจอจริงใช้ 'GroupProjectCard' (group_project_card.dart) ซึ่งทำงานร่วมกับโมเดล 'Task'
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/colors.dart';

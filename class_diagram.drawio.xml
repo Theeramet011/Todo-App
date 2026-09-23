@@ -1,0 +1,308 @@
+<mxfile host="app.diagrams.net" modified="2026-09-23T09:48:00.000Z" agent="Antigravity" version="22.1.0" type="device">
+  <diagram id="class-diagram-ch3" name="Class Diagram (ระบบจัดการงานและติดตามภาระงาน)">
+    <mxGraphModel dx="1600" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ============================================== -->
+        <!-- 1. คลาส User -->
+        <!-- ============================================== -->
+        <mxCell id="class_user" value="User" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="240" width="260" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="user_attrs" value="- id: String&lt;br&gt;- name: String&lt;br&gt;- email: String&lt;br&gt;- avatarUrl: String&lt;br&gt;- totalXP: int&lt;br&gt;- currentLevel: int&lt;br&gt;- tasksCompleted: int&lt;br&gt;- groupTasksCompleted: int&lt;br&gt;- currentStreak: int&lt;br&gt;- longestStreak: int&lt;br&gt;- lastLoginDate: String&lt;br&gt;- joinedAt: DateTime&lt;br&gt;- friends: List&amp;lt;String&amp;gt;&lt;br&gt;- achievementsUnlocked: List&amp;lt;String&amp;gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_user">
+          <mxGeometry y="28" width="260" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="user_sep" value="" style="line;strokeWidth=1.5;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=#000000;" vertex="1" parent="class_user">
+          <mxGeometry y="268" width="260" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="user_methods" value="+ toMap(): Map&amp;lt;String, dynamic&amp;gt;&lt;br&gt;+ fromFirestore(doc): User&lt;br&gt;+ updateStreak(): void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_user">
+          <mxGeometry y="276" width="260" height="64" as="geometry" />
+        </mxCell>
+
+        <!-- Self-Association: User Friends (แปลไทย: เพื่อน) -->
+        <mxCell id="edge_user_friends" value="เพื่อน" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.25;entryX=0;entryY=0.75;strokeColor=#000000;strokeWidth=1.2;endArrow=none;fontSize=11;" edge="1" parent="1" source="class_user" target="class_user">
+          <mxGeometry x="0" y="18" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="15" y="325" />
+              <mxPoint x="15" y="495" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_user_friends_src" value="0..*" style="edgeLabel;html=1;align=center;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_user_friends">
+          <mxGeometry x="-0.82" y="-10" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_user_friends_trg" value="0..*" style="edgeLabel;html=1;align=center;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_user_friends">
+          <mxGeometry x="0.82" y="-10" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- 2. คลาส Task (หัวใจหลักของงานเดี่ยวและงานกลุ่ม) -->
+        <!-- ============================================== -->
+        <mxCell id="class_task" value="Task" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="500" y="240" width="280" height="390" as="geometry" />
+        </mxCell>
+        <mxCell id="task_attrs" value="- taskId: String&lt;br&gt;- title: String&lt;br&gt;- description: String&lt;br&gt;- type: TaskType&lt;br&gt;- status: TaskStatus&lt;br&gt;- priority: Priority&lt;br&gt;- dateTime: DateTime&lt;br&gt;- creatorId: String&lt;br&gt;- assigneeIds: List&amp;lt;String&amp;gt;&lt;br&gt;- difficulty: int&lt;br&gt;- workload: int&lt;br&gt;- risk: int&lt;br&gt;- awardedXP: int&lt;br&gt;- rewardBlocked: bool&lt;br&gt;- isDeleted: bool&lt;br&gt;- expireAt: DateTime&lt;br&gt;- createdAt: DateTime" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_task">
+          <mxGeometry y="28" width="280" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="task_sep" value="" style="line;strokeWidth=1.5;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=#000000;" vertex="1" parent="class_task">
+          <mxGeometry y="308" width="280" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="task_methods" value="+ toMap(): Map&amp;lt;String, dynamic&amp;gt;&lt;br&gt;+ fromFirestore(doc): Task&lt;br&gt;+ calculateXP(): int&lt;br&gt;+ isOverdue(): bool" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_task">
+          <mxGeometry y="316" width="280" height="74" as="geometry" />
+        </mxCell>
+
+        <!-- Association: User to Task (แปลไทย: สร้าง / ได้รับมอบหมาย) -->
+        <mxCell id="edge_user_task" value="สร้าง / ได้รับมอบหมาย" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.35;entryX=0;entryY=0.35;strokeColor=#000000;strokeWidth=1.5;endArrow=none;fontSize=11;" edge="1" parent="1" source="class_user" target="class_task">
+          <mxGeometry y="-14" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_user_task_src" value="1" style="edgeLabel;html=1;align=left;verticalAlign=top;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_user_task">
+          <mxGeometry x="-0.85" y="14" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_user_task_trg" value="0..*" style="edgeLabel;html=1;align=right;verticalAlign=top;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_user_task">
+          <mxGeometry x="0.85" y="14" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- 3. คลาส Member (รายละเอียดงานสมาชิกในงานกลุ่ม) -->
+        <!-- ============================================== -->
+        <mxCell id="class_member" value="Member" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="930" y="140" width="230" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="member_attrs" value="- id: String&lt;br&gt;- name: String&lt;br&gt;- avatarUrl: String&lt;br&gt;- taskTitle: String&lt;br&gt;- difficulty: String&lt;br&gt;- workload: String&lt;br&gt;- risk: String&lt;br&gt;- score: String&lt;br&gt;- submissionText: String&lt;br&gt;- submittedAt: DateTime&lt;br&gt;- status: String&lt;br&gt;- subTasks: List&amp;lt;String&amp;gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_member">
+          <mxGeometry y="28" width="230" height="195" as="geometry" />
+        </mxCell>
+        <mxCell id="member_sep" value="" style="line;strokeWidth=1.5;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=#000000;" vertex="1" parent="class_member">
+          <mxGeometry y="223" width="230" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="member_methods" value="+ toMap(): Map&amp;lt;String, dynamic&amp;gt;&lt;br&gt;+ fromMap(map): Member" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_member">
+          <mxGeometry y="231" width="230" height="39" as="geometry" />
+        </mxCell>
+
+        <!-- Composition: Task has Members (No endArrow) -->
+        <mxCell id="edge_task_member" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.15;entryX=0;entryY=0.5;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startSize=14;startFill=1;endArrow=none;" edge="1" parent="1" source="class_task" target="class_member">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_task_member_src" value="1" style="edgeLabel;html=1;align=left;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_task_member">
+          <mxGeometry x="-0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_task_member_trg" value="0..*" style="edgeLabel;html=1;align=right;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_task_member">
+          <mxGeometry x="0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- 4. คลาส SubTask (งานย่อย) -->
+        <!-- ============================================== -->
+        <mxCell id="class_subtask" value="SubTask" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="140" width="190" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="subtask_attrs" value="- title: String&lt;br&gt;- isDone: bool" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_subtask">
+          <mxGeometry y="28" width="190" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtask_sep" value="" style="line;strokeWidth=1.5;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=#000000;" vertex="1" parent="class_subtask">
+          <mxGeometry y="68" width="190" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="subtask_methods" value="+ toMap(): Map&amp;lt;String, dynamic&amp;gt;&lt;br&gt;+ fromMap(map): SubTask" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_subtask">
+          <mxGeometry y="76" width="190" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- Composition: Task has SubTasks (No endArrow) -->
+        <mxCell id="edge_task_subtask" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.08;entryX=0;entryY=0.5;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startSize=14;startFill=1;endArrow=none;" edge="1" parent="1" source="class_task" target="class_subtask">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="850" y="270" />
+              <mxPoint x="850" y="90" />
+              <mxPoint x="1220" y="90" />
+              <mxPoint x="1220" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_task_subtask_src" value="1" style="edgeLabel;html=1;align=left;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_task_subtask">
+          <mxGeometry x="-0.85" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_task_subtask_trg" value="0..*" style="edgeLabel;html=1;align=right;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_task_subtask">
+          <mxGeometry x="0.85" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- 5. คลาส TaskComment (ความคิดเห็นในงานกลุ่ม) -->
+        <!-- ============================================== -->
+        <mxCell id="class_comment" value="TaskComment" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="930" y="440" width="230" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="comment_attrs" value="- id: String&lt;br&gt;- authorId: String&lt;br&gt;- authorName: String&lt;br&gt;- authorAvatarUrl: String&lt;br&gt;- message: String&lt;br&gt;- createdAt: DateTime" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_comment">
+          <mxGeometry y="28" width="230" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="comment_sep" value="" style="line;strokeWidth=1.5;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=#000000;" vertex="1" parent="class_comment">
+          <mxGeometry y="128" width="230" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="comment_methods" value="+ toMap(): Map&amp;lt;String, dynamic&amp;gt;&lt;br&gt;+ fromMap(map): TaskComment" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_comment">
+          <mxGeometry y="136" width="230" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- Composition: Task has Comments (No endArrow) -->
+        <mxCell id="edge_task_comment" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.65;entryX=0;entryY=0.5;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startSize=14;startFill=1;endArrow=none;" edge="1" parent="1" source="class_task" target="class_comment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_task_comment_src" value="1" style="edgeLabel;html=1;align=left;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_task_comment">
+          <mxGeometry x="-0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_task_comment_trg" value="0..*" style="edgeLabel;html=1;align=right;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_task_comment">
+          <mxGeometry x="0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- 6. คลาส TaskAttachment (ไฟล์แนบส่งผลงาน) -->
+        <!-- ============================================== -->
+        <mxCell id="class_attachment" value="TaskAttachment" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="440" width="200" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="attachment_attrs" value="- fileName: String&lt;br&gt;- fileUrl: String&lt;br&gt;- fileType: String&lt;br&gt;- uploadedAt: DateTime&lt;br&gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_attachment">
+          <mxGeometry y="28" width="200" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="attachment_sep" value="" style="line;strokeWidth=1.5;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=#000000;" vertex="1" parent="class_attachment">
+          <mxGeometry y="98" width="200" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="attachment_methods" value="+ toMap(): Map&amp;lt;String, dynamic&amp;gt;&lt;br&gt;+ fromMap(map): TaskAttachment" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_attachment">
+          <mxGeometry y="106" width="200" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- Composition: Task has Attachments (No endArrow) -->
+        <mxCell id="edge_task_attachment" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.85;entryX=0;entryY=0.5;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startSize=14;startFill=1;endArrow=none;" edge="1" parent="1" source="class_task" target="class_attachment">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="850" y="571" />
+              <mxPoint x="850" y="650" />
+              <mxPoint x="1220" y="650" />
+              <mxPoint x="1220" y="515" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_task_attachment_src" value="1" style="edgeLabel;html=1;align=left;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_task_attachment">
+          <mxGeometry x="-0.85" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_task_attachment_trg" value="0..*" style="edgeLabel;html=1;align=right;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_task_attachment">
+          <mxGeometry x="0.85" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- 7. คลาส Achievement (เหรียญตราความสำเร็จ) -->
+        <!-- ============================================== -->
+        <mxCell id="class_achievement" value="Achievement" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="660" width="260" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="achievement_attrs" value="- id: String&lt;br&gt;- title: String&lt;br&gt;- description: String&lt;br&gt;- targetCount: int&lt;br&gt;- isUnlocked: bool" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_achievement">
+          <mxGeometry y="28" width="260" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="achievement_sep" value="" style="line;strokeWidth=1.5;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=#000000;" vertex="1" parent="class_achievement">
+          <mxGeometry y="118" width="260" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="achievement_methods" value="+ toMap(): Map&amp;lt;String, dynamic&amp;gt;&lt;br&gt;+ checkUnlocked(stats): bool" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_achievement">
+          <mxGeometry y="126" width="260" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- Association: User to Achievement (แปลไทย: ปลดล็อก) -->
+        <mxCell id="edge_user_achievement" value="ปลดล็อก" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeColor=#000000;strokeWidth=1.2;endArrow=none;fontSize=11;" edge="1" parent="1" source="class_user" target="class_achievement">
+          <mxGeometry x="0.1" y="20" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_user_achieve_src" value="1" style="edgeLabel;html=1;align=left;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_user_achievement">
+          <mxGeometry x="-0.75" y="-10" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_user_achieve_trg" value="0..*" style="edgeLabel;html=1;align=right;verticalAlign=bottom;resizable=0;points=[];fontSize=11;" vertex="1" connectable="0" parent="edge_user_achievement">
+          <mxGeometry x="0.75" y="-10" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- 8. คลาส XPSystem (คำนวณและประมวลผลคะแนน) -->
+        <!-- ============================================== -->
+        <mxCell id="class_xpsystem" value="&amp;lt;&amp;lt;Utility&amp;gt;&amp;gt;&lt;br&gt;XPSystem" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="505" y="40" width="270" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="xpsystem_attrs" value="- BASE_XP: int = 50&lt;br&gt;- LEVEL_STEP: int = 500" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_xpsystem">
+          <mxGeometry y="40" width="270" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="xpsystem_sep" value="" style="line;strokeWidth=1.5;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=#000000;" vertex="1" parent="class_xpsystem">
+          <mxGeometry y="80" width="270" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="xpsystem_methods" value="+ calculateTaskXP(diff, work, risk): int&lt;br&gt;+ getLevelFromXP(totalXP): int&lt;br&gt;+ applyLatePenalty(xp, delay): int" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="class_xpsystem">
+          <mxGeometry y="88" width="270" height="62" as="geometry" />
+        </mxCell>
+
+        <!-- Dependency: Task uses XPSystem (แปลไทย: <<เรียกใช้งาน>>) -->
+        <mxCell id="edge_task_xpsystem" value="&amp;lt;&amp;lt;เรียกใช้งาน&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;strokeColor=#000000;strokeWidth=1.2;dashed=1;endArrow=open;endSize=8;fontSize=11;" edge="1" parent="1" source="class_task" target="class_xpsystem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- 9. Enumerations (คลาสแจงนับ) -->
+        <!-- ============================================== -->
+        <mxCell id="enum_tasktype" value="&amp;lt;&amp;lt;enumeration&amp;gt;&amp;gt;&lt;br&gt;TaskType" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="450" y="700" width="130" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="enum_tasktype_lits" value="+ personal&lt;br&gt;+ group" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="enum_tasktype">
+          <mxGeometry y="40" width="130" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="enum_taskstatus" value="&amp;lt;&amp;lt;enumeration&amp;gt;&amp;gt;&lt;br&gt;TaskStatus" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="610" y="700" width="140" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="enum_taskstatus_lits" value="+ todo&lt;br&gt;+ inProgress&lt;br&gt;+ pending&lt;br&gt;+ completed" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="enum_taskstatus">
+          <mxGeometry y="40" width="140" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="enum_priority" value="&amp;lt;&amp;lt;enumeration&amp;gt;&amp;gt;&lt;br&gt;Priority" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fontColor=#000000;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="780" y="700" width="130" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="enum_priority_lits" value="+ low&lt;br&gt;+ medium&lt;br&gt;+ high&lt;br&gt;+ urgent" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;spacingRight=4;spacingTop=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="enum_priority">
+          <mxGeometry y="40" width="130" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Dependencies to Enums -->
+        <mxCell id="edge_task_type" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.2;exitY=1;entryX=0.5;entryY=0;strokeColor=#000000;strokeWidth=1;dashed=1;endArrow=open;endSize=6;" edge="1" parent="1" source="class_task" target="enum_tasktype">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_task_status" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeColor=#000000;strokeWidth=1;dashed=1;endArrow=open;endSize=6;" edge="1" parent="1" source="class_task" target="enum_taskstatus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_task_priority" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.8;exitY=1;entryX=0.5;entryY=0;strokeColor=#000000;strokeWidth=1;dashed=1;endArrow=open;endSize=6;" edge="1" parent="1" source="class_task" target="enum_priority">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

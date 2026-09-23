@@ -1,0 +1,141 @@
+<mxfile host="app.diagrams.net" modified="2026-09-21T11:45:00.000Z" agent="Antigravity" version="22.1.0" type="device">
+  <diagram id="badges-wireframe" name="หน้าตราความสำเร็จ">
+    <mxGraphModel dx="1200" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- โครงกรอบหน้าจอแอป (ไม่มีแถบสถานะ) -->
+        <mxCell id="app_frame" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="40" width="370" height="520" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- ส่วนบน: Top App Bar & หัวข้อหน้าจอ -->
+        <!-- ============================================== -->
+        <mxCell id="btn_back" value="[ ← ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="115" y="55" width="36" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- ไอคอนสี่เหลี่ยมกากบาทตรงหัวข้อหน้า -->
+        <mxCell id="head_icon_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="160" y="55" width="36" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="head_icon_d1" value="" style="endArrow=none;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="55" as="sourcePoint" />
+            <mxPoint x="196" y="91" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="head_icon_d2" value="" style="endArrow=none;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="196" y="55" as="sourcePoint" />
+            <mxPoint x="160" y="91" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ชื่อหน้า และ ชื่อผู้ใช้ -->
+        <mxCell id="appbar_title" value="ตราความสำเร็จ" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="205" y="52" width="180" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="appbar_subtitle" value="Niger" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="205" y="74" width="180" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- หมวดที่ 1: ปลดล็อกแล้ว (หัวข้อ + ตัวอย่าง 1 ช่อง) -->
+        <!-- ============================================== -->
+        <mxCell id="sec1_title" value="ปลดล็อกแล้ว" style="text;html=1;align=left;verticalAlign=middle;fontSize=15;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="115" y="105" width="150" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sec1_count" value="3 รายการ" style="text;html=1;align=right;verticalAlign=middle;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="365" y="105" width="90" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- การ์ดตัวอย่างตราที่ปลดล็อกแล้ว 1 ช่อง -->
+        <mxCell id="card_unlocked" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="115" y="135" width="162" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="badge1_icon_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="166" y="148" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="badge1_d1" value="" style="endArrow=none;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="166" y="148" as="sourcePoint" />
+            <mxPoint x="226" y="208" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="badge1_d2" value="" style="endArrow=none;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="226" y="148" as="sourcePoint" />
+            <mxPoint x="166" y="208" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="badge1_title" value="นักบุกเบิก" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="115" y="214" width="162" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="badge1_status" value="[ สำเร็จแล้ว ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="151" y="240" width="90" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- กล่องจำลองว่ามีตราที่ปลดล็อกแล้วอื่น ๆ -->
+        <mxCell id="unlocked_more" value="[ ... อีก 2 รายการ ... ]" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFFFFF;strokeColor=#000000;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="293" y="135" width="162" height="145" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================== -->
+        <!-- หมวดที่ 2: ยังไม่ปลดล็อก (หัวข้อ + ตัวอย่าง 1 ช่อง) -->
+        <!-- ============================================== -->
+        <mxCell id="sec2_title" value="ยังไม่ปลดล็อก" style="text;html=1;align=left;verticalAlign=middle;fontSize=15;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="115" y="295" width="150" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sec2_count" value="6 รายการ" style="text;html=1;align=right;verticalAlign=middle;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="365" y="295" width="90" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- การ์ดตัวอย่างตราที่ยังไม่ปลดล็อก 1 ช่อง -->
+        <mxCell id="card_locked" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="115" y="325" width="162" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="badge2_icon_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="166" y="338" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="badge2_d1" value="" style="endArrow=none;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="166" y="338" as="sourcePoint" />
+            <mxPoint x="226" y="398" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="badge2_d2" value="" style="endArrow=none;html=1;strokeColor=#000000;strokeWidth=1.5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="226" y="338" as="sourcePoint" />
+            <mxPoint x="166" y="398" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="badge2_title" value="เจ้าแห่งภารกิจ" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="115" y="402" width="162" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="b2_prog_track" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="131" y="428" width="130" height="5" as="geometry" />
+        </mxCell>
+        <mxCell id="b2_prog_fill" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="131" y="428" width="75" height="5" as="geometry" />
+        </mxCell>
+        <mxCell id="b2_prog_text" value="29/50 ภารกิจ" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="115" y="438" width="162" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- กล่องจำลองว่ามีตราที่ยังไม่ปลดล็อกอื่น ๆ -->
+        <mxCell id="locked_more" value="[ ... อีก 5 รายการ ... ]" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFFFFF;strokeColor=#000000;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="293" y="325" width="162" height="145" as="geometry" />
+        </mxCell>
+
+        <!-- Home Bar Indicator -->
+        <mxCell id="home_indicator" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="225" y="495" width="120" height="4" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

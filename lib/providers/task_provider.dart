@@ -57,6 +57,8 @@ class TaskProvider with ChangeNotifier {
   final FirebaseFunctions _functions;
   final firebase_auth.FirebaseAuth _auth;
   final List<Task> _tasks = [];
+  // [LEGACY / FALLBACK] _projects และ _projectSubscription คงไว้เพื่อรองรับ backward compatibility เท่านั้น
+  // ระบบหลักในปัจจุบันใช้คอลเลกชัน 'tasks' เพียงตารางเดียวในการจัดการงานกลุ่ม
   final List<Project> _projects = [];
   final List<User> _friends = [];
   final Map<String, User> _userCache = {};

@@ -1,0 +1,146 @@
+<mxfile host="app.diagrams.net" modified="2026-09-20T13:25:00.000Z" agent="Antigravity" version="22.1.0" type="device">
+  <diagram id="reward-path-wireframe" name="หน้าเส้นทางรางวัล">
+    <mxGraphModel dx="1200" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- โครงกรอบหน้าจอแอป (ไม่มีแถบสถานะ) -->
+        <mxCell id="app_frame" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="40" width="370" height="490" as="geometry" />
+        </mxCell>
+
+        <!-- Top App Bar: ย้อนกลับ และ หัวข้อหน้า -->
+        <mxCell id="btn_back" value="[ ← ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="115" y="55" width="40" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="appbar_title" value="เส้นทางรางวัล" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="180" y="55" width="200" height="32" as="geometry" />
+        </mxCell>
+
+        <!-- สรุปเลเวลปัจจุบัน และ แถบ Progress -->
+        <mxCell id="txt_level" value="Level 3" style="text;html=1;align=left;verticalAlign=middle;fontSize=15;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="115" y="98" width="100" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="badge_count" value="[ 3 / 25 ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="385" y="96" width="70" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prog_track" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="115" y="128" width="340" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="prog_fill" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="115" y="128" width="55" height="8" as="geometry" />
+        </mxCell>
+
+        <!-- เส้นแกนไทม์ไลน์แนวตั้ง -->
+        <mxCell id="line_solid" value="" style="endArrow=none;html=1;strokeColor=#000000;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="137" y="165" as="sourcePoint" />
+            <mxPoint x="137" y="275" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="line_dashed" value="" style="endArrow=none;dashed=1;html=1;strokeColor=#000000;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="137" y="275" as="sourcePoint" />
+            <mxPoint x="137" y="440" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ด่าน 1: Level 2 (ปลดล็อกแล้ว) -->
+        <mxCell id="n1_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="125" y="160" width="24" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="n1_d1" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="125" y="160" as="sourcePoint" /><mxPoint x="149" y="184" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="n1_d2" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="149" y="160" as="sourcePoint" /><mxPoint x="125" y="184" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="c1_card" value="Level 2&#xa;+50 XP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;align=left;spacingLeft=12;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="160" y="150" width="295" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="c1_chk" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="424" y="162" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="c1_cd1" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="424" y="162" as="sourcePoint" /><mxPoint x="444" y="182" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="c1_cd2" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="444" y="162" as="sourcePoint" /><mxPoint x="424" y="182" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <!-- ด่าน 2: Level 3 (ด่านปัจจุบัน - ตอนนี้) -->
+        <mxCell id="n2_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="125" y="222" width="24" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="n2_d1" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="125" y="222" as="sourcePoint" /><mxPoint x="149" y="246" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="n2_d2" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="149" y="222" as="sourcePoint" /><mxPoint x="125" y="246" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="c2_card" value="Level 3   [ ตอนนี้ ]&#xa;+50 XP ปลดล็อกแล้ว" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=2;align=left;spacingLeft=12;fontSize=12;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="160" y="210" width="295" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="c2_chk" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="424" y="224" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="c2_cd1" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="424" y="224" as="sourcePoint" /><mxPoint x="444" y="244" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="c2_cd2" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="444" y="224" as="sourcePoint" /><mxPoint x="424" y="244" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <!-- ด่าน 3: Level 4 (ด่านถัดไป) -->
+        <mxCell id="n3_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="125" y="280" width="24" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="n3_d1" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="125" y="280" as="sourcePoint" /><mxPoint x="149" y="304" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="n3_d2" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="149" y="280" as="sourcePoint" /><mxPoint x="125" y="304" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="c3_card" value="Level 4   [ ถัดไป ]&#xa;+50 XP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;align=left;spacingLeft=12;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="160" y="270" width="295" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- ด่าน 4: Level 5 (รางวัล Milestone พิเศษ - ล็อกอยู่) -->
+        <mxCell id="n4_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="125" y="345" width="24" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="n4_d1" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="125" y="345" as="sourcePoint" /><mxPoint x="149" y="369" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="n4_d2" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="149" y="345" as="sourcePoint" /><mxPoint x="125" y="369" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="c4_card" value="Level 5 (รางวัลพิเศษ)&#xa;กรอบ &quot;วัยรุ่นสร้างตัว&quot;  [ ยังล็อกอยู่ ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;align=left;spacingLeft=12;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="160" y="332" width="295" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c4_lock" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="424" y="347" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="c4_ld1" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="424" y="347" as="sourcePoint" /><mxPoint x="444" y="367" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="c4_ld2" value="" style="endArrow=none;html=1;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="444" y="347" as="sourcePoint" /><mxPoint x="424" y="367" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <!-- ตัวบ่งบอกว่ามีเลเวลอื่น ๆ ต่อลงไป -->
+        <mxCell id="list_more" value="[ ... เลเวล 6 - 25 ที่ยังล็อกอยู่ ... ]" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFFFFF;strokeColor=#000000;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="160" y="396" width="295" height="34" as="geometry" />
+        </mxCell>
+
+        <!-- Home Bar Indicator -->
+        <mxCell id="home_indicator" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="225" y="470" width="120" height="4" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
