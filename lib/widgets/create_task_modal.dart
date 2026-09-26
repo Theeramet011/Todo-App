@@ -4228,18 +4228,23 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
         ? customReminders.map((k, v) => MapEntry(k, false))
         : Map<String, bool>.from(customReminders);
 
+    // =========================================================================
+    // 1.1.1 สร้างอ็อบเจกต์ Task - ข้อมูลพื้นฐาน, กำหนดส่ง และผู้รับผิดชอบ
+    // =========================================================================
     final updatedTask = Task(
+      //ข้อมูลพื้นฐานภาระงาน (ID, ชื่อเรื่อง, รายละเอียด, หมวดหมู่, สถานที่)
       id: widget.task?.id ?? 'task_${DateTime.now().millisecondsSinceEpoch}',
       title: _titleController.text,
       description: _descriptionController.text,
       category: _selectedCategory,
       location: _selectedLocation.isEmpty ? null : _selectedLocation,
-      dateTime: dateTime,
-      priority: _selectedPriority,
-      status: widget.task?.status ?? TaskStatus.inProgress,
-      type: _selectedType,
+      dateTime: dateTime, // วันและเวลาสิ้นสุด/กำหนดส่ง (Due Date & Time)
+      priority: _selectedPriority, // ระดับความสำคัญ (Low, Medium, High, Urgent)
+      status: widget.task?.status ?? TaskStatus.inProgress, // สถานะเริ่มต้นของภาระงาน
+      type: _selectedType, // ประเภทงาน (ส่วนบุคคล Personal หรือ โปรเจกต์ Project)
       projectId: widget.task?.projectId,
-      creatorId: widget.task?.creatorId ?? authProvider.currentUser!.id,
+      creatorId: widget.task?.creatorId ?? authProvider.currentUser!.id, // รหัสผู้สร้างงาน
+      //กำหนดรายชื่อผู้รับผิดชอบงานตามประเภทของภาระงาน
       assigneeIds: _selectedType == TaskType.personal
           ? [authProvider.currentUser!.id]
           : _selectedMembers
@@ -4254,11 +4259,17 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       members: _selectedType == TaskType.personal
           ? []
           : List<Member>.from(_selectedMembers),
-      createdAt: widget.task?.createdAt ?? DateTime.now(),
+      createdAt: widget.task?.createdAt ?? DateTime.now(), // วันที่สร้างข้อมูล
       completedAt: widget.task?.completedAt,
       isDeleted: widget.task?.isDeleted ?? false,
+      //การตั้งค่าระบบแจ้งเตือนเตือนความจำล่วงหน้า
       notificationFormat: _selectedNotification,
       customReminders: finalCustomReminders,
+
+      // =========================================================================
+      // 1.1.2 การตั้งค่างานเกิดซ้ำ, ประเมิน Story Points, ภารกิจย่อย และค่า XP
+      // =========================================================================
+      //การตั้งค่าเงื่อนไขงานที่เกิดซ้ำ (Recurring Tasks)
       isRecurring: _isRecurring,
       recurringType: _isRecurring ? _selectedRecurringType : 'daily',
       recurringDate: _isRecurring && _selectedRecurringType == 'custom'
@@ -4287,14 +4298,17 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
           _isRecurring && _selectedRecurringType == 'custom'
               ? _customRecurringConfig.fixedDates
               : null,
+      //แฟล็กสถานะการแจ้งเตือนล่วงหน้าตามช่วงเวลา
       notified1Week: resetNotified ? false : (widget.task?.notified1Week ?? false),
       notified1Day: resetNotified ? false : (widget.task?.notified1Day ?? false),
       notified1Hour: resetNotified ? false : (widget.task?.notified1Hour ?? false),
       notifiedExact: resetNotified ? false : (widget.task?.notifiedExact ?? false),
       notifiedFollowUp: resetNotified ? false : (widget.task?.notifiedFollowUp ?? false),
+      //พารามิเตอร์ประเมินความพยายาม (Story Point Triad: ความซับซ้อน, ปริมาณงาน, ความเสี่ยง)
       difficulty: _difficultyToInt(_selectedComplexity),
       workload: _workloadToInt(_selectedWorkload),
       risk: _riskToInt(_selectedRisk),
+      //ภารกิจย่อย (Subtasks), ข้อคิดเห็น และไฟล์แนบ
       subtasks: List.from(_subtasks),
       comments: widget.task?.comments ?? [],
       attachments: widget.task?.attachments ?? [],
@@ -4303,7 +4317,8 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       submissionText: widget.task?.submissionText,
       submittedBy: widget.task?.submittedBy,
       submittedAt: widget.task?.submittedAt,
-      awardedXP: widget.task?.awardedXP ?? 0,
+      //รางวัลค่าประสบการณ์ (XP) และการควบคุมสิทธิ์รับรางวัล
+      awardedXP: widget.task?.awardedXP ?? 0, // ค่าประสบการณ์ที่ได้รับเมื่อทำงานเสร็จ
       rewardBlocked: widget.task?.rewardBlocked ?? false,
       rewardBlockedReason: widget.task?.rewardBlockedReason,
       rewardBlockedAt: widget.task?.rewardBlockedAt,
@@ -4311,10 +4326,13 @@ class _CreateTaskModalState extends State<CreateTaskModal> {
       completionAgeSeconds: widget.task?.completionAgeSeconds,
     );
 
+    // =========================================================================
+    // 1.2.3 ตรวจสอบเงื่อนไขเพื่อบันทึกข้อมูล (สร้างใหม่ หรือ อัปเดตงานเดิม)และปิดหน้าต่าง Modal Form และส่งอ็อบเจกต์ภาระงานกลับไปยังหน้าหลัก
+    // =========================================================================
     if (widget.task != null) {
-      taskProvider.updateTask(updatedTask);
+      taskProvider.updateTask(updatedTask); // กรณีแก้ไขงานเดิม -> อัปเดตข้อมูลบน Cloud Firestore
     } else {
-      taskProvider.addTask(updatedTask);
+      taskProvider.addTask(updatedTask);    // กรณีสร้างงานใหม่ -> เพิ่มเอกสารใหม่ลงบน Cloud Firestore
     }
 
     final rootContext = Navigator.of(context).context;

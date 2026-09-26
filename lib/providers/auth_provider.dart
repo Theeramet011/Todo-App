@@ -21,11 +21,13 @@ class AuthProvider with ChangeNotifier {
   User? _currentUser;
   bool _isLoading = false;
   bool _isLoggedIn = false;
+  bool _isAuthInitialized = false;
   String? _errorMessage;
 
   User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _isLoggedIn;
+  bool get isAuthInitialized => _isAuthInitialized;
   String? get errorMessage => _errorMessage;
 
   // แก้ไข 1: ใช้ GoogleSignIn.instance (Singleton ใน v7+)
@@ -55,6 +57,8 @@ class AuthProvider with ChangeNotifier {
       _userSubscription = null;
       _currentUser = null;
       _isLoggedIn = false;
+      _isAuthInitialized = true;
+      _isLoading = false;
       notifyListeners();
       return;
     }
@@ -69,13 +73,23 @@ class AuthProvider with ChangeNotifier {
       if (isOffline) {
         snapshot = await userDoc.get(const GetOptions(source: Source.cache));
       } else {
-        snapshot = await userDoc
-            .get(const GetOptions(source: Source.serverAndCache))
-            .timeout(const Duration(seconds: 3));
+        // Fast path: อ่านจาก Cache ก่อนเพื่อความรวดเร็วในการเปิดแอป
+        try {
+          snapshot = await userDoc.get(const GetOptions(source: Source.cache));
+        } catch (_) {
+          snapshot = null;
+        }
+
+        // หากใน Cache ยังไม่มี (เช่น ติดตั้งใหม่หรือเพิ่งสมัคร) ให้ดึงจาก Server
+        if (snapshot == null || !snapshot.exists || snapshot.data() == null) {
+          snapshot = await userDoc
+              .get(const GetOptions(source: Source.serverAndCache))
+              .timeout(const Duration(seconds: 3));
+        }
       }
     } catch (e) {
       debugPrint('Error fetching user doc: $e');
-      if (!isOffline) {
+      if (!isOffline && (snapshot == null || !snapshot.exists)) {
         try {
           snapshot = await userDoc.get(const GetOptions(source: Source.cache));
         } catch (e2) {
@@ -106,6 +120,7 @@ class AuthProvider with ChangeNotifier {
 
     _listenToCurrentUser(fbUser.uid);
     _isLoggedIn = true;
+    _isAuthInitialized = true;
     _isLoading = false;
     notifyListeners();
 
@@ -271,6 +286,7 @@ class AuthProvider with ChangeNotifier {
         await checkAndUpdateStreak(fbUser.uid);
         _listenToCurrentUser(fbUser.uid);
         _isLoggedIn = true;
+        _isAuthInitialized = true;
         _isLoading = false;
         notifyListeners();
         return true;

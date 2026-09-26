@@ -678,13 +678,46 @@ class _LevelUpListenerState extends State<_LevelUpListener> {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _minSplashDurationPassed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isAuthInitialized) {
+        _minSplashDurationPassed = true;
+        setState(() {});
+      } else {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (!mounted) return;
+          setState(() {
+            _minSplashDurationPassed = true;
+          });
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
+        // While splash time hasn't passed OR auth is still checking on cold start:
+        // Keep showing the clean Splash Screen
+        if (!_minSplashDurationPassed || !authProvider.isAuthInitialized) {
+          return const SplashToLoginScreen();
+        }
+
         if (authProvider.isLoggedIn && authProvider.currentUser != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             checkAndRoutePendingNotification();

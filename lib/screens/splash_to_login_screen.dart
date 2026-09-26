@@ -22,23 +22,56 @@ class SplashToLoginScreen extends StatefulWidget {
 class _SplashToLoginScreenState extends State<SplashToLoginScreen>
     with SingleTickerProviderStateMixin {
   bool _showLogin = false;
+  bool _minSplashDurationPassed = false;
 
   @override
   void initState() {
     super.initState();
-    // 1. Initial delay: Show the logo in the center for 1.5 seconds
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // Allow splash logo to display gracefully on cold start (1.2s)
+    // If auth is already initialized (e.g. user just signed out), show immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() {
-        // 2. Reveal the login card content (which naturally pushes the logo up)
-        _showLogin = true;
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final delayMs = authProvider.isAuthInitialized ? 0 : 1200;
+
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        if (!mounted) return;
+        _minSplashDurationPassed = true;
+        _checkAndShowLogin();
       });
     });
   }
 
+  void _checkAndShowLogin() {
+    if (!mounted || _showLogin) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    // Only reveal login elements if:
+    // 1. Minimum splash duration has elapsed
+    // 2. Auth state initialization has completed
+    // 3. User is definitely NOT logged in
+    if (_minSplashDurationPassed &&
+        authProvider.isAuthInitialized &&
+        !authProvider.isLoggedIn) {
+      setState(() {
+        _showLogin = true;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Reactively trigger login card reveal when auth check completes for guest
+    if (_minSplashDurationPassed &&
+        authProvider.isAuthInitialized &&
+        !authProvider.isLoggedIn &&
+        !_showLogin) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndShowLogin();
+      });
+    }
 
     // A ColorFilter matrix to slightly boost brightness in dark mode
     const darkBrightnessMatrix = <double>[
