@@ -344,6 +344,10 @@ class TaskProvider with ChangeNotifier {
   }
   List<Task> get pendingTasks => tasks.where((t) => !t.isCompleted).toList();
 
+  // =========================================================================
+  // 3.4.3 (2.2) การจัดกลุ่ม คัดกรอง และยุบรวมภาระงานทำซ้ำ (Recurring Tasks)
+  // =========================================================================
+  // ฟังก์ชันสร้างคีย์เฉพาะ (Composite Key) สำหรับผูกกลุ่มซีรีส์ของงานทำซ้ำ
   String _taskSeriesKey(Task task) {
     if (!task.isRecurring) return task.id;
     final cleanTitle = task.title.trim().toLowerCase();
@@ -353,6 +357,7 @@ class TaskProvider with ChangeNotifier {
     return '$creator|$type|$project|$cleanTitle';
   }
 
+  // อัลกอริทึมยุบรวมงานในซีรีส์เดียวกันให้แสดงผลเฉพาะการ์ดงานงวดล่าสุดใบเดียว
   List<Task> _collapseRecurringTasks(
     List<Task> taskList, {
     Set<String>? excludeSeriesKeys,
@@ -360,7 +365,7 @@ class TaskProvider with ChangeNotifier {
     final result = <Task>[];
     final seenKeys = <String>{...?excludeSeriesKeys};
 
-    // เรียงตามเวลาล่าสุดก่อน เพื่อเลือกงานรอบล่าสุดมาแสดงผล
+    // จัดเรียงตามวัน-เวลาล่าสุด (Descending) เพื่อเลือกงานงวดล่าสุดมาแสดงผล
     final sorted = List<Task>.from(taskList)
       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
 
@@ -382,6 +387,7 @@ class TaskProvider with ChangeNotifier {
 
   List<Task> get todayTasks => todayPersonalTasks;
 
+  // รายการสิ่งที่ต้องทำวันนี้ (Today's Tasks): กรองเฉพาะงานที่ Due Date ตรงกับวันนี้
   List<Task> get todayPersonalTasks {
     final today = _todayString();
     final rawToday = personalTasks
@@ -390,11 +396,13 @@ class TaskProvider with ChangeNotifier {
     return _collapseRecurringTasks(rawToday);
   }
 
+  // รายการภารกิจที่ยังไม่เสร็จ (Overdue Tasks): กรองเฉพาะงานที่เลยกำหนดส่งและยังไม่ completed
   List<Task> get overduePersonalTasks {
     final today = _todayString();
     final rawToday = personalTasks
         .where((task) => _dateString(task.dateTime) == today)
         .toList();
+    // ดึงคีย์ซีรีส์ของงานวันนี้ เพื่อนำไปตัดออกจากงานค้าง ป้องกันการแสดงผลซ้ำซ้อน
     final todaySeriesKeys = rawToday
         .where((t) => t.isRecurring)
         .map(_taskSeriesKey)
@@ -545,6 +553,9 @@ class TaskProvider with ChangeNotifier {
         }, onError: (error) => debugPrint('Project stream error: $error'));
   }
 
+  // =========================================================================
+  // 3.4.3 (2.1) การดักฟังข้อมูลภาระงานของผู้ใช้ปัจจุบันแบบ Real-time จาก Cloud Firestore
+  // =========================================================================
   void _listenToCurrentUserTasks(String? userId) {
     _taskSubscription?.cancel();
     _tasks.clear();
@@ -555,6 +566,7 @@ class TaskProvider with ChangeNotifier {
       return;
     }
 
+    // ดึงงานที่ผู้ใช้เป็นผู้สร้าง (creatorId) หรือมี UID ในรายชื่อผู้รับผิดชอบงาน (assigneeIds)
     _taskSubscription = _firestore
         .collection('tasks')
         .where(
@@ -568,11 +580,12 @@ class TaskProvider with ChangeNotifier {
           _tasks
             ..clear()
             ..addAll(
+              // แปลง NoSQL Document ใน Firestore ให้กลายเป็นอ็อบเจกต์ Task ใน Dart
               snapshot.docs.map((doc) => Task.fromMap(doc.data(), doc.id)),
             );
           _calculateInitialXP();
           _refreshSelectedTask();
-          notifyListeners();
+          notifyListeners(); // แจ้งเตือน UI (ChangeNotifier) ให้วาดหน้าจอใหม่ทันที
           _ensureUpcomingRecurringTasks();
         }, onError: (error) => debugPrint('Task stream error: $error'));
   }
@@ -813,6 +826,11 @@ class TaskProvider with ChangeNotifier {
     return taskWithAward;
   }
 
+  // =========================================================================
+  // 3.4.4 (2.3) การยกเลิกสถานะเสร็จสิ้นและคืนค่าคะแนน (Undo Reward Mechanism) ด้วย Transaction
+  // =========================================================================
+  /// หักคะแนน XP และลดสถิติจำนวนงานที่ทำสำเร็จคืนสภาพเดิมเมื่อผู้ใช้กดยกเลิก (Undo)
+  /// โดยประมวลผลผ่าน Firestore Transaction เพื่อรักษาความถูกต้องของข้อมูล (Data Consistency)
   Future<Task> _undoPersonalTaskReward(
     String userId,
     Task revertedTask,
@@ -822,6 +840,7 @@ class TaskProvider with ChangeNotifier {
     final taskRef = _firestore.collection('tasks').doc(revertedTask.id);
     late Task taskWithoutAward;
     await _firestore.runTransaction((transaction) async {
+      // 1. อ่านข้อมูลผู้ใช้ล่าสุดเพื่อนำคะแนนและเลเวลมาคำนวณหักคืน
       final userSnap = await transaction.get(userRef);
       final data = userSnap.data();
       final xpToRemove = previousAwardedXP > 0
@@ -832,14 +851,17 @@ class TaskProvider with ChangeNotifier {
       final currentPersonalCompletedToday = _readInt(
         data?['personalTasksCompletedToday'],
       );
+      // 2. คำนวณค่า XP สุทธิหลังหักคืน และปรับลดเลเวล (หากคะแนนลดลงจนหลุดเกณฑ์)
       final newXP = calculateFinalXpWithLevelBonus(currentXP, -xpToRemove);
       final oldLevel = calculateLevelProgress(currentXP).currentLevel;
       final newLevel = calculateLevelProgress(newXP).currentLevel;
       taskWithoutAward = revertedTask.copyWith(awardedXP: 0);
 
+      // 3. ปรับลดยอดงานที่สำเร็จวันนี้และยอดรวมทั้งหมด โดยป้องกันไม่ให้ค่าติดลบ
       final newPersonalCompletedToday =
           (currentPersonalCompletedToday - 1).clamp(0, 1 << 31).toInt();
 
+      // 4. บันทึกข้อมูลคะแนนและสถิติของผู้ใช้กลับลง Firestore แบบ Atomic
       transaction.set(userRef, {
         'totalXP': newXP,
         'tasksCompleted': (currentTasksCompleted - 1).clamp(0, 1 << 31).toInt(),
@@ -851,6 +873,8 @@ class TaskProvider with ChangeNotifier {
           newLevel: newLevel,
         ),
       }, SetOptions(merge: true));
+
+      // 5. บันทึกข้อมูลงานโดยรีเซ็ตค่าคะแนนที่ได้รับให้เป็น 0
       transaction.set(
         taskRef,
         taskWithoutAward.toMap(),
@@ -1854,18 +1878,26 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // =========================================================================
+  // 2. ส่วนการจัดการสถานะและบันทึกลงฐานข้อมูล (State & Database Layer)
+  // ฟังก์ชันเพิ่มภาระงานใหม่ลงในหน่วยความจำและซิงโครไนซ์ไปยัง Cloud Firestore
+  // =========================================================================
   Future<void> addTask(Task task) async {
-    _tasks.insert(0, task);
-    _calculateInitialXP();
-    notifyListeners();
+    // 2.1 อัปเดตสถานะภายในแอปพลิเคชัน (Optimistic UI Update)
+    _tasks.insert(0, task); // แทรกงานใหม่ไว้ลำดับบนสุดของรายการในหน่วยความจำทันที
+    _calculateInitialXP(); // คำนวณแต้มคะแนนประสบการณ์เริ่มต้น
+    notifyListeners(); // แจ้งเตือน UI ให้วาดหน้าจอใหม่ทันทีโดยไม่ต้องรอผลลัพธ์จากเซิร์ฟเวอร์
 
+    // 2.2 จัดเตรียมและแปลงโครงสร้างข้อมูลสำหรับ Cloud Firestore
     final taskData = task.toMap()
       ..addAll({
+        // กำหนดสถานะเริ่มต้นของแฟล็กการแจ้งเตือนเตือนความจำล่วงหน้า
         'notified1Week': false,
         'notified1Day': false,
         'notified1Hour': false,
         'notifiedExact': false,
         'notifiedFollowUp': false,
+        // กำหนดค่าการทำงานซ้ำ (Recurring Configuration)
         'isRecurring': task.isRecurring,
         'recurringType': task.recurringType,
         'recurringDate': task.recurringDate == null
@@ -1874,8 +1906,9 @@ class TaskProvider with ChangeNotifier {
         'recurringTime': task.recurringTime,
       });
 
+    // 2.3 บันทึกเอกสารข้อมูลลงสู่ Cloud Firestore แบบ Asynchronous
     await _firestore.collection('tasks').doc(task.id).set(taskData);
-    await _notifyGroupTaskCreated(task);
+    await _notifyGroupTaskCreated(task); // ส่งการแจ้งเตือนกรณีเป็นงานกลุ่ม
   }
 
   DateTime? _recurringDateTimeFor(Task task, [DateTime? fromDate]) {
@@ -2615,13 +2648,20 @@ class TaskProvider with ChangeNotifier {
     });
   }
 
+  // =========================================================================
+  // 3.4.5 (2.3) การลบไฟล์แนบของภาระงานบน Firebase Storage อย่างถาวร
+  // =========================================================================
+  /// ลบไฟล์แนบทั้งหมดที่เกี่ยวข้องกับงาน (ทั้งไฟล์แนบหลักและไฟล์แนบในความคิดเห็น)
+  /// ออกจาก Firebase Storage เพื่อประหยัดพื้นที่จัดเก็บและป้องกันไฟล์ขยะตกค้าง
   Future<void> _deleteTaskFilesFromStorage(Task task) async {
     final urls = <String>{};
+    // รวบรวม URL ไฟล์แนบหลักของงาน
     for (final a in task.attachments) {
       if (a.fileUrl.isNotEmpty && a.fileUrl.startsWith('http')) {
         urls.add(a.fileUrl);
       }
     }
+    // รวบรวม URL ไฟล์แนบที่อยู่ในความคิดเห็น (Comments) ทั้งหมด
     for (final comment in task.comments) {
       for (final a in comment.attachments) {
         if (a.fileUrl.isNotEmpty && a.fileUrl.startsWith('http')) {
@@ -2629,6 +2669,7 @@ class TaskProvider with ChangeNotifier {
         }
       }
     }
+    // ดำเนินการลบไฟล์ทีละไฟล์ออกจาก Firebase Storage ตาม URL ที่อ้างอิง
     for (final url in urls) {
       try {
         final ref = firebase_storage.FirebaseStorage.instance.refFromURL(url);
@@ -3241,6 +3282,11 @@ class TaskProvider with ChangeNotifier {
     }, SetOptions(merge: true));
   }
 
+  // =========================================================================
+  // 3.4.5 (2.2) การกู้คืนงานจากถังขยะกลับสู่หน้าหลัก (Restore Tasks Mechanism)
+  // =========================================================================
+  /// กู้คืนภาระงานที่ถูกลบชั่วคราวให้กลับมาแสดงผลบนหน้ารายการงานปกติ
+  /// โดยรีเซ็ตสถานะ isDeleted เป็น false และลบฟิลด์ deletedAt/expireAt ออกจากเอกสาร
   Future<void> restoreTasks(List<String> taskIds) async {
     if (taskIds.isEmpty) return;
 
@@ -3248,6 +3294,7 @@ class TaskProvider with ChangeNotifier {
     final restoredTasks = <Task>[];
     final locallyRestoredGroupTaskIds = <String>{};
 
+    // 1. วนลูปปรับปรุงสถานะงานในหน่วยความจำเครื่อง (Local State)
     for (final id in taskIds) {
       final index = _tasks.indexWhere((t) => t.id == id);
       if (index != -1) {
@@ -3263,6 +3310,7 @@ class TaskProvider with ChangeNotifier {
             task.deletedForUserIds.contains(currentUserId);
 
         if (isLocallyDeletedGroupTask) {
+          // กรณีกู้คืนงานกลุ่มเฉพาะผู้ใช้ที่เคยกดลบไว้
           final updatedTask = task.copyWith(
             deletedForUserIds: task.deletedForUserIds
                 .where((userId) => userId != currentUserId)
@@ -3278,6 +3326,7 @@ class TaskProvider with ChangeNotifier {
           continue;
         }
 
+        // กรณีกู้คืนงานส่วนบุคคล: ปรับ isDeleted เป็น false และล้างเวลาลบ/หมดอายุ
         final updatedTask = task.copyWith(
           isDeleted: false,
           clearDeletedAt: true,
@@ -3295,6 +3344,7 @@ class TaskProvider with ChangeNotifier {
     _calculateInitialXP();
     notifyListeners();
 
+    // 2. ส่งคำสั่งบันทึกการกู้คืนไปยัง Cloud Firestore ผ่าน Batch Write
     final batch = _firestore.batch();
     for (final task in restoredTasks) {
       if (locallyRestoredGroupTaskIds.contains(task.id) &&
@@ -3304,6 +3354,7 @@ class TaskProvider with ChangeNotifier {
           'hiddenForUserIds': FieldValue.arrayRemove([currentUserId]),
         }, SetOptions(merge: true));
       } else {
+        // ใช้ FieldValue.delete() เพื่อลบฟิลด์ deletedAt และ expireAt ออกจากฐานข้อมูล
         batch.set(_firestore.collection('tasks').doc(task.id), {
           'isDeleted': false,
           'deletedAt': FieldValue.delete(),
@@ -3421,6 +3472,11 @@ class TaskProvider with ChangeNotifier {
     await batch.commit();
   }
 
+  // =========================================================================
+  // 3.4.5 (2.3) การลบภาระงานและไฟล์แนบอย่างถาวร (Permanent Delete)
+  // =========================================================================
+  /// ลบภาระงานออกจากระบบอย่างถาวร (Hard Delete) ไม่สามารถกู้คืนได้
+  /// พร้อมทั้งเรียกฟังก์ชันลบไฟล์แนบที่เกี่ยวข้องออกจาก Firebase Storage
   Future<void> permanentlyDeleteTask(String taskId) async {
     Task? task;
     final index = _tasks.indexWhere((t) => t.id == taskId);
@@ -3438,6 +3494,7 @@ class TaskProvider with ChangeNotifier {
     }
 
     final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
+    // กรณีงานกลุ่ม: หากไม่ใช่การลบทั้งโครงการ ให้ซ่อนเฉพาะผู้ใช้ที่เลือกลบ
     if (task?.isGroup == true && currentUserId != null) {
       _tasks.removeWhere((t) => t.id == taskId);
       _calculateInitialXP();
@@ -3450,13 +3507,17 @@ class TaskProvider with ChangeNotifier {
       return;
     }
 
+    // 1. ดำเนินการลบไฟล์แนบทั้งหมดของงานออกจาก Firebase Storage
     if (task != null) {
       await _deleteTaskFilesFromStorage(task);
     }
 
+    // 2. ลบข้อมูลงานออกจาก Local State และอัปเดต UI ทันที
     _tasks.removeWhere((t) => t.id == taskId);
     _calculateInitialXP();
     notifyListeners();
+
+    // 3. ส่งคำสั่งลบเอกสารภาระงานออกจาก Cloud Firestore อย่างถาวร
     await _firestore.collection('tasks').doc(taskId).delete();
   }
 
@@ -3497,24 +3558,26 @@ class TaskProvider with ChangeNotifier {
     await batch.commit();
   }
 
+  // =========================================================================
+  // 3.4.5 (2.1) การย้ายงานลงถังขยะ (Soft Delete) และการกำหนดนโยบาย TTL 30 วัน
+  // =========================================================================
+  /// ย้ายภาระงานลงถังขยะแบบ Soft Delete พร้อมกำหนดระยะเวลาล้างข้อมูลอัตโนมัติ (TTL 30 วัน)
+  /// และรองรับการลบงานแบบวนซ้ำ (Recurring Tasks) ทั้งซีรีส์ที่ยังไม่เสร็จ
   Future<void> deleteTasks(List<String> taskIds) async {
     final currentUserId = _currentUserId ?? _auth.currentUser?.uid;
     final localGroupTaskIds = <String>{};
     final globalTaskIds = <String>{};
     final globalGroupTaskIds = <String>{};
 
-    // สร้างเซ็ตเริ่มต้นจากรหัสงานที่ถูกส่งมาลบ
+    // 1. สร้างเซ็ตเริ่มต้นจากรหัสงาน และค้นหาซีรีส์งานทำซ้ำ (Recurring Series) ทั้งหมดที่ยังไม่เสร็จ
     final expandedTaskIds = <String>{...taskIds};
 
-    // ทำการตรวจสอบงานแต่ละตัวในรายการที่จะลบ
     for (final id in taskIds) {
       final index = _tasks.indexWhere((t) => t.id == id);
       if (index != -1) {
         final task = _tasks[index];
-        // หากงานที่จะลบเป็นงานแบบ "ทำซ้ำ (Recurring)"
+        // หากงานที่จะลบเป็นงานแบบทำซ้ำ (Recurring) ให้ค้นหางานล่วงหน้าในซีรีส์เดียวกันมาลบด้วย
         if (task.isRecurring) {
-          // จะทำการค้นหางานอื่นๆ ทั้งหมดที่อยู่ใน "ซีรีส์เดียวกัน" และ "ยังไม่เสร็จ (Pending)"
-          // โดยอิงจากชื่อ, ผู้สร้าง, และประเภทการทำซ้ำ
           final cleanTaskTitle = task.title.trim().toLowerCase();
           final taskProjectId = task.projectId ?? '';
           final recurringClones = _tasks.where(
@@ -3526,8 +3589,6 @@ class TaskProvider with ChangeNotifier {
                 !t.isCompleted,
           );
 
-          // นำรหัสงานที่หาเจอทั้งหมด เพิ่มเข้าไปในคิวที่จะทำการลบพร้อมกัน
-          // เพื่อให้งานล่วงหน้าในหน้า "ภารกิจเร็วๆ นี้" ถูกลบออกไปทั้งหมด
           for (final clone in recurringClones) {
             expandedTaskIds.add(clone.id);
           }
@@ -3535,6 +3596,7 @@ class TaskProvider with ChangeNotifier {
       }
     }
 
+    // 2. คำนวณเวลาปัจจุบันและกำหนดวันหมดอายุถาวรล่วงหน้า 30 วัน (TTL Policy)
     final now = DateTime.now();
     final expireAt = now.add(const Duration(days: 30));
     for (final id in expandedTaskIds) {
@@ -3557,6 +3619,7 @@ class TaskProvider with ChangeNotifier {
           if (task.isGroup) {
             globalGroupTaskIds.add(id);
           }
+          // ปรับแฟล็ก isDeleted เป็น true และตั้งค่า expireAt สำหรับงานส่วนบุคคล
           _tasks[index] = task.copyWith(
             isDeleted: true,
             deletedAt: now,
@@ -3568,6 +3631,7 @@ class TaskProvider with ChangeNotifier {
     _calculateInitialXP();
     notifyListeners();
 
+    // 3. บันทึกการเปลี่ยนแปลงสถานะลง Cloud Firestore พร้อมกันด้วย Batch Write
     final batch = _firestore.batch();
     for (final id in localGroupTaskIds) {
       batch.set(_firestore.collection('tasks').doc(id), {
@@ -3587,6 +3651,9 @@ class TaskProvider with ChangeNotifier {
     await batch.commit();
   }
 
+  // =========================================================================
+  // 3.4.4 (2.1) การเปลี่ยนสถานะงานเสร็จสิ้นและตรวจสอบเงื่อนไขการรับรางวัล XP
+  // =========================================================================
   Future<CompletionRewardResult> toggleTaskCompletion(
     String taskId, {
     bool? forceStatus,
@@ -3649,6 +3716,8 @@ class TaskProvider with ChangeNotifier {
       clearCompletionAgeSeconds: newStatus != TaskStatus.completed,
     );
     var result = CompletionRewardResult.awarded;
+
+    // 1. ตรวจสอบเงื่อนไข Anti-Farming (เสร็จเร็วกว่า 5 นาที หรือกดรัวเกิน 4 งานใน 1 นาที)
     final isBlockedByAge =
         isNowCompleted &&
         isCompletionRewardBlockedByAge(
@@ -3674,6 +3743,7 @@ class TaskProvider with ChangeNotifier {
       final userId = currentUserId;
       if (userId != null) {
         if (!wasCompleted && isNowCompleted && blocksReward) {
+          // กรณีตรวจพบ Anti-Farming: บันทึกสถานะงานเสร็จ แต่ระงับการแจกแต้ม XP (rewardBlocked = true)
           updatedTask = _applyFastCompletionRewardBlock(
             updatedTask,
             completedAt: completedAt,
@@ -3685,6 +3755,7 @@ class TaskProvider with ChangeNotifier {
               .doc(taskId)
               .set(updatedTask.toMap(), SetOptions(merge: true));
         } else if (!wasCompleted && isNowCompleted) {
+          // กรณีปกติ: ได้รับแต้ม XP ตามเกณฑ์ พร้อมคำนวณเลเวลผ่าน Firestore Transaction
           updatedTask = _clearRewardBlock(updatedTask);
           updatedTask = await _completePersonalTaskWithReward(
             userId,

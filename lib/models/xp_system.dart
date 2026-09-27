@@ -73,16 +73,22 @@ LevelProgress calculateLevelProgress(int totalXP) {
   );
 }
 
+// =========================================================================
+// 3.4.4 (2.2) การคำนวณคะแนน XP รวม และโบนัสเมื่อเลเวลอัป (+50 XP ต่อระดับ)
+// =========================================================================
+/// คำนวณคะแนน XP สุทธิพร้อมโบนัสการเลื่อนระดับเลเวล (Level Up Bonus)
+/// โดยมอบโบนัสพิเศษ +50 XP สำหรับทุกๆ เลเวลที่เพิ่มขึ้น (จนถึงเลเวลสูงสุดที่กำหนด)
 int calculateFinalXpWithLevelBonus(int currentXP, int xpDelta) {
+  // 1. คำนวณค่า XP เบื้องต้น และตรวจสอบระดับเลเวลปัจจุบัน
   int newXP = currentXP + xpDelta;
   int currentCalculatedLevel = calculateLevelProgress(currentXP).currentLevel;
 
+  // 2. วนลูปตรวจสอบว่าคะแนนที่เพิ่มขึ้นทำให้เลเวลอัปหรือไม่ (รองรับการเลื่อนขั้นข้ามระดับ)
   while (true) {
     int nextLevel = calculateLevelProgress(newXP).currentLevel;
     if (nextLevel == currentCalculatedLevel) break;
 
-    // Only award bonus if the new level is less than or equal to maxLevel
-    // User said: "พอถึงเลเวล 25 แล้วไม่ต้องมีให้ คะแนน +50 อีก"
+    // มอบโบนัส +50 XP ต่อแต่ละระดับที่เพิ่มขึ้น (เฉพาะระดับที่ไม่เกิน Max Level)
     for (int l = currentCalculatedLevel + 1; l <= nextLevel; l++) {
       if (l < AppConstants.maxLevel) {
         newXP += 50;
@@ -92,6 +98,7 @@ int calculateFinalXpWithLevelBonus(int currentXP, int xpDelta) {
     currentCalculatedLevel = nextLevel;
   }
 
+  // 3. ควบคุมเพดานคะแนนสูงสุด (Cap Max XP) และป้องกันไม่ให้คะแนนติดลบ
   if (newXP > AppConstants.maxXp) {
     newXP = AppConstants.maxXp;
   }

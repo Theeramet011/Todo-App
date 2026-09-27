@@ -201,6 +201,11 @@ AchievementEvaluation evaluateAchievements(User user) {
   );
 }
 
+// =========================================================================
+// 3.4.4 (2.2) การตรวจสอบและปลดล็อกตราความสำเร็จ (Achievements Verification)
+// =========================================================================
+/// ตรวจสอบเงื่อนไขตราความสำเร็จทั้งหมด และรวมรายการ ID ตราความสำเร็จที่ปลดล็อกแล้ว
+/// โดยเปรียบเทียบสถิติงานที่สำเร็จ (tasksCompleted), เลเวล, และสตรีค กับเกณฑ์เป้าหมาย
 List<String> mergedUnlockedAchievementIds({
   required Iterable<String> existingIds,
   required int tasksCompleted,
@@ -210,9 +215,13 @@ List<String> mergedUnlockedAchievementIds({
   required int leaderGroupTasksCompleted,
   required int currentLevel,
 }) {
+  // นำรหัสตราความสำเร็จเดิมมาแปลงเป็น Set เพื่อป้องกันการบันทึก ID ซ้ำซ้อน
   final unlockedIds = existingIds.toSet();
+
+  // วนลูปตรวจสอบเกณฑ์เป้าหมายของตราความสำเร็จแต่ละรายการที่มีในระบบ
   for (final achievement in availableAchievements) {
     if (achievement.type == 'level') {
+      // กรณีตราความสำเร็จประเภทระดับเลเวล (Level Milestone)
       if (currentLevel >= achievement.targetValue) {
         unlockedIds.add(achievement.id);
       }
@@ -225,6 +234,7 @@ List<String> mergedUnlockedAchievementIds({
           leaderGroupTasksCompleted: leaderGroupTasksCompleted,
         ) >=
         achievement.targetValue) {
+      // กรณีตราความสำเร็จประเภทสถิติจำนวนงานที่ทำสำเร็จ หรือการรักษาความต่อเนื่อง (Streak)
       unlockedIds.add(achievement.id);
     }
   }

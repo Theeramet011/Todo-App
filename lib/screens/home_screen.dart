@@ -2898,6 +2898,9 @@ class _CompletingTaskListItemState extends State<_CompletingTaskListItem> {
   }
 }
 
+// =========================================================================
+// 3.4.3 (2.3) โค้ดคอมโพเนนต์การ์ดแสดงผลภาระงานส่วนบุคคลและงานย่อย (_TodayTaskCard)
+// =========================================================================
 class _TodayTaskCard extends StatelessWidget {
   final Task task;
   final void Function(Task, {Future<CompletionRewardResult?>? pendingResult})
@@ -3068,6 +3071,7 @@ class _TodayTaskCard extends StatelessWidget {
                 : theme.cardColor,
             borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
             border: Border.all(
+              // ปรับเส้นขอบเป็นสีแดงเตือนสายตาเมื่องานเลยกำหนดส่ง (isOverdue)
               color: isOverdue
                   ? Colors.redAccent
                   : theme.colorScheme.onSurface.withValues(alpha: 0.08),
@@ -3087,6 +3091,7 @@ class _TodayTaskCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // แสดง Checkbox เฉพาะกรณีที่ไม่มีภารกิจย่อย (หากมีงานย่อยให้เช็กผ่านงานย่อยแทน)
                   if (task.subtasks.isEmpty) ...[
                     _TodayCompletionCheckbox(
                       task: task,
@@ -3111,6 +3116,7 @@ class _TodayTaskCard extends StatelessWidget {
                                   )
                                 : theme.colorScheme.onSurface,
                             fontWeight: FontWeight.bold,
+                            // ขีดฆ่าข้อความอัตโนมัติเมื่องานเสร็จสิ้น (TextDecoration.lineThrough)
                             decoration: isCompleted
                                 ? TextDecoration.lineThrough
                                 : null,
