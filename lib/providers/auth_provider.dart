@@ -569,12 +569,16 @@ bool get _supportsFirebaseMessaging {
   }
 }
 
+// =========================================================================
+// 3.6.5.1 โค้ดการประมวลผลสถิติการใช้งานต่อเนื่องใน auth_provider.dart
+// =========================================================================
 Map<String, dynamic>? calculateStreakUpdate({
   required Map<String, dynamic>? data,
   required String todayString,
   required String yesterdayString,
 }) {
   final lastLoginDate = data?['lastLoginDate'];
+  // 1. หากเข้าสู่ระบบในวันเดิมแล้ว จะไม่มีการคำนวณซ้ำ
   if (lastLoginDate == todayString) return null;
 
   final legacyStreak = _readInt(data?['streak']);
@@ -587,9 +591,12 @@ Map<String, dynamic>? calculateStreakUpdate({
     fallback: currentStreak,
   );
 
+  // 2. หากเข้าสู่ระบบต่อเนื่องจากเมื่อวาน ให้เพิ่ม Streak +1 หากขาดช่วงให้รีเซ็ตเป็น 1
   final nextCurrentStreak = lastLoginDate == yesterdayString
       ? currentStreak + 1
       : 1;
+
+  // 3. ปรับปรุงสถิติสตรีคสูงสุด (Longest Streak)
   final nextLongestStreak = nextCurrentStreak > longestStreak
       ? nextCurrentStreak
       : longestStreak;
@@ -600,6 +607,7 @@ Map<String, dynamic>? calculateStreakUpdate({
     'longestStreak': nextLongestStreak,
   };
 }
+// --- [สิ้นสุดโค้ด: 3.6.5.1 การประมวลผลสถิติการใช้งานต่อเนื่อง] ---
 
 int _readInt(dynamic value, {int fallback = 0}) {
   if (value is int) return value;

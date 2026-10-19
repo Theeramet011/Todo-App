@@ -2167,6 +2167,9 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
       orElse: () => task,
     );
 
+    // =========================================================================
+    // 3.4.3.1 ตรรกะการตรวจสอบภารกิจย่อยก่อนทำเครื่องหมายเสร็จสิ้น (Subtasks Validation)
+    // =========================================================================
     if (nextState) {
       if (pendingResult == null &&
           latestTask.subtasks.isNotEmpty &&
@@ -2219,6 +2222,7 @@ class _PersonalTasksListState extends State<_PersonalTasksList> {
         );
         return;
       }
+      // --- [สิ้นสุดโค้ด: ตรรกะการตรวจสอบภารกิจย่อยก่อนทำเครื่องหมายเสร็จสิ้น] ---
 
       final shouldProceed = await LatePenaltyDialog.checkAndShow(context, task);
       if (!shouldProceed) return;
@@ -2899,7 +2903,7 @@ class _CompletingTaskListItemState extends State<_CompletingTaskListItem> {
 }
 
 // =========================================================================
-// 3.4.3 (2.3) โค้ดคอมโพเนนต์การ์ดแสดงผลภาระงานส่วนบุคคลและงานย่อย (_TodayTaskCard)
+// 3.4.3 (2.3) [ส่วนที่ 1] โครงสร้างคลาสและการรับพารามิเตอร์การ์ดภาระงาน (_TodayTaskCard)
 // =========================================================================
 class _TodayTaskCard extends StatelessWidget {
   final Task task;
@@ -2914,6 +2918,7 @@ class _TodayTaskCard extends StatelessWidget {
     required this.isCompleted,
     this.isOverdue = false,
   });
+  // --- [สิ้นสุดโค้ดสำหรับแคปภาพ: 3.4.3 (2.3) ส่วนที่ 1 โครงสร้างคลาสและการรับพารามิเตอร์] ---
 
   Future<void> _openEditTaskModal(BuildContext context, Task task) async {
     await showModalBottomSheet<Task>(
@@ -3065,6 +3070,9 @@ class _TodayTaskCard extends StatelessWidget {
           padding: EdgeInsets.all(
             isTablet ? 20.0 : AppConstants.paddingMedium,
           ),
+          // =========================================================================
+          // เลย์เอาต์การ์ด: เส้นขอบเตือนค้างส่ง, Checkbox เงื่อนไข, และชื่องานขีดฆ่า
+          // =========================================================================
           decoration: BoxDecoration(
             color: theme.brightness == Brightness.dark
                 ? AppColors.stormyDarkSlate
@@ -3122,6 +3130,7 @@ class _TodayTaskCard extends StatelessWidget {
                                 : null,
                           ),
                         ),
+                        // --- [สิ้นสุดโค้ดสำหรับแคปภาพ: 3.4.3 (2.3) ส่วนที่ 2 การเรนเดอร์เลย์เอาต์การ์ดและชื่องาน] ---
                         if (task.description.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -3236,6 +3245,9 @@ class _TodayTaskCard extends StatelessWidget {
                   ),
                 ],
               ),
+              // =========================================================================
+              // การเรนเดอร์รายการภารกิจย่อยและแถบหลอดพลังความคืบหน้า
+              // =========================================================================
               if (task.subtasks.isNotEmpty) ...[
                 const SizedBox(height: AppConstants.paddingMedium),
                 Padding(
@@ -3274,6 +3286,7 @@ class _TodayTaskCard extends StatelessWidget {
                   ),
                 ),
               ],
+              // --- [สิ้นสุดโค้ดสำหรับแคปภาพ: 3.4.3 (2.3) ส่วนที่ 3 การเรนเดอร์ภารกิจย่อยและแถบหลอดพลังความคืบหน้า] ---
               const SizedBox(height: AppConstants.paddingMedium),
               Padding(
                 padding: EdgeInsets.only(

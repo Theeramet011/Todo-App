@@ -106,6 +106,9 @@ class TaskProvider with ChangeNotifier {
     return totalXP;
   }
 
+  // =========================================================================
+  // ฟังก์ชัน _handleGroupTaskCompletionRewards สำหรับมอบโบนัส XP หัวหน้ากลุ่ม (+10 XP)
+  // =========================================================================
   Future<void> _handleGroupTaskCompletionRewards(
     Task task,
     bool isNowCompleted,
@@ -121,10 +124,10 @@ class TaskProvider with ChangeNotifier {
     const int taskCountDelta = 1;
 
     if (!task.assigneeIds.contains(leaderId)) {
-      // Case 1: Management Only (Leader is NOT an assignee)
+      // กรณีที่ 1: หัวหน้าทำหน้าที่บริหารอย่างเดียว (Management Only) ได้รับโบนัส +10 XP
       leaderXPAward = 10;
     } else {
-      // Case 2: Player-Coach (Leader IS an assignee alongside others)
+      // กรณีที่ 2: หัวหน้าร่วมปฏิบัติงานด้วย (Player-Coach) ได้รับ XP ของงาน + โบนัส 10 XP
       final taskXPAward = task.calculateXP;
       leaderXPAward = taskXPAward + 10;
     }
@@ -136,6 +139,7 @@ class TaskProvider with ChangeNotifier {
       leaderGroupTaskDelta: taskCountDelta * multiplier,
     );
   }
+  // --- [สิ้นสุดโค้ด: ฟังก์ชัน _handleGroupTaskCompletionRewards] ---
 
   int _totalXP = 0;
   Task? _selectedTask;
@@ -345,7 +349,7 @@ class TaskProvider with ChangeNotifier {
   List<Task> get pendingTasks => tasks.where((t) => !t.isCompleted).toList();
 
   // =========================================================================
-  // 3.4.3 (2.2) การจัดกลุ่ม คัดกรอง และยุบรวมภาระงานทำซ้ำ (Recurring Tasks)
+  // การจัดกลุ่ม คัดกรอง และยุบรวมภาระงานทำซ้ำ (Recurring Tasks)
   // =========================================================================
   // ฟังก์ชันสร้างคีย์เฉพาะ (Composite Key) สำหรับผูกกลุ่มซีรีส์ของงานทำซ้ำ
   String _taskSeriesKey(Task task) {
@@ -417,6 +421,7 @@ class TaskProvider with ChangeNotifier {
         .toList();
     return _collapseRecurringTasks(rawOverdue, excludeSeriesKeys: todaySeriesKeys);
   }
+  // --- [สิ้นสุดโค้ดสำหรับแคปภาพ: 3.4.3 (2.2) การจัดกลุ่มและยุบรวมงานทำซ้ำ] ---
 
   List<Task> get todayGroupTasks {
     final today = _todayString();
@@ -554,7 +559,7 @@ class TaskProvider with ChangeNotifier {
   }
 
   // =========================================================================
-  // 3.4.3 (2.1) การดักฟังข้อมูลภาระงานของผู้ใช้ปัจจุบันแบบ Real-time จาก Cloud Firestore
+  // การดักฟังข้อมูลภาระงานของผู้ใช้ปัจจุบันแบบ Real-time จาก Cloud Firestore
   // =========================================================================
   void _listenToCurrentUserTasks(String? userId) {
     _taskSubscription?.cancel();
@@ -589,6 +594,7 @@ class TaskProvider with ChangeNotifier {
           _ensureUpcomingRecurringTasks();
         }, onError: (error) => debugPrint('Task stream error: $error'));
   }
+  // --- [สิ้นสุดโค้ดสำหรับแคปภาพ: 3.4.3 (2.1) _listenToCurrentUserTasks] ---
 
   void checkRecurringTasks() {
     _ensureUpcomingRecurringTasks();
@@ -760,6 +766,10 @@ class TaskProvider with ChangeNotifier {
     );
   }
 
+  // =========================================================================
+  // 3.6.1.3 โค้ดการประเมินบทลงโทษการส่งงานล่าช้าและการคำนวณคะแนนสุทธิใน TaskProvider
+  // ฟังก์ชัน _completePersonalTaskWithReward (หัก Late Penalty 12% & คำนวณ Net XP ผ่าน Firestore Transaction)
+  // =========================================================================
   Future<Task> _completePersonalTaskWithReward(
     String userId,
     Task completedTask,
@@ -782,6 +792,7 @@ class TaskProvider with ChangeNotifier {
         completedTaskNumber: nextCompletedToday,
       );
 
+      // 1. ตรรกะประเมินบทลงโทษการส่งงานล่าช้าเกิน 24 ชั่วโมง (Late Penalty 12%)
       final completedAt = completedTask.completedAt ?? DateTime.now();
       final diffHours = completedAt.difference(completedTask.dateTime).inHours;
       if (diffHours >= 24) {
@@ -789,6 +800,8 @@ class TaskProvider with ChangeNotifier {
         awardedXP -= penalty;
         if (awardedXP < 0) awardedXP = 0;
       }
+
+      // 2. คำนวณคะแนนสุทธิ (Net XP) พร้อมโบนัสเลเวลอัป (+50 XP ต่อเลเวล)
       final currentXP = _readInt(data?['totalXP']);
       final currentTasksCompleted = _readInt(data?['tasksCompleted']);
       final newXP = calculateFinalXpWithLevelBonus(currentXP, awardedXP);
@@ -796,6 +809,7 @@ class TaskProvider with ChangeNotifier {
       final newLevel = calculateLevelProgress(newXP).currentLevel;
       taskWithAward = completedTask.copyWith(awardedXP: awardedXP);
 
+      // 3. บันทึกผลรวม XP, เลเวล และความสำเร็จ (Achievements) ลง Cloud Firestore แบบ Atomic
       transaction.set(userRef, {
         'totalXP': newXP,
         'tasksCompleted': currentTasksCompleted + 1,
@@ -825,12 +839,11 @@ class TaskProvider with ChangeNotifier {
     });
     return taskWithAward;
   }
+  // --- [สิ้นสุดโค้ด: การประเมินบทลงโทษการส่งงานล่าช้าและการคำนวณคะแนนสุทธิ] ---
 
   // =========================================================================
-  // 3.4.4 (2.3) การยกเลิกสถานะเสร็จสิ้นและคืนค่าคะแนน (Undo Reward Mechanism) ด้วย Transaction
+  // 3.4.3.3 ฟังก์ชัน _undoPersonalTaskReward และการย้อนคืนค่า XP ใน task_provider.dart
   // =========================================================================
-  /// หักคะแนน XP และลดสถิติจำนวนงานที่ทำสำเร็จคืนสภาพเดิมเมื่อผู้ใช้กดยกเลิก (Undo)
-  /// โดยประมวลผลผ่าน Firestore Transaction เพื่อรักษาความถูกต้องของข้อมูล (Data Consistency)
   Future<Task> _undoPersonalTaskReward(
     String userId,
     Task revertedTask,
@@ -883,6 +896,7 @@ class TaskProvider with ChangeNotifier {
     });
     return taskWithoutAward;
   }
+  // --- [สิ้นสุดโค้ด: ฟังก์ชัน _undoPersonalTaskReward] ---
 
   bool isLeaderForTask(Task task, String? userId) {
     if (userId == null) return false;
@@ -1879,8 +1893,7 @@ class TaskProvider with ChangeNotifier {
   }
 
   // =========================================================================
-  // 2. ส่วนการจัดการสถานะและบันทึกลงฐานข้อมูล (State & Database Layer)
-  // ฟังก์ชันเพิ่มภาระงานใหม่ลงในหน่วยความจำและซิงโครไนซ์ไปยัง Cloud Firestore
+  // 3.5.1.2 โค้ดเมธอด addTask สำหรับบันทึกภาระงานลงใน Cloud Firestore
   // =========================================================================
   Future<void> addTask(Task task) async {
     // 2.1 อัปเดตสถานะภายในแอปพลิเคชัน (Optimistic UI Update)
@@ -1910,6 +1923,7 @@ class TaskProvider with ChangeNotifier {
     await _firestore.collection('tasks').doc(task.id).set(taskData);
     await _notifyGroupTaskCreated(task); // ส่งการแจ้งเตือนกรณีเป็นงานกลุ่ม
   }
+  // --- [สิ้นสุดโค้ด: เมธอด addTask] ---
 
   DateTime? _recurringDateTimeFor(Task task, [DateTime? fromDate]) {
     if (!task.isRecurring) return null;
@@ -2312,12 +2326,33 @@ class TaskProvider with ChangeNotifier {
         tasksInSeries.sort((a, b) => b.dateTime.compareTo(a.dateTime));
         final mostRecent = tasksInSeries.first;
 
+        final cleanTitle = mostRecent.title.trim().toLowerCase();
+        final projectId = mostRecent.projectId ?? '';
+
+        // ความปลอดภัยชั้นที่ 2:
+        // 1. ตรวจสอบว่าซีรีส์นี้มีงานที่ถูกผู้ใช้ส่งลงถังขยะหรือไม่
+        // หากผู้ใช้มีงานในซีรีส์นี้ที่ถูกส่งลงถังขยะและไม่มีงาน active เหลืออยู่ ห้ามสร้างงานใหม่ขึ้นมาอีก
+        final hasDeletedInSeries = _tasks.any(
+          (t) =>
+              t.isDeleted &&
+              t.title.trim().toLowerCase() == cleanTitle &&
+              t.creatorId == mostRecent.creatorId &&
+              (t.projectId ?? '') == projectId,
+        );
+        if (hasDeletedInSeries) {
+          continue;
+        }
+
+        // 2. หากงานในซีรีส์ทั้งหมดเป็นงานที่ทำเสร็จไปแล้ว (Completed) และไม่มีงานที่ยังค้างอยู่เลย
+        // ไม่ต้องสปอว์นงานใหม่ล่วงหน้าเอง
+        final hasAnyPendingInSeries = tasksInSeries.any((t) => !t.isCompleted && !t.isDeleted);
+        if (!hasAnyPendingInSeries) {
+          continue;
+        }
+
         final upcomingDate = _nextUpcomingRecurringDateTime(mostRecent) ??
             _recurringDateTimeFor(mostRecent);
         if (upcomingDate == null) continue;
-
-        final cleanTitle = mostRecent.title.trim().toLowerCase();
-        final projectId = mostRecent.projectId ?? '';
 
         final hasExisting = _tasks.any(
           (t) =>
@@ -2547,6 +2582,10 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
+  // =========================================================================
+  // 3.5.3 โค้ดส่วนการทำงานของฟังก์ชันส่งงาน (Implementation Code) ใน task_provider.dart
+  // การทำงานของฟังก์ชัน submitTaskForReview ในคลาส TaskProvider
+  // =========================================================================
   Future<void> submitTaskForReview(String taskId, String submissionText) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) return;
@@ -2578,6 +2617,7 @@ class TaskProvider with ChangeNotifier {
         .set(updatedTask.toMap(), SetOptions(merge: true));
     await _notifyTaskSubmitted(updatedTask, currentUserId);
   }
+  // --- [สิ้นสุดโค้ด: ฟังก์ชัน submitTaskForReview] ---
 
   Future<void> cancelTaskSubmission(String taskId) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
@@ -2679,7 +2719,12 @@ class TaskProvider with ChangeNotifier {
       }
     }
   }
+  // --- [สิ้นสุดโค้ดสำหรับแคปภาพ: 3.4.5 (2.3) ฟังก์ชัน _deleteTaskFilesFromStorage] ---
 
+  // =========================================================================
+  // 3.5.4 โค้ดฟังก์ชัน approveTaskSubmission สำหรับอนุมัติผลงานใน TaskProvider
+  // ตรรกะการแจก XP พร้อมหัก Late Penalty 12% การมอบโบนัสหัวหน้า +10 XP และการอัปเดตสถานะ completed
+  // =========================================================================
   Future<void> approveTaskSubmission(String taskId) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) return;
@@ -2711,7 +2756,7 @@ class TaskProvider with ChangeNotifier {
     final leaderId = task.isGroup ? leaderIdForTask(task) : '';
     final isLeaderSubmitter = task.isGroup && submitterId == leaderId;
     if (submitterId != null && submitterId.isNotEmpty && !wasCompleted) {
-      // Find the member's score
+      // ค้นหาคะแนน XP ตามระดับภาระงานที่สมาชิกได้รับมอบหมาย
       int xpAward = task.calculateXP;
       try {
         final member = task.members.firstWhere((m) => m.id == submitterId);
@@ -2722,6 +2767,7 @@ class TaskProvider with ChangeNotifier {
         // Fallback
       }
 
+      // 1. ตรรกะหักคะแนนส่งงานล่าช้าเกิน 24 ชั่วโมง (Late Penalty 12%)
       if (task.submittedAt != null) {
         final diffHours = task.submittedAt!.difference(task.dateTime).inHours;
         if (diffHours >= 24) {
@@ -2739,6 +2785,7 @@ class TaskProvider with ChangeNotifier {
       );
     }
 
+    // 2. มอบโบนัส XP ให้แก่หัวหน้ากลุ่ม (+10 XP) เมื่องานกลุ่มเสร็จสมบูรณ์
     if (task.isGroup && !wasCompleted) {
       await _handleGroupTaskCompletionRewards(task, true);
     }
@@ -2761,7 +2808,11 @@ class TaskProvider with ChangeNotifier {
       await _cloneRecurringTaskAfterCompletion(task);
     }
   }
+  // --- [สิ้นสุดโค้ด: ฟังก์ชัน approveTaskSubmission] ---
 
+  // =========================================================================
+  // 3.5.5 โค้ดฟังก์ชัน rejectTaskSubmission สำหรับปฏิเสธผลงานและล้างไฟล์ใน TaskProvider
+  // =========================================================================
   Future<void> rejectTaskSubmission(String taskId) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) return;
@@ -2777,7 +2828,7 @@ class TaskProvider with ChangeNotifier {
     }
     final wasCompleted = task.isCompleted;
 
-    // Delete uploaded files from Storage to free up space
+    // 1. ลบไฟล์แนบผลงานออกจาก Firebase Storage เพื่อคืนพื้นที่จัดเก็บ
     for (final attachment in task.attachments) {
       try {
         final ref = firebase_storage.FirebaseStorage.instance.refFromURL(
@@ -2793,6 +2844,7 @@ class TaskProvider with ChangeNotifier {
     final leaderId = task.isGroup ? leaderIdForTask(task) : '';
     final isLeaderSubmitter = task.isGroup && submitterId == leaderId;
 
+    // 2. ปรับสถานะงานกลับเป็น inProgress และล้างข้อมูลการส่งงาน
     final updatedTask = task.copyWith(
       status: TaskStatus.inProgress,
       clearSubmissionText: true,
@@ -2814,6 +2866,8 @@ class TaskProvider with ChangeNotifier {
     }
     _calculateInitialXP();
     notifyListeners();
+
+    // 3. ย้อนคืน XP หากงานนั้นเคยได้รับอนุมัติเสร็จสิ้นไปแล้ว
     if (submitterId != null && submitterId.isNotEmpty && wasCompleted) {
       int xpAward = task.calculateXP;
       try {
@@ -2837,6 +2891,7 @@ class TaskProvider with ChangeNotifier {
       await _handleGroupTaskCompletionRewards(task, false);
     }
 
+    // 4. ซิงโครไนซ์การล้างข้อมูลส่งงานและสถานะ inProgress ลง Cloud Firestore
     final rejectUpdateData = <String, dynamic>{
       'status': TaskStatus.inProgress.name,
       'submissionText': FieldValue.delete(),
@@ -2856,6 +2911,8 @@ class TaskProvider with ChangeNotifier {
       }
     }
     await _firestore.collection('tasks').doc(taskId).update(rejectUpdateData);
+
+    // 5. ส่ง Push Notification แจ้งเตือนไปยังสมาชิกว่าผลงานถูกปฏิเสธ
     if (submitterId != null && submitterId.isNotEmpty && leaderId.isNotEmpty) {
       await _notifyTaskReviewDecision(
         task,
@@ -2865,6 +2922,7 @@ class TaskProvider with ChangeNotifier {
       );
     }
   }
+  // --- [สิ้นสุดโค้ด: ฟังก์ชัน rejectTaskSubmission] ---
 
   Future<void> submitMemberTaskForReview(
     String taskId,
@@ -3283,10 +3341,8 @@ class TaskProvider with ChangeNotifier {
   }
 
   // =========================================================================
-  // 3.4.5 (2.2) การกู้คืนงานจากถังขยะกลับสู่หน้าหลัก (Restore Tasks Mechanism)
+  // 3.4.4.3 ฟังก์ชัน restoreTasks สำหรับกู้คืนภาระงานใน task_provider.dart
   // =========================================================================
-  /// กู้คืนภาระงานที่ถูกลบชั่วคราวให้กลับมาแสดงผลบนหน้ารายการงานปกติ
-  /// โดยรีเซ็ตสถานะ isDeleted เป็น false และลบฟิลด์ deletedAt/expireAt ออกจากเอกสาร
   Future<void> restoreTasks(List<String> taskIds) async {
     if (taskIds.isEmpty) return;
 
@@ -3365,6 +3421,7 @@ class TaskProvider with ChangeNotifier {
 
     await batch.commit();
   }
+  // --- [สิ้นสุดโค้ด: ฟังก์ชัน restoreTasks] ---
 
   Future<void> restoreCompletedTasks(List<String> taskIds) async {
     if (taskIds.isEmpty) return;
@@ -3520,6 +3577,7 @@ class TaskProvider with ChangeNotifier {
     // 3. ส่งคำสั่งลบเอกสารภาระงานออกจาก Cloud Firestore อย่างถาวร
     await _firestore.collection('tasks').doc(taskId).delete();
   }
+  // --- [สิ้นสุดโค้ดสำหรับแคปภาพ: 3.4.5 (2.3) ฟังก์ชัน permanentlyDeleteTask] ---
 
   Future<void> permanentlyDeleteTasks(List<String> taskIds) async {
     for (final id in taskIds) {
@@ -3559,7 +3617,7 @@ class TaskProvider with ChangeNotifier {
   }
 
   // =========================================================================
-  // 3.4.5 (2.1) การย้ายงานลงถังขยะ (Soft Delete) และการกำหนดนโยบาย TTL 30 วัน
+  // 3.4.4.2 ฟังก์ชัน deleteTasks สำหรับย้ายภาระงานลงถังขยะใน task_provider.dart
   // =========================================================================
   /// ย้ายภาระงานลงถังขยะแบบ Soft Delete พร้อมกำหนดระยะเวลาล้างข้อมูลอัตโนมัติ (TTL 30 วัน)
   /// และรองรับการลบงานแบบวนซ้ำ (Recurring Tasks) ทั้งซีรีส์ที่ยังไม่เสร็จ
@@ -3650,6 +3708,7 @@ class TaskProvider with ChangeNotifier {
     }
     await batch.commit();
   }
+  // --- [สิ้นสุดโค้ด: ฟังก์ชัน deleteTasks] ---
 
   // =========================================================================
   // 3.4.4 (2.1) การเปลี่ยนสถานะงานเสร็จสิ้นและตรวจสอบเงื่อนไขการรับรางวัล XP
@@ -3717,6 +3776,9 @@ class TaskProvider with ChangeNotifier {
     );
     var result = CompletionRewardResult.awarded;
 
+    // =========================================================================
+    // 3.6.2.2 โค้ดกลไกการตรวจจับ Anti-Farming และ Burst Completion Allowance ใน task_provider.dart
+    // =========================================================================
     // 1. ตรวจสอบเงื่อนไข Anti-Farming (เสร็จเร็วกว่า 5 นาที หรือกดรัวเกิน 4 งานใน 1 นาที)
     final isBlockedByAge =
         isNowCompleted &&
@@ -3761,7 +3823,9 @@ class TaskProvider with ChangeNotifier {
             userId,
             updatedTask,
           );
-        } else if (wasCompleted && !isNowCompleted) {
+        }
+        // --- [สิ้นสุดโค้ด: 3.6.2.2 กลไกการตรวจจับ Anti-Farming และ Burst Completion Allowance] ---
+        else if (wasCompleted && !isNowCompleted) {
           updatedTask = await _undoPersonalTaskReward(
             userId,
             updatedTask,

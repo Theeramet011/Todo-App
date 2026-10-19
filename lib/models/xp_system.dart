@@ -52,6 +52,9 @@ int getXpRequiredForNextLevel(int currentLevel) {
   return 500;
 }
 
+// =========================================================================
+// 3.6.3.6 โค้ดการคำนวณระดับเลเวลและโบนัสเลเวลอัปใน xp_system.dart
+// =========================================================================
 LevelProgress calculateLevelProgress(int totalXP) {
   final safeTotalXP = totalXP < 0 ? 0 : totalXP;
   const requiredXp = 500;
@@ -63,7 +66,7 @@ LevelProgress calculateLevelProgress(int totalXP) {
 
   int progressXp = safeTotalXP % requiredXp;
   if (currentLevel == AppConstants.maxLevel) {
-    progressXp = requiredXp; // Or 0, doesn't matter for max level
+    progressXp = requiredXp;
   }
 
   return LevelProgress(
@@ -73,38 +76,33 @@ LevelProgress calculateLevelProgress(int totalXP) {
   );
 }
 
-// =========================================================================
-// 3.4.4 (2.2) การคำนวณคะแนน XP รวม และโบนัสเมื่อเลเวลอัป (+50 XP ต่อระดับ)
-// =========================================================================
-/// คำนวณคะแนน XP สุทธิพร้อมโบนัสการเลื่อนระดับเลเวล (Level Up Bonus)
-/// โดยมอบโบนัสพิเศษ +50 XP สำหรับทุกๆ เลเวลที่เพิ่มขึ้น (จนถึงเลเวลสูงสุดที่กำหนด)
+/// คำนวณคะแนน XP สุทธิพร้อมโบนัสการเลื่อนระดับเลเวล (+50 XP ต่อระดับ)
 int calculateFinalXpWithLevelBonus(int currentXP, int xpDelta) {
   // 1. คำนวณค่า XP เบื้องต้น และตรวจสอบระดับเลเวลปัจจุบัน
   int newXP = currentXP + xpDelta;
   int currentCalculatedLevel = calculateLevelProgress(currentXP).currentLevel;
 
-  // 2. วนลูปตรวจสอบว่าคะแนนที่เพิ่มขึ้นทำให้เลเวลอัปหรือไม่ (รองรับการเลื่อนขั้นข้ามระดับ)
+  // 2. วนลูปตรวจสอบว่าคะแนนที่เพิ่มขึ้นทำให้เลเวลอัปหรือไม่ (มอบโบนัส +50 XP ข้ามระดับ)
   while (true) {
     int nextLevel = calculateLevelProgress(newXP).currentLevel;
     if (nextLevel == currentCalculatedLevel) break;
 
-    // มอบโบนัส +50 XP ต่อแต่ละระดับที่เพิ่มขึ้น (เฉพาะระดับที่ไม่เกิน Max Level)
     for (int l = currentCalculatedLevel + 1; l <= nextLevel; l++) {
       if (l < AppConstants.maxLevel) {
         newXP += 50;
       }
     }
-
     currentCalculatedLevel = nextLevel;
   }
 
-  // 3. ควบคุมเพดานคะแนนสูงสุด (Cap Max XP) และป้องกันไม่ให้คะแนนติดลบ
+  // 3. ควบคุมเพดานคะแนนสูงสุด (Cap Max XP) และป้องกันคะแนนติดลบ
   if (newXP > AppConstants.maxXp) {
     newXP = AppConstants.maxXp;
   }
 
   return newXP < 0 ? 0 : newXP;
 }
+// --- [สิ้นสุดโค้ด: 3.6.3.6 การคำนวณระดับเลเวลและโบนัสเลเวลอัป] ---
 
 List<String> milestoneRewardIdsForLevelUp(int oldLevel, int newLevel) {
   if (newLevel <= oldLevel) return const [];

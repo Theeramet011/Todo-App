@@ -12,16 +12,26 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# Security & Sensitive Keys
+*.jks
+*.keystore
+key.properties
+**/android/key.properties
+**/android/local.properties
+local.properties
+*.pem
+*.p12
+*.key
+*serviceAccount*.json
+*service-account*.json
+.env*
+
+# IntelliJ & VS Code
 *.iml
 *.ipr
 *.iws
 .idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -33,13 +43,38 @@ migrate_working_dir/
 /build/
 /coverage/
 
-# Symbolication related
+# Symbolication & Obfuscation
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Node & Cloud Functions
+node_modules/
+npm-debug.log*
+
+# Thesis Working Drafts & Working Files (Local Only)
+CHAPTER_3_PROGRESS_AUDIT.md
+chapter3_phase2_group_and_gamification.md
+chapter3_remaining_tasks.md
+chapter3_todo_summary.md
+FIRESTORE_OPTIMIZATION_PLAN.md
+notification_system.md
+presentation_script_frontend.md
+sound_feedback_audit.md
+*.drawio
+*.drawio.xml
+screenshotwork/
+scratch/
+scratch_search.txt
+scratch_search2.txt
+results_ngan.txt
+fix_friend.py
+fix_task.py
+7850.1
+mcp.json
+godkiller-mcp/
+tool/

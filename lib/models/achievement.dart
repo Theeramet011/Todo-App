@@ -202,7 +202,7 @@ AchievementEvaluation evaluateAchievements(User user) {
 }
 
 // =========================================================================
-// 3.4.4 (2.2) การตรวจสอบและปลดล็อกตราความสำเร็จ (Achievements Verification)
+// 3.6.4.2 โค้ดฟังก์ชัน mergedUnlockedAchievementIds สำหรับประเมินการปลดล็อกเหรียญตรา
 // =========================================================================
 /// ตรวจสอบเงื่อนไขตราความสำเร็จทั้งหมด และรวมรายการ ID ตราความสำเร็จที่ปลดล็อกแล้ว
 /// โดยเปรียบเทียบสถิติงานที่สำเร็จ (tasksCompleted), เลเวล, และสตรีค กับเกณฑ์เป้าหมาย
@@ -240,6 +240,7 @@ List<String> mergedUnlockedAchievementIds({
   }
   return unlockedIds.toList();
 }
+// --- [สิ้นสุดโค้ด: ฟังก์ชัน mergedUnlockedAchievementIds] ---
 
 int achievementProgressValue(User user, Achievement achievement) {
   if (achievement.type == 'level') {
