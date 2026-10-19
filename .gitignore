@@ -42,15 +42,20 @@ local.properties
 .pub/
 /build/
 /coverage/
-
-# Symbolication & Obfuscation
-app.*.symbols
-app.*.map.json
+.metadata
+devtools_options.yaml
 
 # Android Studio artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Unused Platforms (Project is strictly targeting Android OS)
+ios/
+linux/
+macos/
+web/
+windows/
 
 # Node & Cloud Functions
 node_modules/
